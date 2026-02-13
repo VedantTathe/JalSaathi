@@ -1,1 +1,260 @@
-# JalSaathi
+# 💧 JalSaathi
+### Har Pyaas Ka Saathi
+#### Area-Based Water Can Delivery Management System
+
+JalSaathi is a centralized web platform that connects customers, local water suppliers, and delivery personnel within a specific area.
+
+The system digitizes traditional water can delivery by providing structured order management, provider approval workflow, and real-time delivery updates.
+
+---
+
+## 📌 Problem Statement
+
+In most areas, water delivery works through:
+
+- Phone calls
+- WhatsApp messages
+- Manual record keeping
+- No confirmation system
+- No provider visibility control
+- No centralized monitoring
+
+This leads to:
+- Missed deliveries
+- Payment confusion
+- Poor tracking
+- No accountability
+- No system transparency
+
+---
+
+## 🎯 Proposed Solution
+
+JalSaathi provides:
+
+- Customer ordering system
+- Provider order acceptance system
+- Delivery boy assignment
+- Real-time status updates
+- Provider online/offline visibility
+- Centralized admin monitoring
+
+---
+
+## 👥 User Roles
+
+### 1️⃣ Customer
+
+Customers can:
+
+- Create account
+- Save delivery address
+- Add special instructions (e.g., "Keep near gate")
+- View nearby providers
+- See price per can
+- Place order
+- Make payment
+- Receive delivery notification
+- View order history
+
+---
+
+### 2️⃣ Provider (Water Supplier)
+
+Each provider:
+
+- Has one dedicated account
+- Can toggle **Online / Offline** status
+- Accepts or rejects orders
+- Assigns delivery boys
+- Tracks:
+  - Pending orders
+  - Accepted orders
+  - Delivered orders
+  - Payment status
+  - Customer details
+
+**Important Logic:**
+
+- If Provider is OFFLINE → Customers cannot place orders.
+- If Provider is ONLINE → Orders can be placed.
+
+---
+
+### 3️⃣ Delivery Boy
+
+Each delivery boy is associated with **only one provider**.
+
+Delivery boy can:
+
+- Log into system
+- See only assigned orders
+- Mark order as **Delivered**
+- Update status in real time
+
+When delivery boy marks delivered:
+
+- Customer gets notification
+- Provider dashboard updates
+- Order status changes to completed
+
+---
+
+### 4️⃣ Admin
+
+Admin has full system access.
+
+Admin can:
+
+- View all providers
+- View all customers
+- View all orders
+- Monitor delivery performance
+- Activate / deactivate providers
+- Access complete system data
+
+---
+
+## 🔄 Complete System Flow
+
+1. Customer logs in.
+2. Customer selects nearby provider.
+3. Customer sees price per can.
+4. Customer places order.
+5. Customer makes payment.
+6. Provider receives order request.
+7. Provider accepts order.
+8. Provider assigns delivery boy.
+9. Delivery boy delivers water.
+10. Delivery boy marks "Delivered".
+11. Customer receives notification:  
+   **"Your water can has been delivered."**
+12. Order status updates in provider and admin dashboards.
+
+---
+
+## ✨ Core Features
+
+### Customer Side
+
+- Account creation
+- Address management
+- Special delivery notes
+- Nearby provider listing
+- Transparent pricing
+- Secure payment
+- Delivery confirmation
+- Order history
+
+---
+
+### Provider Side
+
+- Online/Offline toggle
+- Order acceptance system
+- Delivery assignment
+- Order tracking dashboard
+- Revenue overview
+- Customer details access
+
+---
+
+### Delivery Side
+
+- Login system
+- Assigned order list
+- One-click delivery confirmation
+- Real-time update system
+
+---
+
+### Admin Panel
+
+- Full database visibility
+- Provider management
+- Order monitoring
+- User management
+- System analytics
+
+---
+
+## 🛠 Tech Stack
+
+### Frontend
+- React.js
+- Tailwind CSS
+- Axios
+- React Router
+
+### Backend
+- Node.js
+- Express.js
+
+### Database
+- MongoDB
+- Mongoose
+
+### Authentication
+- JWT (Role-based login)
+- bcrypt password encryption
+
+---
+
+## 🗄 Database Models Overview
+
+### User Model
+- Name
+- Email
+- Password
+- Role (Customer / Provider / Delivery / Admin)
+- Address
+- Special Notes
+
+### Provider Model
+- Business Name
+- Area
+- Online Status
+- Price Per Can
+- Delivery Boys List
+
+### Order Model
+- Customer ID
+- Provider ID
+- Delivery Boy ID
+- Status (Pending / Accepted / Delivered)
+- Payment Status
+- Timestamp
+
+---
+
+## 🔐 Security Design
+
+- Role-based authorization
+- Protected API routes
+- Hashed passwords
+- Token-based session management
+- Controlled provider visibility
+
+---
+
+## 📈 Future Scope
+
+- Subscription-based delivery
+- GPS-based delivery tracking
+- SMS notifications
+- Multi-area scaling
+- Mobile app integration
+- Advanced analytics dashboard
+
+---
+
+## 🏁 Conclusion
+
+JalSaathi — **Har Pyaas Ka Saathi** — creates a structured digital ecosystem for water can delivery by:
+
+- Ensuring provider control
+- Enabling delivery accountability
+- Giving admin full visibility
+- Providing customer transparency
+
+It replaces unorganized manual systems with a scalable, efficient platform.
