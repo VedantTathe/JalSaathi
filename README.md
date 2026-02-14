@@ -1,6 +1,6 @@
-# 💧 JalSaathi
-### Har Pyaas Ka Saathi
-#### Area-Based Water Can Delivery Management System
+# 💧 JalSaathi  
+## Har Pyaas Ka Saathi  
+### Area-Based Water Can Delivery Management System
 
 JalSaathi is a centralized web platform that connects customers, local water suppliers, and delivery personnel within a specific area.
 
@@ -8,7 +8,51 @@ The system digitizes traditional water can delivery by providing structured orde
 
 ---
 
-## 📌 Problem Statement
+# 🏗 Current Architecture (Modular Monolithic)
+
+JalSaathi is currently built using a **Modular Monolithic Architecture**.
+
+This means:
+
+- Single backend application
+- Feature-based modular structure
+- Clear separation of concerns
+- Easy maintainability
+- Future-ready for microservices migration
+
+Each module contains:
+- Controller
+- Service Layer
+- Routes
+- Model
+- Validation Logic
+
+## 📁 Backend Structure
+
+
+src/
+│
+├── modules/
+│ ├── auth/
+│ ├── user/
+│ ├── provider/
+│ ├── order/
+│ ├── delivery/
+│ ├── admin/
+│
+├── middlewares/
+├── config/
+├── utils/
+└── server.js
+
+
+
+
+This approach ensures clean architecture while keeping deployment simple.
+
+---
+
+# 📌 Problem Statement
 
 In most areas, water delivery works through:
 
@@ -20,6 +64,7 @@ In most areas, water delivery works through:
 - No centralized monitoring
 
 This leads to:
+
 - Missed deliveries
 - Payment confusion
 - Poor tracking
@@ -28,7 +73,7 @@ This leads to:
 
 ---
 
-## 🎯 Proposed Solution
+# 🎯 Proposed Solution
 
 JalSaathi provides:
 
@@ -41,15 +86,15 @@ JalSaathi provides:
 
 ---
 
-## 👥 User Roles
+# 👥 User Roles
 
-### 1️⃣ Customer
+## 1️⃣ Customer
 
 Customers can:
 
 - Create account
 - Save delivery address
-- Add special instructions (e.g., "Keep near gate")
+- Add special instructions
 - View nearby providers
 - See price per can
 - Place order
@@ -59,40 +104,42 @@ Customers can:
 
 ---
 
-### 2️⃣ Provider (Water Supplier)
+## 2️⃣ Provider (Water Supplier)
 
 Each provider:
 
 - Has one dedicated account
-- Can toggle **Online / Offline** status
+- Can toggle Online / Offline status
 - Accepts or rejects orders
 - Assigns delivery boys
-- Tracks:
-  - Pending orders
-  - Accepted orders
-  - Delivered orders
-  - Payment status
-  - Customer details
 
-**Important Logic:**
+Tracks:
+
+- Pending orders
+- Accepted orders
+- Delivered orders
+- Payment status
+- Customer details
+
+### Important Logic
 
 - If Provider is OFFLINE → Customers cannot place orders.
 - If Provider is ONLINE → Orders can be placed.
 
 ---
 
-### 3️⃣ Delivery Boy
+## 3️⃣ Delivery Boy
 
-Each delivery boy is associated with **only one provider**.
+Each delivery boy is associated with only one provider.
 
 Delivery boy can:
 
 - Log into system
-- See only assigned orders
-- Mark order as **Delivered**
+- View assigned orders
+- Mark order as Delivered
 - Update status in real time
 
-When delivery boy marks delivered:
+When marked delivered:
 
 - Customer gets notification
 - Provider dashboard updates
@@ -100,7 +147,7 @@ When delivery boy marks delivered:
 
 ---
 
-### 4️⃣ Admin
+## 4️⃣ Admin
 
 Admin has full system access.
 
@@ -115,11 +162,11 @@ Admin can:
 
 ---
 
-## 🔄 Complete System Flow
+# 🔄 Complete System Flow
 
 1. Customer logs in.
 2. Customer selects nearby provider.
-3. Customer sees price per can.
+3. Customer views price per can.
 4. Customer places order.
 5. Customer makes payment.
 6. Provider receives order request.
@@ -127,16 +174,14 @@ Admin can:
 8. Provider assigns delivery boy.
 9. Delivery boy delivers water.
 10. Delivery boy marks "Delivered".
-11. Customer receives notification:  
-   **"Your water can has been delivered."**
+11. Customer receives confirmation notification.
 12. Order status updates in provider and admin dashboards.
 
 ---
 
-## ✨ Core Features
+# ✨ Core Features
 
-### Customer Side
-
+## Customer Side
 - Account creation
 - Address management
 - Special delivery notes
@@ -146,10 +191,7 @@ Admin can:
 - Delivery confirmation
 - Order history
 
----
-
-### Provider Side
-
+## Provider Side
 - Online/Offline toggle
 - Order acceptance system
 - Delivery assignment
@@ -157,19 +199,13 @@ Admin can:
 - Revenue overview
 - Customer details access
 
----
-
-### Delivery Side
-
+## Delivery Side
 - Login system
 - Assigned order list
 - One-click delivery confirmation
 - Real-time update system
 
----
-
-### Admin Panel
-
+## Admin Panel
 - Full database visibility
 - Provider management
 - Order monitoring
@@ -178,31 +214,32 @@ Admin can:
 
 ---
 
-## 🛠 Tech Stack
+# 🛠 Tech Stack
 
-### Frontend
+## Frontend
 - React.js
 - Tailwind CSS
 - Axios
 - React Router
 
-### Backend
+## Backend
 - Node.js
 - Express.js
+- Modular Monolithic Architecture
 
-### Database
+## Database
 - MongoDB
 - Mongoose
 
-### Authentication
+## Authentication
 - JWT (Role-based login)
 - bcrypt password encryption
 
 ---
 
-## 🗄 Database Models Overview
+# 🗄 Database Models Overview
 
-### User Model
+## User Model
 - Name
 - Email
 - Password
@@ -210,14 +247,14 @@ Admin can:
 - Address
 - Special Notes
 
-### Provider Model
+## Provider Model
 - Business Name
 - Area
 - Online Status
 - Price Per Can
 - Delivery Boys List
 
-### Order Model
+## Order Model
 - Customer ID
 - Provider ID
 - Delivery Boy ID
@@ -227,7 +264,7 @@ Admin can:
 
 ---
 
-## 🔐 Security Design
+# 🔐 Security Design
 
 - Role-based authorization
 - Protected API routes
@@ -237,7 +274,19 @@ Admin can:
 
 ---
 
-## 📈 Future Scope
+# 📈 Future Scope
+
+The modular monolithic architecture allows seamless migration to:
+
+- Microservices architecture
+- Docker containerization
+- Kubernetes orchestration
+- Separate databases per service
+- Redis caching
+- Message queue integration
+- CI/CD pipelines
+
+Planned Enhancements:
 
 - Subscription-based delivery
 - GPS-based delivery tracking
@@ -248,13 +297,14 @@ Admin can:
 
 ---
 
-## 🏁 Conclusion
+# 🏁 Conclusion
 
-JalSaathi — **Har Pyaas Ka Saathi** — creates a structured digital ecosystem for water can delivery by:
+JalSaathi — Har Pyaas Ka Saathi — creates a structured digital ecosystem for water can delivery by:
 
 - Ensuring provider control
 - Enabling delivery accountability
 - Giving admin full visibility
 - Providing customer transparency
 
-It replaces unorganized manual systems with a scalable, efficient platform.
+It replaces unorganized manual systems with a scalable, efficient platform built using clean modular backend architecture principles and designed for future cloud-native transformation.
+
