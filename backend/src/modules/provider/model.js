@@ -19,8 +19,23 @@ const providerSchema = new mongoose.Schema({
     required: [true, 'Service area is required'],
     trim: true
   },
+  coordinates: {
+    latitude: {
+      type: Number,
+      required: false,
+      min: [-90, 'Latitude must be between -90 and 90'],
+      max: [90, 'Latitude must be between -90 and 90']
+    },
+    longitude: {
+      type: Number,
+      required: false,
+      min: [-180, 'Longitude must be between -180 and 180'],
+      max: [180, 'Longitude must be between -180 and 180']
+    }
+  },
   serviceRadius: {
     type: Number,
+    required: [true, 'Service radius is required'],
     default: 5, // kilometers
     min: [1, 'Service radius must be at least 1 km'],
     max: [50, 'Service radius cannot exceed 50 km']
@@ -92,7 +107,7 @@ const providerSchema = new mongoose.Schema({
   },
   isApproved: {
     type: Boolean,
-    default: false
+    default: true  // Auto-approve for MVP - change to false for production with admin approval
   },
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -106,6 +121,7 @@ const providerSchema = new mongoose.Schema({
 });
 
 // Index for geospatial queries and common searches
+providerSchema.index({ 'coordinates.latitude': 1, 'coordinates.longitude': 1 });
 providerSchema.index({ area: 1, isOnline: 1, isApproved: 1 });
 providerSchema.index({ pricePerCan: 1 });
 providerSchema.index({ 'rating.average': -1 });
@@ -139,24 +155,13 @@ providerSchema.statics.findOnlineInArea = function(area) {
   });
 };
 
-// Static method to find providers accepting orders
+// Static method to find providers accepting orders (all providers for customers to see)
 providerSchema.statics.findAvailableProviders = function(area) {
-  const currentTime = new Date();
-  const currentHour = String(currentTime.getHours()).padStart(2, '0');
-  const currentMinute = String(currentTime.getMinutes()).padStart(2, '0');
-  const currentTimeStr = `${currentHour}:${currentMinute}`;
-  
+  // Return all providers in the area, regardless of online/approved status
+  // Frontend will handle showing status badges
   return this.find({
-    area: new RegExp(area, 'i'),
-    isOnline: true,
-    isApproved: true,
-    $expr: {
-      $and: [
-        { $lte: ['$operatingHours.open', currentTimeStr] },
-        { $gte: ['$operatingHours.close', currentTimeStr] }
-      ]
-    }
-  }).populate('userId', 'name phone email');
+    area: new RegExp(area, 'i')
+  }).populate('userId', 'name phone email').sort({ isOnline: -1, 'rating.average': -1 });
 };
 
 // Instance method to toggle online status

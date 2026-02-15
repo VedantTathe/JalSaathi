@@ -6,7 +6,7 @@ class AuthService {
   // Register a new user
   static async register(userData) {
     try {
-      const { role, businessName, pricePerCan, serviceRadius, ...userInfo } = userData;
+      const { role, businessName, pricePerCan, serviceRadius, coordinates, addressCoordinates, ...userInfo } = userData;
       
       // Check if user already exists
       const existingUser = await User.findOne({ email: userInfo.email });
@@ -25,6 +25,14 @@ class AuthService {
         userPayload.address = {};
       }
       
+      // Add coordinates to customer address if provided
+      if (role === 'customer' && addressCoordinates) {
+        if (!userPayload.address) {
+          userPayload.address = {};
+        }
+        userPayload.address.coordinates = addressCoordinates;
+      }
+      
       // Create user
       const user = await User.create(userPayload);
       
@@ -35,7 +43,8 @@ class AuthService {
           businessName,
           area: userInfo.address.area,
           pricePerCan,
-          serviceRadius: serviceRadius || 5
+          serviceRadius: serviceRadius || 5,
+          coordinates: coordinates || { latitude: 0, longitude: 0 }
         };
         
         await Provider.create(providerData);

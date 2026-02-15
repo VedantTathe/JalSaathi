@@ -3,14 +3,14 @@ const { asyncHandler } = require('../../middlewares/errorHandler');
 
 // Get user dashboard
 const getDashboard = asyncHandler(async (req, res) => {
-  const { response, statusCode } = await UserService.getDashboard(req.user.id, req.user.role);
+  const { response, statusCode } = await UserService.getDashboard(req.user._id, req.user.role);
   res.status(statusCode).json(response);
 });
 
 // Get nearby providers
 const getNearbyProviders = asyncHandler(async (req, res) => {
   const { area } = req.query;
-  const { response, statusCode } = await UserService.getNearbyProviders(req.user.id, area);
+  const { response, statusCode } = await UserService.getNearbyProviders(req.user._id, area);
   res.status(statusCode).json(response);
 });
 
@@ -18,7 +18,7 @@ const getNearbyProviders = asyncHandler(async (req, res) => {
 const getCustomerOrders = asyncHandler(async (req, res) => {
   const { status, limit = 20, page = 1 } = req.query;
   const { response, statusCode } = await UserService.getCustomerOrders(
-    req.user.id, 
+    req.user._id, 
     status, 
     parseInt(limit), 
     parseInt(page)
@@ -39,7 +39,7 @@ const rateOrder = asyncHandler(async (req, res) => {
   }
   
   const { response, statusCode } = await UserService.rateOrder(
-    req.user.id, 
+    req.user._id, 
     orderId, 
     rating, 
     feedback
@@ -52,7 +52,7 @@ const updateAddress = asyncHandler(async (req, res) => {
   const User = require('./model');
   
   const user = await User.findByIdAndUpdate(
-    req.user.id,
+    req.user._id,
     { address: req.body.address },
     { new: true, runValidators: true }
   );
@@ -68,7 +68,7 @@ const updateAddress = asyncHandler(async (req, res) => {
 const getOrderHistory = asyncHandler(async (req, res) => {
   const { limit = 20, page = 1 } = req.query;
   const { response, statusCode } = await UserService.getCustomerOrders(
-    req.user.id,
+    req.user._id,
     null,
     parseInt(limit),
     parseInt(page)
@@ -82,7 +82,7 @@ const getPayments = asyncHandler(async (req, res) => {
   
   try {
     // Get all orders for the customer
-    const orders = await Order.find({ customerId: req.user.id })
+    const orders = await Order.find({ customerId: req.user._id })
       .populate('providerId', 'businessName')
       .sort({ 'timeline.ordered': -1 });
     

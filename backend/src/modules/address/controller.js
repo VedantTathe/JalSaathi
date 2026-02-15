@@ -3,7 +3,7 @@ const { asyncHandler } = require('../../middlewares/errorHandler');
 
 // Get all addresses for current user
 const getAddresses = asyncHandler(async (req, res) => {
-  const addresses = await Address.find({ userId: req.user.id }).sort('-isDefault -createdAt');
+  const addresses = await Address.find({ userId: req.user._id }).sort('-isDefault -createdAt');
   
   res.status(200).json({
     success: true,
@@ -24,7 +24,7 @@ const createAddress = asyncHandler(async (req, res) => {
   }
   
   const address = await Address.create({
-    userId: req.user.id,
+    userId: req.user._id,
     label: label || 'home',
     street,
     area,
@@ -45,7 +45,7 @@ const updateAddress = asyncHandler(async (req, res) => {
   const { addressId } = req.params;
   
   // Check if address exists and belongs to user
-  const address = await Address.findOne({ _id: addressId, userId: req.user.id });
+  const address = await Address.findOne({ _id: addressId, userId: req.user._id });
   
   if (!address) {
     return res.status(404).json({
@@ -73,7 +73,7 @@ const deleteAddress = asyncHandler(async (req, res) => {
   const { addressId } = req.params;
   
   // Check if address exists and belongs to user
-  const address = await Address.findOne({ _id: addressId, userId: req.user.id });
+  const address = await Address.findOne({ _id: addressId, userId: req.user._id });
   
   if (!address) {
     return res.status(404).json({
@@ -84,7 +84,7 @@ const deleteAddress = asyncHandler(async (req, res) => {
   
   // Don't allow deletion of default address if it's the only one
   if (address.isDefault) {
-    const addressCount = await Address.countDocuments({ userId: req.user.id });
+    const addressCount = await Address.countDocuments({ userId: req.user._id });
     if (addressCount === 1) {
       return res.status(400).json({
         success: false,
@@ -97,7 +97,7 @@ const deleteAddress = asyncHandler(async (req, res) => {
   
   // If deleted address was default, set another as default
   if (address.isDefault) {
-    const nextAddress = await Address.findOne({ userId: req.user.id });
+    const nextAddress = await Address.findOne({ userId: req.user._id });
     if (nextAddress) {
       nextAddress.isDefault = true;
       await nextAddress.save();
@@ -115,7 +115,7 @@ const setDefaultAddress = asyncHandler(async (req, res) => {
   const { addressId } = req.params;
   
   // Check if address exists and belongs to user
-  const address = await Address.findOne({ _id: addressId, userId: req.user.id });
+  const address = await Address.findOne({ _id: addressId, userId: req.user._id });
   
   if (!address) {
     return res.status(404).json({
@@ -126,7 +126,7 @@ const setDefaultAddress = asyncHandler(async (req, res) => {
   
   // Update all addresses for this user
   await Address.updateMany(
-    { userId: req.user.id },
+    { userId: req.user._id },
     { isDefault: false }
   );
   
