@@ -62,22 +62,28 @@ const assignDeliveryBoy = asyncHandler(async (req, res) => {
 
 // Get delivery boys
 const getDeliveryBoys = asyncHandler(async (req, res) => {
+  console.log(`provider.getDeliveryBoys called by userId=${req.user?._id}`);
   const { response, statusCode } = await ProviderService.getDeliveryBoys(req.user._id);
+  console.log('provider.getDeliveryBoys response:', { statusCode, success: response?.success, message: response?.message });
   res.status(statusCode).json(response);
 });
 
 // Add delivery boy
 const addDeliveryBoy = asyncHandler(async (req, res) => {
-  const requiredFields = ['name', 'email', 'password', 'phone'];
+  // Only require name and phone at the controller level; email/password are optional now.
+  const requiredFields = ['name', 'phone'];
   const missingFields = requiredFields.filter(field => !req.body[field]);
-  
+
   if (missingFields.length > 0) {
     return res.status(400).json({
       success: false,
       message: `Missing required fields: ${missingFields.join(', ')}`
     });
   }
-  
+
+  // Log incoming payload for debugging if needed
+  console.log(`addDeliveryBoy called by userId=${req.user?._id}`, { bodyPreview: { name: req.body.name, phone: req.body.phone, emailPresent: !!req.body.email } });
+
   const { response, statusCode } = await ProviderService.addDeliveryBoy(req.user._id, req.body);
   res.status(statusCode).json(response);
 });

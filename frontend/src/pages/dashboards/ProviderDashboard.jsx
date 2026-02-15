@@ -47,10 +47,33 @@ const ProviderDashboard = () => {
     }
   );
 
+  // Delivery boy mutations
+  const addDeliveryBoyMutation = useMutation(
+    (data) => providerApi.addDeliveryBoy(data),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('provider-delivery-boys');
+        toast.success('Delivery boy added');
+      },
+      onError: () => toast.error('Failed to add delivery boy')
+    }
+  );
+
+  const removeDeliveryBoyMutation = useMutation(
+    (deliveryBoyId) => providerApi.removeDeliveryBoy(deliveryBoyId),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('provider-delivery-boys');
+        toast.success('Delivery boy removed');
+      },
+      onError: () => toast.error('Failed to remove delivery boy')
+    }
+  );
+
   const navigation = [
     { key: 'dashboard', name: 'Dashboard Home', icon: HomeIcon },
     { key: 'active-orders', name: 'View Orders', icon: Clock },
-    { key: 'delivery-management', name: 'Delivery Management', icon: Truck },
+    { key: 'delivery-management', name: 'Delivery Boys', icon: Truck },
     { key: 'order-history', name: 'Order History', icon: History },
     { key: 'revenue', name: 'Revenue Dashboard', icon: TrendingUp },
     { key: 'customers', name: 'Customer List', icon: Users },
@@ -318,66 +341,86 @@ const ProviderDashboard = () => {
 
   // (Old ActiveOrders removed — replaced by consolidated View Orders implementation above)
 
-  // 🚚 4. DELIVERY MANAGEMENT
-  const DeliveryManagement = () => {
+  // 🚚 4. DELIVERY BOYS
+  const DeliveryBoys = () => {
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [newBoy, setNewBoy] = useState({ name: '', phone: '', email: '' });
+
+    const boys = deliveryBoysData?.data || [];
+
+    const handleAdd = () => {
+      if (!newBoy.name || !newBoy.phone) return toast.error('Name and phone are required');
+
+      // Only send provided fields; email/password are optional now.
+      const payload = { name: newBoy.name, phone: newBoy.phone };
+      if (newBoy.email && newBoy.email.trim() !== '') payload.email = newBoy.email;
+
+      addDeliveryBoyMutation.mutate(payload, {
+        onSuccess: () => {
+          setShowAddModal(false);
+          setNewBoy({ name: '', phone: '', email: '' });
+        }
+      });
+    };
+
+    const handleRemove = (id) => {
+      if (!window.confirm('Remove this delivery boy?')) return;
+      removeDeliveryBoyMutation.mutate(id);
+    };
+
     return (
       <div>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Delivery Management</h1>
-          <button className="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 flex items-center space-x-2">
+          <h1 className="text-2xl font-bold text-gray-900">Delivery Boys</h1>
+          <button onClick={() => setShowAddModal(true)} className="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 flex items-center space-x-2">
             <Plus className="h-5 w-5" />
-            <span>Add Delivery Partner</span>
+            <span>Add Delivery Boy</span>
           </button>
         </div>
 
-        {/* Sample Delivery Partners */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[
-            { name: 'John Doe', phone: '+91 98765 43210', activeOrders: 3, completedOrders: 145, rating: 4.8, status: 'active' },
-            { name: 'Jane Smith', phone: '+91 98765 43211', activeOrders: 2, completedOrders: 89, rating: 4.6, status: 'active' },
-          ].map((partner, idx) => (
-            <div key={idx} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
-                    <Truck className="h-6 w-6 text-primary-600" />
+        {boys.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-lg">No delivery boys assigned</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {boys.map((d) => (
+              <div key={d._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
+                      <Truck className="h-6 w-6 text-primary-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{d.name}</h3>
+                      <p className="text-sm text-gray-600">{d.phone}</p>
+                      {d.email && <p className="text-xs text-gray-500">{d.email}</p>}
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{partner.name}</h3>
-                    <p className="text-sm text-gray-600">{partner.phone}</p>
-                  </div>
-                </div>
-                <span className="px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800">
-                  {partner.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-xs text-gray-600">Active</p>
-                  <p className="font-semibold text-gray-900">{partner.activeOrders}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">Completed</p>
-                  <p className="font-semibold text-gray-900">{partner.completedOrders}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">Rating</p>
-                  <p className="font-semibold text-warning-600">{partner.rating} ⭐</p>
+                  <button onClick={() => handleRemove(d._id)} className="text-gray-400 hover:text-error-600 px-3">
+                    <Trash2 className="h-5 w-5" />
+                  </button>
                 </div>
               </div>
+            ))}
+          </div>
+        )}
 
-              <div className="flex space-x-2">
-                <button className="flex-1 text-primary-600 border border-primary-600 py-2 rounded-lg font-medium hover:bg-primary-50">
-                  View Details
-                </button>
-                <button className="text-gray-400 hover:text-error-600 px-3">
-                  <Trash2 className="h-5 w-5" />
-                </button>
+        {/* Add Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4">Add Delivery Boy</h3>
+              <div className="space-y-3">
+                <input value={newBoy.name} onChange={e => setNewBoy({...newBoy, name: e.target.value})} placeholder="Name" className="w-full border px-3 py-2 rounded-lg" />
+                <input value={newBoy.phone} onChange={e => setNewBoy({...newBoy, phone: e.target.value})} placeholder="Phone" className="w-full border px-3 py-2 rounded-lg" />
+                <input value={newBoy.email} onChange={e => setNewBoy({...newBoy, email: e.target.value})} placeholder="Email (optional)" className="w-full border px-3 py-2 rounded-lg" />
+              </div>
+              <div className="flex justify-end space-x-3 mt-4">
+                <button onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
+                <button onClick={handleAdd} className="px-4 py-2 rounded-lg bg-primary-600 text-white">Add</button>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -612,7 +655,7 @@ const ProviderDashboard = () => {
     switch (activePage) {
       case 'dashboard': return <DashboardHome />;
       case 'active-orders': return <ActiveOrders />;
-      case 'delivery-management': return <DeliveryManagement />;
+      case 'delivery-management': return <DeliveryBoys />;
       case 'order-history': return <OrderHistory />;
       case 'revenue': return <RevenueDashboard />;
       case 'customers': return <CustomerList />;

@@ -221,11 +221,18 @@ class ProviderService {
       }
       
       // Create delivery boy user
-      const deliveryBoy = await User.create({
+      // Ensure required password exists for User model; generate if not provided
+      if (!deliveryBoyData.password) {
+        deliveryBoyData.password = Math.random().toString(36).slice(-8);
+      }
+
+      const toCreate = {
         ...deliveryBoyData,
         role: 'delivery',
         providerId: provider._id
-      });
+      };
+
+      const deliveryBoy = await User.create(toCreate);
       
       // Add to provider's delivery boys list
       provider.deliveryBoys.push(deliveryBoy._id);

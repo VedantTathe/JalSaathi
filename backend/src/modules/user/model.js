@@ -11,8 +11,7 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Email is required'],
-    unique: true,
+    required: [function() { return this.role !== 'delivery'; }, 'Email is required'],
     lowercase: true,
     match: [
       /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
@@ -88,6 +87,9 @@ const userSchema = new mongoose.Schema({
 
 // Index for geospatial queries
 userSchema.index({ "address.coordinates": "2dsphere" });
+
+// Make email unique but sparse so delivery users can omit email
+userSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
