@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
   Home as HomeIcon, Package, Truck, Users, History, TrendingUp, UserCircle,
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
-import { providerApi } from '../../services/api';
+import { providerApi, authApi, orderApi } from '../../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -57,6 +57,24 @@ const ProviderDashboard = () => {
         toast.success('Order rejected');
       },
       onError: () => toast.error('Failed to reject order')
+    }
+  );
+
+  // Mutation to assign multiple orders to a delivery boy
+  const assignManyMutation = useMutation(
+    async ({ orderIds, deliveryBoyId }) => {
+      // Assign each order sequentially
+      const results = await Promise.all(
+        orderIds.map(orderId => providerApi.assignDeliveryBoy(orderId, deliveryBoyId))
+      );
+      return results;
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('provider-orders');
+        toast.success('Orders assigned successfully');
+      },
+      onError: () => toast.error('Failed to assign orders')
     }
   );
 
@@ -167,7 +185,108 @@ const ProviderDashboard = () => {
     );
   };
 
-  // 🕐 2. VIEW ORDERS (shows ALL orders from last 16 hours including delivered)
+  // � 2. INCOMING ORDERS (pending orders requiring action)
+  const IncomingOrders = () => {
+    const orders = ordersData?.data?.orders || [];
+    const pendingOrders = orders.filter(o => o.status === 'pending');
+
+    if (ordersLoading) return <LoadingSpinner />;
+
+    const handleAccept = (orderId) => {
+      cancelOrderMutation.mutate(orderId);
+    };
+
+    const handleReject = (orderId) => {
+      rejectOrderMutation.mutate(orderId);
+    };
+
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Incoming Orders</h1>
+            <p className="text-sm text-gray-500">{pendingOrders.length} pending order{pendingOrders.length !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+
+        {pendingOrders.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-12 text-center">
+            <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No pending orders at the moment</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {pendingOrders.map((order) => (
+              <div key={order._id} className="bg-white rounded-lg shadow-md p-6 border-l-4 border-warning-500">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="font-semibold text-lg">Order #{order.orderNumber || order._id.slice(-6)}</h3>
+                      <span className="px-3 py-1 bg-warning-100 text-warning-700 rounded-full text-sm font-medium">
+                        Pending
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Customer</p>
+                        <p className="font-medium">{order.customer?.name || 'N/A'}</p>
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {order.customer?.phone || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Delivery Address</p>
+                        <p className="text-sm text-gray-600 flex items-start gap-1">
+                          <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <span>{order.deliveryAddress?.fullAddress || 'N/A'}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-6 mb-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Quantity</p>
+                        <p className="font-semibold text-primary-600">{order.quantity || 1} Can(s)</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Total Amount</p>
+                        <p className="font-semibold text-gray-900">{formatCurrency(order.totalAmount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Ordered</p>
+                        <p className="text-sm text-gray-600">{formatDateTime(order.timeline?.ordered)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={() => handleAccept(order._id)}
+                      className="flex items-center gap-2 bg-success-600 hover:bg-success-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleReject(order._id)}
+                      className="flex items-center gap-2 bg-error-600 hover:bg-error-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 🕐 3. VIEW ORDERS (shows ALL orders from last 16 hours including delivered)
   const ActiveOrders = () => {
     const orders = ordersData?.data?.orders || [];
     // Show ALL orders (including delivered) - backend already filters to last 16 hours

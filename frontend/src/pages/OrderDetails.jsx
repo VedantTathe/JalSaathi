@@ -37,12 +37,23 @@ const MakePaymentButton = ({ order, onSuccess }) => {
 
   const handlePay = async () => {
     try {
+      console.log('Creating payment for order:', order._id);
       const res = await createPayment.mutateAsync();
-      const key = res?.data?.key || res?.key;
-      const rOrder = res?.data?.order || res?.order;
-      if (!rOrder || !key) throw new Error('Failed to create payment');
+      console.log('Payment creation response:', res);
+      
+      // Handle different response formats from axios interceptor
+      const responseData = res?.data || res;
+      const key = responseData?.key;
+      const rOrder = responseData?.order;
+      
+      if (!rOrder || !key) {
+        console.error('Invalid payment response:', res);
+        throw new Error(responseData?.message || 'Failed to create payment order');
+      }
 
+      console.log('Loading Razorpay SDK...');
       await loadRazorpayScript();
+      console.log('Razorpay SDK loaded successfully');
 
       const options = {
         key,
@@ -53,12 +64,20 @@ const MakePaymentButton = ({ order, onSuccess }) => {
         order_id: rOrder.id,
         handler: async function(paymentResult) {
           try {
+            console.log('Payment successful, verifying...', paymentResult);
             await verifyPayment.mutateAsync({ orderId: order._id, payload: paymentResult });
-            toast.success('Payment successful! Redirecting...');
+            toast.success('Payment successful! Refreshing order details...');
             if (onSuccess) onSuccess();
           } catch (err) {
-            console.error('Verification failed', err);
-            toast.error('Payment verification failed');
+            console.error('Payment verification failed:', err);
+            const errorMsg = err?.response?.data?.message || 'Payment verification failed';
+            toast.error(errorMsg);
+          }
+        },
+        modal: {
+          ondismiss: function() {
+            console.log('Payment modal dismissed');
+            toast.info('Payment cancelled. You can try again anytime.');
           }
         },
         prefill: {
@@ -69,11 +88,19 @@ const MakePaymentButton = ({ order, onSuccess }) => {
         theme: { color: '#3399cc' }
       };
 
+      console.log('Opening Razorpay checkout...');
       const rzp = new window.Razorpay(options);
+      
+      rzp.on('payment.failed', function (response){
+        console.error('Payment failed:', response.error);
+        toast.error(`Payment failed: ${response.error.description || 'Unknown error'}`);
+      });
+      
       rzp.open();
     } catch (error) {
-      console.error('Payment error', error);
-      toast.error(error.message || 'Payment failed');
+      console.error('Payment error:', error);
+      const errorMsg = error?.response?.data?.message || error.message || 'Payment failed';
+      toast.error(errorMsg);
     }
   };
 
