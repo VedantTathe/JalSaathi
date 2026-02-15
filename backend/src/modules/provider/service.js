@@ -31,26 +31,46 @@ class ProviderService {
   // Update provider profile
   static async updateProviderProfile(userId, updateData) {
     try {
-      const allowedUpdates = ['businessName', 'pricePerCan', 'serviceRadius', 'minimumOrder', 'operatingHours', 'description'];
-      const filteredData = {};
-      
+      // Allow updating provider-specific fields plus coordinates and area
+      const allowedProviderUpdates = [
+        'businessName', 'area', 'pricePerCan', 'serviceRadius', 'minimumOrder',
+        'operatingHours', 'description', 'coordinates'
+      ];
+
+      const providerUpdates = {};
+      const userUpdates = {};
+
       Object.keys(updateData).forEach(key => {
-        if (allowedUpdates.includes(key)) {
-          filteredData[key] = updateData[key];
-        }
+        if (allowedProviderUpdates.includes(key)) providerUpdates[key] = updateData[key];
+        // Accept some user fields as well so provider settings can update contact info
+        if (['name', 'email', 'phone', 'address'].includes(key)) userUpdates[key] = updateData[key];
       });
-      
-      const provider = await Provider.findOneAndUpdate(
-        { userId },
-        filteredData,
-        { new: true, runValidators: true }
-      ).populate('userId', 'name email phone address');
-      
+
+      const provider = await Provider.findOne({ userId });
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }
-      
-      return formatResponse(true, 'Provider profile updated successfully', provider, 200);
+
+      // Update user contact details if provided
+      if (Object.keys(userUpdates).length > 0) {
+        try {
+          await User.findByIdAndUpdate(provider.userId, userUpdates, { new: true, runValidators: true });
+        } catch (uErr) {
+          console.error('Failed to update provider user fields:', uErr);
+          return formatResponse(false, 'Failed to update contact details', null, 400);
+        }
+      }
+
+      // Update provider fields
+      Object.keys(providerUpdates).forEach(k => {
+        provider[k] = providerUpdates[k];
+      });
+
+      await provider.save();
+
+      const populated = await Provider.findById(provider._id).populate('userId', 'name email phone address');
+
+      return formatResponse(true, 'Provider profile updated successfully', populated, 200);
       
     } catch (error) {
       console.error('Update provider profile error:', error);
@@ -219,11 +239,12 @@ class ProviderService {
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }
-      
       // Create delivery boy user
-      // Ensure required password exists for User model; generate if not provided
+      // If password not provided, generate one and return it to the caller so provider can note it
+      let generatedPassword = null;
       if (!deliveryBoyData.password) {
-        deliveryBoyData.password = Math.random().toString(36).slice(-8);
+        generatedPassword = Math.random().toString(36).slice(-8);
+        deliveryBoyData.password = generatedPassword;
       }
 
       const toCreate = {
@@ -233,17 +254,21 @@ class ProviderService {
       };
 
       const deliveryBoy = await User.create(toCreate);
-      
+
       // Add to provider's delivery boys list
       provider.deliveryBoys.push(deliveryBoy._id);
       await provider.save();
-      
-      return formatResponse(true, 'Delivery boy added successfully', {
+
+      const responsePayload = {
         id: deliveryBoy._id,
         name: deliveryBoy.name,
         email: deliveryBoy.email,
         phone: deliveryBoy.phone
-      }, 201);
+      };
+
+      if (generatedPassword) responsePayload.generatedPassword = generatedPassword;
+
+      return formatResponse(true, 'Delivery boy added successfully', responsePayload, 201);
       
     } catch (error) {
       console.error('Add delivery boy error:', error);

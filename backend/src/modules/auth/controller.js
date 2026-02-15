@@ -9,8 +9,9 @@ const register = asyncHandler(async (req, res) => {
 
 // Login user
 const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-  const { response, statusCode } = await AuthService.login(email, password);
+  const { email, phone, password } = req.body;
+  const identifier = email || phone || req.body.identifier;
+  const { response, statusCode } = await AuthService.login(identifier, password);
   res.status(statusCode).json(response);
 });
 

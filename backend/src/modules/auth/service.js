@@ -58,22 +58,30 @@ class AuthService {
     }
   }
   
-  // Login user
-  static async login(email, password) {
+  // Login user - accept email or phone as identifier
+  static async login(identifier, password) {
     try {
-      // Find user and include password for verification
-      const user = await User.findOne({ email }).select('+password');
-      
-      if (!user || !(await user.matchPassword(password))) {
-        return formatResponse(false, 'Invalid email or password', null, 401);
+      // Try finding by email first (if identifier looks like an email), then by phone
+      let user = null;
+
+      if (typeof identifier === 'string' && identifier.includes('@')) {
+        user = await User.findOne({ email: identifier }).select('+password');
       }
-      
+
+      if (!user) {
+        user = await User.findOne({ phone: identifier }).select('+password');
+      }
+
+      if (!user || !(await user.matchPassword(password))) {
+        return formatResponse(false, 'Invalid credentials', null, 401);
+      }
+
       if (!user.isActive) {
         return formatResponse(false, 'Account is deactivated', null, 401);
       }
-      
+
       return formatResponse(true, 'Login successful', generateTokenResponse(user), 200);
-      
+
     } catch (error) {
       console.error('Login error:', error);
       return formatResponse(false, 'Login failed', null, 500);
@@ -109,11 +117,24 @@ class AuthService {
             businessName: provider.businessName,
             area: provider.area,
             isOnline: provider.isOnline,
+            coordinates: provider.coordinates,
             pricePerCan: provider.pricePerCan,
+            serviceRadius: provider.serviceRadius,
+            minimumOrder: provider.minimumOrder,
+            operatingHours: provider.operatingHours,
+            description: provider.description,
             rating: provider.rating,
             totalOrders: provider.totalOrders,
             completedOrders: provider.completedOrders,
+            revenue: provider.revenue,
             isApproved: provider.isApproved
+          };
+          // include linked contact info
+          profileData.contact = {
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            address: user.address
           };
         }
       }
