@@ -1,0 +1,168 @@
+const mongoose = require('mongoose');
+
+const providerSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    unique: true
+  },
+  businessName: {
+    type: String,
+    required: [true, 'Business name is required'],
+    trim: true,
+    minlength: [2, 'Business name must be at least 2 characters'],
+    maxlength: [100, 'Business name cannot exceed 100 characters']
+  },
+  area: {
+    type: String,
+    required: [true, 'Service area is required'],
+    trim: true
+  },
+  serviceRadius: {
+    type: Number,
+    default: 5, // kilometers
+    min: [1, 'Service radius must be at least 1 km'],
+    max: [50, 'Service radius cannot exceed 50 km']
+  },
+  isOnline: {
+    type: Boolean,
+    default: false
+  },
+  pricePerCan: {
+    type: Number,
+    required: [true, 'Price per can is required'],
+    min: [1, 'Price must be greater than 0']
+  },
+  minimumOrder: {
+    type: Number,
+    default: 1,
+    min: [1, 'Minimum order must be at least 1']
+  },
+  deliveryBoys: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  rating: {
+    average: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+    count: {
+      type: Number,
+      default: 0
+    }
+  },
+  totalOrders: {
+    type: Number,
+    default: 0
+  },
+  completedOrders: {
+    type: Number,
+    default: 0
+  },
+  revenue: {
+    total: {
+      type: Number,
+      default: 0
+    },
+    thisMonth: {
+      type: Number,
+      default: 0
+    }
+  },
+  operatingHours: {
+    open: {
+      type: String,
+      default: '08:00',
+      match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format']
+    },
+    close: {
+      type: String,
+      default: '20:00',
+      match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format']
+    }
+  },
+  description: {
+    type: String,
+    maxlength: [500, 'Description cannot exceed 500 characters'],
+    default: ''
+  },
+  isApproved: {
+    type: Boolean,
+    default: false
+  },
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  approvedAt: {
+    type: Date
+  }
+}, {
+  timestamps: true
+});
+
+// Index for geospatial queries and common searches
+providerSchema.index({ area: 1, isOnline: 1, isApproved: 1 });
+providerSchema.index({ pricePerCan: 1 });
+providerSchema.index({ 'rating.average': -1 });
+
+// Virtual for completion rate
+providerSchema.virtual('completionRate').get(function() {
+  if (this.totalOrders === 0) return 0;
+  return Math.round((this.completedOrders / this.totalOrders) * 100);
+});
+
+// Pre-save middleware to update monthly revenue
+providerSchema.pre('save', function(next) {
+  // Reset monthly revenue on first day of month
+  const now = new Date();
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  
+  if (!this.revenue.lastReset || this.revenue.lastReset < firstDayOfMonth) {
+    this.revenue.thisMonth = 0;
+    this.revenue.lastReset = now;
+  }
+  
+  next();
+});
+
+// Static method to find online providers in area
+providerSchema.statics.findOnlineInArea = function(area) {
+  return this.find({
+    area: new RegExp(area, 'i'),
+    isOnline: true,
+    isApproved: true
+  });
+};
+
+// Static method to find providers accepting orders
+providerSchema.statics.findAvailableProviders = function(area) {
+  const currentTime = new Date();
+  const currentHour = String(currentTime.getHours()).padStart(2, '0');
+  const currentMinute = String(currentTime.getMinutes()).padStart(2, '0');
+  const currentTimeStr = `${currentHour}:${currentMinute}`;
+  
+  return this.find({
+    area: new RegExp(area, 'i'),
+    isOnline: true,
+    isApproved: true,
+    $expr: {
+      $and: [
+        { $lte: ['$operatingHours.open', currentTimeStr] },
+        { $gte: ['$operatingHours.close', currentTimeStr] }
+      ]
+    }
+  }).populate('userId', 'name phone email');
+};
+
+// Instance method to toggle online status
+providerSchema.methods.toggleOnlineStatus = function() {
+  this.isOnline = !this.isOnline;
+  return this.save();
+};
+
+module.exports = mongoose.model('Provider', providerSchema);
