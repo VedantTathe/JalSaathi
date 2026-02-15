@@ -3,13 +3,13 @@ const { asyncHandler } = require('../../middlewares/errorHandler');
 
 // Toggle online status
 const toggleOnlineStatus = asyncHandler(async (req, res) => {
-  const { response, statusCode } = await ProviderService.toggleOnlineStatus(req.user.id);
+  const { response, statusCode } = await ProviderService.toggleOnlineStatus(req.user._id);
   res.status(statusCode).json(response);
 });
 
 // Update provider profile
 const updateProviderProfile = asyncHandler(async (req, res) => {
-  const { response, statusCode } = await ProviderService.updateProviderProfile(req.user.id, req.body);
+  const { response, statusCode } = await ProviderService.updateProviderProfile(req.user._id, req.body);
   res.status(statusCode).json(response);
 });
 
@@ -17,7 +17,7 @@ const updateProviderProfile = asyncHandler(async (req, res) => {
 const getProviderOrders = asyncHandler(async (req, res) => {
   const { status, limit = 20, page = 1 } = req.query;
   const { response, statusCode } = await ProviderService.getProviderOrders(
-    req.user.id,
+    req.user._id,
     status,
     parseInt(limit),
     parseInt(page)
@@ -28,7 +28,7 @@ const getProviderOrders = asyncHandler(async (req, res) => {
 // Accept order
 const acceptOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
-  const { response, statusCode } = await ProviderService.acceptOrder(req.user.id, orderId);
+  const { response, statusCode } = await ProviderService.acceptOrder(req.user._id, orderId);
   res.status(statusCode).json(response);
 });
 
@@ -36,7 +36,7 @@ const acceptOrder = asyncHandler(async (req, res) => {
 const rejectOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const { reason } = req.body;
-  const { response, statusCode } = await ProviderService.rejectOrder(req.user.id, orderId, reason);
+  const { response, statusCode } = await ProviderService.rejectOrder(req.user._id, orderId, reason);
   res.status(statusCode).json(response);
 });
 
@@ -53,7 +53,7 @@ const assignDeliveryBoy = asyncHandler(async (req, res) => {
   }
   
   const { response, statusCode } = await ProviderService.assignDeliveryBoy(
-    req.user.id, 
+    req.user._id, 
     orderId, 
     deliveryBoyId
   );
@@ -62,7 +62,7 @@ const assignDeliveryBoy = asyncHandler(async (req, res) => {
 
 // Get delivery boys
 const getDeliveryBoys = asyncHandler(async (req, res) => {
-  const { response, statusCode } = await ProviderService.getDeliveryBoys(req.user.id);
+  const { response, statusCode } = await ProviderService.getDeliveryBoys(req.user._id);
   res.status(statusCode).json(response);
 });
 
@@ -78,20 +78,20 @@ const addDeliveryBoy = asyncHandler(async (req, res) => {
     });
   }
   
-  const { response, statusCode } = await ProviderService.addDeliveryBoy(req.user.id, req.body);
+  const { response, statusCode } = await ProviderService.addDeliveryBoy(req.user._id, req.body);
   res.status(statusCode).json(response);
 });
 
 // Remove delivery boy
 const removeDeliveryBoy = asyncHandler(async (req, res) => {
   const { deliveryBoyId } = req.params;
-  const { response, statusCode } = await ProviderService.removeDeliveryBoy(req.user.id, deliveryBoyId);
+  const { response, statusCode } = await ProviderService.removeDeliveryBoy(req.user._id, deliveryBoyId);
   res.status(statusCode).json(response);
 });
 
 // Get analytics
 const getAnalytics = asyncHandler(async (req, res) => {
-  const { response, statusCode } = await ProviderService.getAnalytics(req.user.id);
+  const { response, statusCode } = await ProviderService.getAnalytics(req.user._id);
   res.status(statusCode).json(response);
 });
 

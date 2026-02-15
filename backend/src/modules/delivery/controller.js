@@ -3,7 +3,7 @@ const { asyncHandler } = require('../../middlewares/errorHandler');
 
 // Get assigned orders
 const getAssignedOrders = asyncHandler(async (req, res) => {
-  const { response, statusCode } = await DeliveryService.getAssignedOrders(req.user.id);
+  const { response, statusCode } = await DeliveryService.getAssignedOrders(req.user._id);
   res.status(statusCode).json(response);
 });
 
@@ -20,7 +20,7 @@ const updateDeliveryStatus = asyncHandler(async (req, res) => {
   }
   
   const { response, statusCode } = await DeliveryService.updateDeliveryStatus(
-    req.user.id,
+    req.user._id,
     orderId,
     status,
     notes
@@ -34,7 +34,7 @@ const markAsDelivered = asyncHandler(async (req, res) => {
   const { deliveryNotes } = req.body;
   
   const { response, statusCode } = await DeliveryService.markAsDelivered(
-    req.user.id,
+    req.user._id,
     orderId,
     deliveryNotes
   );
@@ -45,7 +45,7 @@ const markAsDelivered = asyncHandler(async (req, res) => {
 const getDeliveryHistory = asyncHandler(async (req, res) => {
   const { limit = 20, page = 1 } = req.query;
   const { response, statusCode } = await DeliveryService.getDeliveryHistory(
-    req.user.id,
+    req.user._id,
     parseInt(limit),
     parseInt(page)
   );
@@ -54,7 +54,7 @@ const getDeliveryHistory = asyncHandler(async (req, res) => {
 
 // Get performance statistics
 const getPerformanceStats = asyncHandler(async (req, res) => {
-  const { response, statusCode } = await DeliveryService.getPerformanceStats(req.user.id);
+  const { response, statusCode } = await DeliveryService.getPerformanceStats(req.user._id);
   res.status(statusCode).json(response);
 });
 

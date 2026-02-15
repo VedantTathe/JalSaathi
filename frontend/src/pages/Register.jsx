@@ -1,9 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, Droplets, ArrowLeft, Users, Store, Truck, Shield } from 'lucide-react';
+import { Eye, EyeOff, Droplets, ArrowLeft, Users, Store, Truck, Shield, MapPin, Navigation } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { toast } from 'react-hot-toast';
+
+// Fix Leaflet default marker icon
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -12,6 +24,14 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const { register: registerUser, user } = useAuth();
   const navigate = useNavigate();
+  
+  // Map state for provider location
+  const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // India center
+  const [mapZoom, setMapZoom] = useState(5);
+  const [markerPosition, setMarkerPosition] = useState(null);
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const [coordinates, setCoordinates] = useState({ latitude: null, longitude: null });
+  const [serviceRadius, setServiceRadius] = useState(5);
 
   // Redirect to dashboard when user is registered and logged in
   useEffect(() => {
@@ -26,9 +46,124 @@ const Register = () => {
     formState: { errors },
     setError,
     watch,
+    setValue,
   } = useForm();
 
   const password = watch('password');
+
+  // Location Marker Component for map click handling
+  const LocationMarker = () => {
+    useMapEvents({
+      click(e) {
+        const { lat, lng } = e.latlng;
+        setMarkerPosition([lat, lng]);
+        setCoordinates({ latitude: lat, longitude: lng });
+        
+        // Reverse geocode using backend proxy to avoid CORS
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'JalSaathi/1.0'
+          }
+        })
+          .then(res => res.json())
+          .then(data => {
+            const addr = data.address || {};
+            
+            // Auto-fill using setValue from react-hook-form
+            if (addr.road || addr.suburb) {
+              setValue('address.street', addr.road || addr.suburb || '');
+            }
+            if (addr.neighbourhood || addr.suburb || addr.quarter) {
+              setValue('address.area', addr.neighbourhood || addr.suburb || addr.quarter || '');
+            }
+            if (addr.city || addr.town || addr.village) {
+              setValue('address.city', addr.city || addr.town || addr.village || '');
+            }
+            if (addr.postcode) {
+              setValue('address.pincode', addr.postcode || '');
+            }
+          })
+          .catch(err => {
+            console.error('Geocoding error:', err);
+          });
+      },
+    });
+
+    return markerPosition ? <Marker position={markerPosition} /> : null;
+  };
+
+  // Get current location from GPS
+  const getCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setGettingLocation(true);
+    toast.loading('Getting your location...');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setMapCenter([latitude, longitude]);
+        setMapZoom(15);
+        setMarkerPosition([latitude, longitude]);
+        setCoordinates({ latitude, longitude });
+        
+        toast.dismiss();
+
+        // Reverse geocode with proper headers
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'JalSaathi/1.0'
+          }
+        })
+          .then(res => res.json())
+          .then(data => {
+            const addr = data.address || {};
+            
+            // Auto-fill address fields
+            if (addr.road || addr.suburb) {
+              setValue('address.street', addr.road || addr.suburb || '');
+            }
+            if (addr.neighbourhood || addr.suburb || addr.quarter) {
+              setValue('address.area', addr.neighbourhood || addr.suburb || addr.quarter || '');
+            }
+            if (addr.city || addr.town || addr.village) {
+              setValue('address.city', addr.city || addr.town || addr.village || '');
+            }
+            if (addr.postcode) {
+              setValue('address.pincode', addr.postcode || '');
+            }
+          })
+          .catch(err => {
+            console.error('Geocoding error:', err);
+          })
+          .finally(() => setGettingLocation(false));
+      },
+      (error) => {
+        toast.dismiss();
+        setGettingLocation(false);
+        
+        let errorMessage = 'Unable to get your location';
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMessage = 'Location permission denied. Please enable location access.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          errorMessage = 'Location information unavailable.';
+        } else if (error.code === error.TIMEOUT) {
+          errorMessage = 'Location request timed out.';
+        }
+        toast.error(errorMessage);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  }, []);
 
   const userRoles = [
     {
@@ -60,6 +195,22 @@ const Register = () => {
     try {
       const { confirmPassword, ...registrationData } = data;
       registrationData.role = selectedRole;
+      
+      // Add coordinates for providers
+      if (selectedRole === 'provider') {
+        // Make coordinates optional but recommended
+        if (coordinates.latitude && coordinates.longitude) {
+          registrationData.coordinates = coordinates;
+        }
+        registrationData.serviceRadius = parseFloat(serviceRadius);
+      }
+      
+      // Add coordinates for customers to enable distance-based filtering
+      if (selectedRole === 'customer') {
+        if (coordinates.latitude && coordinates.longitude) {
+          registrationData.addressCoordinates = coordinates;
+        }
+      }
       
       const result = await registerUser(registrationData);
       
@@ -224,9 +375,54 @@ const Register = () => {
               </div>
             </div>
 
-            {/* Address (for customers and providers) */}
-            {(selectedRole === 'customer' || selectedRole === 'provider') && (
+            {/* Provider-specific fields */}
+            {selectedRole === 'provider' && (
               <>
+                {/* Business Location Map - SHOW FIRST */}
+                <div className="form-group">
+                  <label className="form-label flex items-center justify-between">
+                    <span className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      Business Location (Optional)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={getCurrentLocation}
+                      disabled={gettingLocation}
+                      className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
+                    >
+                      <Navigation className="h-4 w-4 mr-1" />
+                      {gettingLocation ? 'Getting location...' : 'Use GPS Location'}
+                    </button>
+                  </label>
+                  
+                  <div className="relative rounded-lg overflow-hidden border-2 border-gray-300" style={{ height: '320px' }}>
+                    <MapContainer
+                      key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
+                      center={mapCenter}
+                      zoom={mapZoom}
+                      style={{ height: '100%', width: '100%' }}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <LocationMarker />
+                    </MapContainer>
+                    
+                    {markerPosition && (
+                      <div className="absolute bottom-3 left-3 bg-success-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium shadow-lg z-[1000]">
+                        📍 {coordinates.latitude?.toFixed(4)}, {coordinates.longitude?.toFixed(4)}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <p className="text-sm text-gray-600 mt-2">
+                    💡 Click on the map or use GPS to mark your business location. Address fields will be auto-filled!
+                  </p>
+                </div>
+
+                {/* Address fields - SHOW AFTER MAP for providers */}
                 <div className="form-group">
                   <label htmlFor="street" className="form-label">
                     Street Address
@@ -235,9 +431,9 @@ const Register = () => {
                     id="street"
                     type="text"
                     className={`input-field ${errors['address.street'] ? 'input-error' : ''}`}
-                    placeholder="Enter your street address"
+                    placeholder="Enter street address"
                     {...register('address.street', {
-                      required: selectedRole !== 'delivery' ? 'Street address is required' : false,
+                      required: 'Street address is required',
                     })}
                   />
                   {errors['address.street'] && (
@@ -254,9 +450,9 @@ const Register = () => {
                       id="area"
                       type="text"
                       className={`input-field ${errors['address.area'] ? 'input-error' : ''}`}
-                      placeholder="Enter your area"
+                      placeholder="Enter area"
                       {...register('address.area', {
-                        required: selectedRole !== 'delivery' ? 'Area is required' : false,
+                        required: 'Area is required',
                       })}
                     />
                     {errors['address.area'] && (
@@ -272,9 +468,9 @@ const Register = () => {
                       id="city"
                       type="text"
                       className={`input-field ${errors['address.city'] ? 'input-error' : ''}`}
-                      placeholder="Enter your city"
+                      placeholder="Enter city"
                       {...register('address.city', {
-                        required: selectedRole !== 'delivery' ? 'City is required' : false,
+                        required: 'City is required',
                       })}
                     />
                     {errors['address.city'] && (
@@ -292,7 +488,7 @@ const Register = () => {
                       className={`input-field ${errors['address.pincode'] ? 'input-error' : ''}`}
                       placeholder="Enter pincode"
                       {...register('address.pincode', {
-                        required: selectedRole !== 'delivery' ? 'Pincode is required' : false,
+                        required: 'Pincode is required',
                         pattern: {
                           value: /^[1-9][0-9]{5}$/,
                           message: 'Invalid pincode',
@@ -304,12 +500,7 @@ const Register = () => {
                     )}
                   </div>
                 </div>
-              </>
-            )}
 
-            {/* Provider-specific fields */}
-            {selectedRole === 'provider' && (
-              <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="form-group">
                     <label htmlFor="businessName" className="form-label">
@@ -350,6 +541,159 @@ const Register = () => {
                     />
                     {errors.pricePerCan && (
                       <p className="form-error">{errors.pricePerCan.message}</p>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="serviceRadius" className="form-label">
+                      Delivery Radius (km)
+                    </label>
+                    <input
+                      id="serviceRadius"
+                      type="number"
+                      min="1"
+                      max="50"
+                      step="1"
+                      value={serviceRadius}
+                      onChange={(e) => setServiceRadius(e.target.value)}
+                      className="input-field"
+                      placeholder="Enter delivery radius"
+                    />
+                    <p className="text-sm text-gray-600 mt-1">
+                      How far from your location will you deliver? (1-50 km)
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Address (for customers only - providers have it above with map) */}
+            {selectedRole === 'customer' && (
+              <>
+                {/* Customer Location Map */}
+                <div className="form-group">
+                  <label className="form-label flex items-center justify-between">
+                    <span className="flex items-center">
+                      <MapPin className="h-5 w-5 mr-2 text-water-500" />
+                      Your Location (Recommended for distance-based search)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={getCurrentLocation}
+                      disabled={gettingLocation}
+                      className="text-sm bg-water-600 hover:bg-water-700 text-white px-3 py-1.5 rounded-md font-medium flex items-center"
+                    >
+                      <Navigation className="h-4 w-4 mr-1" />
+                      {gettingLocation ? 'Getting...' : 'Use GPS Location'}
+                    </button>
+                  </label>
+                  
+                  <div className="map-container" style={{ height: '320px', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                    <MapContainer
+                      key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
+                      center={mapCenter}
+                      zoom={mapZoom}
+                      style={{ height: '100%', width: '100%' }}
+                      scrollWheelZoom={true}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <LocationMarker />
+                    </MapContainer>
+                    
+                    {markerPosition && (
+                      <div className="absolute bottom-3 left-3 bg-green-500 text-white px-3 py-1 rounded-md text-xs font-medium z-[1000] shadow-md">
+                        📍 {coordinates.latitude?.toFixed(4)}, {coordinates.longitude?.toFixed(4)}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2">
+                    <p className="text-sm text-blue-800">
+                      <strong>💡 Why set your location?</strong><br />
+                      • See accurate distances to water providers<br />
+                      • Get providers who can deliver to your area<br />
+                      • Better delivery time estimates
+                    </p>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="street" className="form-label">
+                    Street Address
+                  </label>
+                  <input
+                    id="street"
+                    type="text"
+                    className={`input-field ${errors['address.street'] ? 'input-error' : ''}`}
+                    placeholder="Enter your street address"
+                    {...register('address.street', {
+                      required: 'Street address is required',
+                    })}
+                  />
+                  {errors['address.street'] && (
+                    <p className="form-error">{errors['address.street'].message}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="form-group">
+                    <label htmlFor="area" className="form-label">
+                      Area
+                    </label>
+                    <input
+                      id="area"
+                      type="text"
+                      className={`input-field ${errors['address.area'] ? 'input-error' : ''}`}
+                      placeholder="Enter your area"
+                      {...register('address.area', {
+                        required: 'Area is required',
+                      })}
+                    />
+                    {errors['address.area'] && (
+                      <p className="form-error">{errors['address.area'].message}</p>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="city" className="form-label">
+                      City
+                    </label>
+                    <input
+                      id="city"
+                      type="text"
+                      className={`input-field ${errors['address.city'] ? 'input-error' : ''}`}
+                      placeholder="Enter your city"
+                      {...register('address.city', {
+                        required: 'City is required',
+                      })}
+                    />
+                    {errors['address.city'] && (
+                      <p className="form-error">{errors['address.city'].message}</p>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="pincode" className="form-label">
+                      Pincode
+                    </label>
+                    <input
+                      id="pincode"
+                      type="text"
+                      className={`input-field ${errors['address.pincode'] ? 'input-error' : ''}`}
+                      placeholder="Enter pincode"
+                      {...register('address.pincode', {
+                        required: 'Pincode is required',
+                        pattern: {
+                          value: /^[1-9][0-9]{5}$/,
+                          message: 'Invalid pincode',
+                        },
+                      })}
+                    />
+                    {errors['address.pincode'] && (
+                      <p className="form-error">{errors['address.pincode'].message}</p>
                     )}
                   </div>
                 </div>

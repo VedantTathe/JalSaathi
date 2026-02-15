@@ -16,13 +16,13 @@ const login = asyncHandler(async (req, res) => {
 
 // Get current user profile
 const getProfile = asyncHandler(async (req, res) => {
-  const { response, statusCode } = await AuthService.getProfile(req.user.id);
+  const { response, statusCode } = await AuthService.getProfile(req.user._id);
   res.status(statusCode).json(response);
 });
 
 // Update user profile
 const updateProfile = asyncHandler(async (req, res) => {
-  const { response, statusCode } = await AuthService.updateProfile(req.user.id, req.body);
+  const { response, statusCode } = await AuthService.updateProfile(req.user._id, req.body);
   res.status(statusCode).json(response);
 });
 
@@ -45,7 +45,7 @@ const changePassword = asyncHandler(async (req, res) => {
   }
   
   const { response, statusCode } = await AuthService.changePassword(
-    req.user.id, 
+    req.user._id, 
     currentPassword, 
     newPassword
   );
@@ -69,7 +69,7 @@ const verifyToken = asyncHandler(async (req, res) => {
     success: true,
     message: 'Token is valid',
     user: {
-      id: req.user.id,
+      id: req.user._id,
       name: req.user.name,
       email: req.user.email,
       role: req.user.role
