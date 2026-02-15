@@ -286,6 +286,11 @@ class OrderService {
       if (!order) return formatResponse(false, 'Order not found', null, 404);
       if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
 
+      // Check if payment is already completed
+      if (order.paymentStatus === 'paid') {
+        return formatResponse(false, 'Order payment is already completed', null, 400);
+      }
+
       const amountPaise = Math.round((order.items.totalPrice || 0) * 100);
       const payload = {
         amount: amountPaise,
@@ -296,7 +301,12 @@ class OrderService {
 
       const keyId = process.env.RAZORPAY_KEY_ID;
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      if (!keyId || !keySecret) return formatResponse(false, 'Payment gateway not configured', null, 500);
+      if (!keyId || !keySecret) {
+        console.error('Razorpay credentials not configured');
+        return formatResponse(false, 'Payment gateway not configured. Please contact support.', null, 500);
+      }
+
+      console.log('Creating Razorpay order for:', orderId, 'Amount:', amountPaise);
 
       const resp = await fetch('https://api.razorpay.com/v1/orders', {
         method: 'POST',
@@ -309,14 +319,17 @@ class OrderService {
 
       const data = await resp.json();
       if (!resp.ok) {
-        console.error('Razorpay order create failed', data);
-        return formatResponse(false, 'Failed to create payment order', null, 500);
+        console.error('Razorpay order create failed:', JSON.stringify(data));
+        return formatResponse(false, data.error?.description || 'Failed to create payment order', null, 500);
       }
+
+      console.log('Razorpay order created successfully:', data.id);
 
       // Persist razorpay order id on our order for later webhook mapping
       try {
         order.paymentInfo = order.paymentInfo || {};
         order.paymentInfo.orderId = data.id; // razorpay order id
+        order.paymentInfo.provider = 'razorpay';
         await order.save();
       } catch (e) {
         console.error('Failed to persist razorpay order id on order:', e);
@@ -325,7 +338,7 @@ class OrderService {
       return formatResponse(true, 'Razorpay order created', { key: keyId, order: data }, 200);
     } catch (error) {
       console.error('createRazorpayOrder error:', error);
-      return formatResponse(false, 'Failed to create payment order', null, 500);
+      return formatResponse(false, 'Failed to create payment order: ' + error.message, null, 500);
     }
   }
 
@@ -337,16 +350,34 @@ class OrderService {
       if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
 
       const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = paymentPayload;
-      if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) return formatResponse(false, 'Invalid payment payload', null, 400);
+      if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+        console.error('Invalid payment payload:', paymentPayload);
+        return formatResponse(false, 'Invalid payment payload', null, 400);
+      }
+
+      // Check if payment is already verified
+      if (order.paymentStatus === 'paid') {
+        console.log('Payment already verified for order:', orderId);
+        return formatResponse(true, 'Payment already verified', order, 200);
+      }
 
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      if (!keySecret) return formatResponse(false, 'Payment gateway not configured', null, 500);
+      if (!keySecret) {
+        console.error('Razorpay secret not configured');
+        return formatResponse(false, 'Payment gateway not configured', null, 500);
+      }
 
       const expected = crypto.createHmac('sha256', keySecret).update(`${razorpay_order_id}|${razorpay_payment_id}`).digest('hex');
       if (expected !== razorpay_signature) {
         console.error('Payment signature mismatch', { expected, received: razorpay_signature });
+        order.paymentStatus = 'failed';
+        order.paymentInfo = order.paymentInfo || {};
+        order.paymentInfo.failedReason = 'Signature verification failed';
+        await order.save();
         return formatResponse(false, 'Payment verification failed', null, 400);
       }
+
+      console.log('Payment verified successfully for order:', orderId);
 
       order.paymentStatus = 'paid';
       order.paymentMethod = 'online';
@@ -354,14 +385,20 @@ class OrderService {
         provider: 'razorpay',
         paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
+        signature: razorpay_signature,
         verifiedAt: new Date()
       };
 
       await order.save();
-      return formatResponse(true, 'Payment verified and order marked paid', order, 200);
+      
+      const populatedOrder = await Order.findById(orderId)
+        .populate('customerId', 'name phone email')
+        .populate('providerId');
+
+      return formatResponse(true, 'Payment verified and order marked paid', populatedOrder, 200);
     } catch (error) {
       console.error('verifyRazorpayPayment error:', error);
-      return formatResponse(false, 'Failed to verify payment', null, 500);
+      return formatResponse(false, 'Failed to verify payment: ' + error.message, null, 500);
     }
   }
 }
