@@ -905,17 +905,7 @@ const CustomerDashboard = () => {
 
             {/* Scrollable Content */}
             <div className="overflow-y-auto p-6">
-              <form onSubmit={(e) => { 
-                e.preventDefault(); 
-                if (!orderForm.deliveryAddress) {
-                  toast.error('Please select a delivery address');
-                  return;
-                }
-                placeOrderMutation.mutate({
-                  ...orderForm,
-                  providerId: selectedProvider._id
-                }); 
-              }} className="space-y-5">
+              <form onSubmit={(e) => { e.preventDefault(); }} className="space-y-5">
                 
                 {/* Provider Info */}
                 <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
@@ -1019,13 +1009,25 @@ const CustomerDashboard = () => {
               </div>
               
               <button
-                type="submit"
+                type="button"
                 onClick={(e) => {
                   e.preventDefault();
+                  // Validate delivery address exists
                   if (!orderForm.deliveryAddress) {
                     toast.error('Please select a delivery address');
                     return;
                   }
+
+                  // Check coordinates presence
+                  const coords = orderForm.deliveryAddress.coordinates || orderForm.deliveryAddress.address?.coordinates || null;
+                  const hasCoords = coords && coords.latitude && coords.longitude;
+
+                  if (!hasCoords) {
+                    // Simple validation: ask user to pick an address from dropdown or add one
+                    toast.error('Please select an address from the dropdown or add a new address with location');
+                    return;
+                  }
+
                   placeOrderMutation.mutate({
                     ...orderForm,
                     providerId: selectedProvider._id
@@ -1053,6 +1055,8 @@ const CustomerDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Address Coordinates Confirmation removed; simple validation toast used instead */}
 
       {/* Address Modal */}
       {showAddressModal && (

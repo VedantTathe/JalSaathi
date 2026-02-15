@@ -4,6 +4,11 @@ const router = express.Router();
 const providerController = require('./controller');
 const { authorizeRoles } = require('../../middlewares/auth');
 
+// Quick unauthenticated test endpoint to verify router mounting
+router.get('/__test', (req, res) => {
+  res.json({ success: true, message: 'provider routes mounted' });
+});
+
 // All routes require provider role
 router.use(authorizeRoles('provider', 'admin'));
 
@@ -59,6 +64,12 @@ router.delete('/delivery-boys/:deliveryBoyId',
 router.get('/analytics', 
   authorizeRoles('provider'),
   providerController.getAnalytics
+);
+
+// Customers who ordered from this provider
+router.get('/customers',
+  authorizeRoles('provider'),
+  providerController.getCustomers
 );
 
 module.exports = router;
