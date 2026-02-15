@@ -327,16 +327,75 @@ class ProviderService {
         completionRate: provider.completionRate,
         monthlyOrders,
         weeklyOrders,
-        monthlyRevenue: monthlyRevenue[0]?.total || 0,
+        monthlyRevenue: (monthlyRevenue[0] && monthlyRevenue[0].total) || 0,
         rating: provider.rating,
         ordersByStatus
       }, 200);
-      
     } catch (error) {
       console.error('Get analytics error:', error);
       return formatResponse(false, 'Failed to retrieve analytics', null, 500);
     }
   }
+
+  // Get customers who have ordered from this provider
+  static async getCustomers(userId, query = {}) {
+    try {
+      const provider = await Provider.findOne({ userId });
+      if (!provider) {
+        return formatResponse(false, 'Provider not found', null, 404);
+      }
+
+      const limit = parseInt(query.limit) || 50;
+      const page = parseInt(query.page) || 1;
+
+      // Aggregate orders grouped by customer
+      const pipeline = [
+        { $match: { providerId: provider._id } },
+        { $group: {
+          _id: '$customerId',
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: '$items.totalPrice' },
+          lastOrdered: { $max: '$timeline.ordered' }
+        }},
+        { $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'customer'
+        }},
+        { $unwind: { path: '$customer', preserveNullAndEmptyArrays: false } },
+        { $project: {
+          _id: 0,
+          customerId: '$_id',
+          name: '$customer.name',
+          email: '$customer.email',
+          phone: '$customer.phone',
+          totalOrders: 1,
+          totalRevenue: 1,
+          lastOrdered: 1
+        }},
+        { $sort: { lastOrdered: -1 } },
+        { $skip: (page - 1) * limit },
+        { $limit: limit }
+      ];
+
+      const customers = await Order.aggregate(pipeline);
+
+      return formatResponse(true, 'Customers retrieved successfully', {
+        customers,
+        pagination: {
+          currentPage: page,
+          perPage: limit,
+          count: customers.length
+        }
+      }, 200);
+
+    } catch (error) {
+      console.error('Get customers error:', error);
+      return formatResponse(false, 'Failed to retrieve customers', null, 500);
+    }
+  }
+
 }
 
 module.exports = ProviderService;

@@ -509,7 +509,7 @@ const ProviderDashboard = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="space-y-4">
             {customers.map((customer) => (
-              <div key={customer._id} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
+              <div key={customer.customerId || customer._id} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
                 <div className="flex items-center space-x-4">
                   <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
                     <UserCircle className="h-6 w-6 text-primary-600" />
@@ -521,10 +521,9 @@ const ProviderDashboard = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">{customer.orderCount || 0} orders</p>
-                  <button className="text-sm text-primary-600 hover:text-primary-700">
-                    Contact
-                  </button>
+                  <p className="font-semibold text-gray-900">{customer.totalOrders || 0} orders</p>
+                  <p className="text-sm text-gray-600">{formatCurrency(customer.totalRevenue || 0)}</p>
+                  <p className="text-xs text-gray-500">Last: {customer.lastOrdered ? formatDateTime(customer.lastOrdered) : 'N/A'}</p>
                 </div>
               </div>
             ))}
