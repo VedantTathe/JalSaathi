@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { 
-  ShoppingCart, Package, CreditCard, Droplets, MapPin, IndianRupee,
-  Clock, CheckCircle, Truck, Filter, Star, Phone, Bell, User, Plus,
+  ShoppingCart, Package, Droplets, MapPin,
+  Clock, CheckCircle, Truck, Filter, Star, Phone, Plus,
   Edit2, Trash2, Home as HomeIcon, X, Briefcase, MapPinned
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
@@ -27,6 +27,11 @@ const CustomerDashboard = () => {
   const queryClient = useQueryClient();
   const [activePage, setActivePage] = useState('dashboard');
   const [showOrderModal, setShowOrderModal] = useState(false);
+
+  // Reset to dashboard home when component mounts
+  useEffect(() => {
+    setActivePage('dashboard');
+  }, []);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
   const [selectedProvider, setSelectedProvider] = useState(null);
@@ -57,7 +62,6 @@ const CustomerDashboard = () => {
   // Fetch data
   const { data: providersData, isLoading: providersLoading } = useQuery('nearby-providers', () => userApi.getNearbyProviders());
   const { data: ordersData, isLoading: ordersLoading } = useQuery('customer-orders', () => userApi.getCustomerOrders());
-  const { data: paymentsData, isLoading: paymentsLoading } = useQuery('customer-payments', () => userApi.getPayments());
   const { data: addressesData, isLoading: addressesLoading } = useQuery('customer-addresses', () => addressApi.getAddresses());
 
   // Mutations
@@ -231,111 +235,39 @@ const CustomerDashboard = () => {
 
   const navigation = [
     { key: 'dashboard', name: 'Dashboard Home', icon: HomeIcon },
-    { key: 'order-water', name: 'Order Water', icon: ShoppingCart },
     { key: 'my-orders', name: 'My Orders', icon: Package },
     { key: 'addresses', name: 'Address Management', icon: MapPin },
-    { key: 'payments', name: 'Payments', icon: CreditCard },
-    { key: 'notifications', name: 'Notifications', icon: Bell, badge: 3 },
-    { key: 'profile', name: 'Profile', href: '/profile', icon: User },
   ].map(item => ({
     ...item,
     href: item.href || '#',
     onClick: () => !item.href && setActivePage(item.key)
   }));
 
-  // 🏠 1. DASHBOARD HOME
+  // 🏠 1. DASHBOARD HOME - Swiggy-style Provider Selection
   const DashboardHome = () => {
-    const orders = ordersData?.data?.orders || [];
-    const activeOrder = orders.find(o => ['pending', 'accepted', 'assigned', 'out_for_delivery'].includes(o.status));
-    const lastOrder = orders[0];
-    
-    return (
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard Overview</h1>
-        
-        {/* Quick Action */}
-        <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg p-6 mb-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold mb-2">Need Water?</h2>
-              <p className="text-primary-100">Order from nearby providers in just a few clicks</p>
-            </div>
-            <button
-              onClick={() => setActivePage('order-water')}
-              className="bg-white text-primary-600 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-colors"
-            >
-              Order Now
-            </button>
-          </div>
-        </div>
-
-        {/* Widgets Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Current Order Widget */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">📦 Current Order</h3>
-              {activeOrder && (
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(activeOrder.status)}`}>
-                  {getStatusText(activeOrder.status)}
-                </span>
-              )}
-            </div>
-            {activeOrder ? (
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">Order #{activeOrder.orderNumber}</p>
-                <p className="font-semibold text-gray-900">{activeOrder.items?.quantity || 0} cans</p>
-                <p className="text-primary-600 font-semibold">₹{activeOrder.items?.totalPrice || 0}</p>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">No active order</p>
-            )}
-          </div>
-
-          {/* Last Order Widget */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">💰 Last Order</h3>
-            {lastOrder ? (
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">{formatDateTime(lastOrder.timeline?.ordered)}</p>
-                <p className="font-semibold text-gray-900">{lastOrder.items?.quantity || 0} cans</p>
-                <p className="text-gray-600 text-sm">₹{lastOrder.items?.totalPrice || 0}</p>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">No orders yet</p>
-            )}
-          </div>
-
-          {/* Notifications Widget */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">🔔 Notifications</h3>
-              <span className="bg-error-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
-            </div>
-            <div className="space-y-2 text-sm">
-              <p className="text-gray-600">Order #12345 delivered</p>
-              <p className="text-gray-600">New offer available</p>
-              <button onClick={() => setActivePage('notifications')} className="text-primary-600 hover:text-primary-700 font-medium">
-                View all
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // 🛒 2. ORDER WATER
-  const OrderWater = () => {
     const providers = providersData?.data?.providers || [];
     const addresses = addressesData?.data?.addresses || [];
+    const orders = ordersData?.data?.orders || [];
+    const activeOrder = orders.find(o => ['pending', 'accepted', 'assigned', 'out_for_delivery'].includes(o.status));
+    
+    console.log('🔍 Dashboard Debug:');
+    console.log('- providersData:', providersData);
+    console.log('- providers array:', providers);
+    console.log('- providers.length:', providers.length);
+    
+    // Debug: Check distance field for each provider
+    providers.forEach(p => {
+      console.log(`Provider: ${p.businessName}, Distance: ${p.distance}, Coordinates: ${p.coordinates?.latitude}, ${p.coordinates?.longitude}`);
+    });
+    
     const [searchQuery, setSearchQuery] = useState('');
     const [priceFilter, setPriceFilter] = useState('all');
+    const [sortBy, setSortBy] = useState('rating'); // rating, price, delivery
     
     if (providersLoading) return <LoadingSpinner />;
 
-    // Filter providers
-    const filteredProviders = providers.filter(provider => {
+    // Filter and sort providers
+    let filteredProviders = providers.filter(provider => {
       const matchesSearch = provider.businessName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            provider.area?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesPrice = priceFilter === 'all' || 
@@ -345,82 +277,186 @@ const CustomerDashboard = () => {
       return matchesSearch && matchesPrice;
     });
 
+    // Sort providers
+    filteredProviders = [...filteredProviders].sort((a, b) => {
+      if (sortBy === 'rating') {
+        const aRating = typeof a.rating === 'object' ? (a.rating?.average || 4.5) : 4.5;
+        const bRating = typeof b.rating === 'object' ? (b.rating?.average || 4.5) : 4.5;
+        return bRating - aRating;
+      }
+      if (sortBy === 'price') return a.pricePerCan - b.pricePerCan;
+      return 0;
+    });
+
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Water</h1>
-        <p className="text-gray-600 mb-6">Select a provider and place your order</p>
-
-        {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search Providers</label>
-              <input
-                type="text"
-                placeholder="Search by name or area..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Price</label>
-              <select
-                value={priceFilter}
-                onChange={(e) => setPriceFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+        {/* Location Warning Banner - showed when customer has no coordinates */}
+        {providers.length > 0 && providers.every(p => p.distance === null || p.distance === undefined) && (
+          <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 mb-6 flex items-start space-x-3">
+            <MapPin className="h-5 w-5 text-warning-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-warning-900 mb-1">Set Your Location for Better Experience</h3>
+              <p className="text-sm text-warning-700 mb-2">
+                You haven't set your location yet! To see accurate distances and get providers who can deliver to you, please update your profile with your location.
+              </p>
+              <button
+                onClick={() => setActivePage('profile')}
+                className="text-sm font-medium text-warning-800 hover:text-warning-900 underline"
               >
-                <option value="all">All Prices</option>
-                <option value="low">Budget (≤₹35)</option>
-                <option value="medium">Standard (₹36-45)</option>
-                <option value="high">Premium (&gt;₹45)</option>
+                Update Location in Profile →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Hero Banner with Greeting */}
+        <div className="bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 rounded-2xl p-8 mb-6 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <h1 className="text-3xl font-bold mb-2">
+              Hello, {JSON.parse(localStorage.getItem('user') || '{}')?.name?.split(' ')[0] || 'Customer'}! 👋
+            </h1>
+            <p className="text-primary-100 text-lg mb-4">What would you like to order today?</p>
+            
+            {/* Quick Stats Row */}
+            <div className="flex items-center space-x-6 mt-4">
+              <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
+                <Droplets className="h-5 w-5" />
+                <span className="font-medium">{providers.length} Providers</span>
+              </div>
+              {activeOrder && (
+                <div className="flex items-center space-x-2 bg-success-500/20 backdrop-blur-sm rounded-lg px-4 py-2">
+                  <Truck className="h-5 w-5" />
+                  <span className="font-medium">Order On The Way</span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+          <div className="absolute bottom-0 right-0 w-48 h-48 bg-white/5 rounded-full -mb-24 -mr-24"></div>
+        </div>
+
+        {/* Active Order Banner (if exists) */}
+        {activeOrder && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="h-12 w-12 rounded-full bg-success-100 flex items-center justify-center">
+                  <Package className="h-6 w-6 text-success-600" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2 mb-1">
+                    <h3 className="font-semibold text-gray-900">Order #{activeOrder.orderNumber || activeOrder._id.slice(-6)}</h3>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(activeOrder.status)}`}>
+                      {getStatusText(activeOrder.status)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    {activeOrder.items?.quantity || 0} cans • ₹{activeOrder.items?.totalPrice || 0}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActivePage('my-orders')}
+                className="bg-primary-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors"
+              >
+                Track Order
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Search and Filters - Swiggy Style */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Search Bar */}
+            <div className="md:col-span-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search for water providers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full border-2 border-gray-300 rounded-lg pl-11 pr-4 py-3 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                />
+                <Filter className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+              </div>
+            </div>
+            
+            {/* Sort Dropdown */}
+            <div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all font-medium"
+              >
+                <option value="rating">Sort: Highest Rated</option>
+                <option value="price">Sort: Lowest Price</option>
+                <option value="delivery">Sort: Fastest Delivery</option>
               </select>
             </div>
           </div>
-          <div className="mt-3 text-sm text-gray-600">
-            Found {filteredProviders.length} provider{filteredProviders.length !== 1 ? 's' : ''} in your area
+
+          {/* Filter Chips */}
+          <div className="flex items-center space-x-3 mt-4">
+            <span className="text-sm font-medium text-gray-700">Filter by Price:</span>
+            <button
+              onClick={() => setPriceFilter('all')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                priceFilter === 'all'
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setPriceFilter('low')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                priceFilter === 'low'
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Budget ≤₹35
+            </button>
+            <button
+              onClick={() => setPriceFilter('medium')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                priceFilter === 'medium'
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              ₹36-45
+            </button>
+            <button
+              onClick={() => setPriceFilter('high')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                priceFilter === 'high'
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Premium
+            </button>
+          </div>
+
+          {/* Results Count */}
+          <div className="mt-4 text-sm text-gray-600">
+            <strong>{filteredProviders.length}</strong> water provider{filteredProviders.length !== 1 ? 's' : ''} available near you
           </div>
         </div>
 
+        {/* Providers Grid - Swiggy Style Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProviders.map((provider) => (
-            <div key={provider._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
-                    <Droplets className="h-6 w-6 text-primary-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{provider.businessName || 'Water Provider'}</h3>
-                    <p className="text-sm text-gray-600">{provider.area || 'Local Area'}</p>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  provider.isOnline ? 'bg-success-100 text-success-800' : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {provider.isOnline ? 'Online' : 'Offline'}
-                </span>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Price per can:</span>
-                  <span className="font-semibold text-gray-900">₹{provider.pricePerCan || 40}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Rating:</span>
-                  <span className="flex items-center text-warning-600">
-                    {provider.rating?.average || provider.rating || 4.5} ⭐
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Delivery:</span>
-                  <span className="text-gray-900">~30 mins</span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
+            <div 
+              key={provider._id} 
+              className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group"
+              onClick={() => {
+                if (provider.isOnline) {
                   const defaultAddress = addresses.find(addr => addr.isDefault);
                   setSelectedProvider(provider);
                   setOrderForm({ 
@@ -432,31 +468,152 @@ const CustomerDashboard = () => {
                     deliveryTime: 'immediate'
                   });
                   setShowOrderModal(true);
-                }}
-                disabled={!provider.isOnline}
-                className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                  provider.isOnline ? 'bg-primary-600 text-white hover:bg-primary-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                {provider.isOnline ? 'Order Now' : 'Currently Offline'}
-              </button>
+                }
+              }}
+            >
+              {/* Image Header with Badge */}
+              <div className="relative h-40 bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
+                <Droplets className="h-20 w-20 text-white/30" />
+                <div className="absolute top-3 right-3">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold shadow-lg ${
+                    provider.isOnline 
+                      ? 'bg-success-500 text-white' 
+                      : 'bg-gray-500 text-white'
+                  }`}>
+                    {provider.isOnline ? '● Online' : '● Offline'}
+                  </span>
+                </div>
+                
+                {/* Discount Badge (if applicable) */}
+                {provider.pricePerCan <= 35 && (
+                  <div className="absolute top-3 left-3 bg-warning-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-lg">
+                    💰 BUDGET
+                  </div>
+                )}
+              </div>
+
+              {/* Card Content */}
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg text-gray-900 mb-1 group-hover:text-primary-600 transition-colors">
+                      {provider.businessName || 'Water Provider'}
+                    </h3>
+                    <p className="text-sm text-gray-600 flex items-center">
+                      <MapPin className="h-3.5 w-3.5 mr-1" />
+                      {provider.area || 'Local Area'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
+                  <div className="flex items-center space-x-1">
+                    <Star className="h-4 w-4 text-warning-500 fill-current" />
+                    <span className="font-semibold text-gray-900">
+                      {typeof provider.rating === 'object' ? provider.rating?.average || 4.5 : 4.5}
+                    </span>
+                    <span className="text-xs text-gray-500">(120+)</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-1 text-gray-600">
+                    <Clock className="h-4 w-4" />
+                    <span className="text-sm font-medium">~30 mins</span>
+                  </div>
+                </div>
+
+                {/* Service Info */}
+                <div className="mb-3 space-y-1">
+                  {provider.distance !== undefined && provider.distance !== null ? (
+                    <div className="text-sm text-white bg-primary-600 px-3 py-1.5 rounded-md font-bold flex items-center w-fit">
+                      📍 {provider.distance} km away
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 italic flex items-center">
+                      <div className="h-1.5 w-1.5 rounded-full bg-gray-300 mr-2"></div>
+                      Distance not available
+                    </div>
+                  )}
+                  {provider.serviceRadius && (
+                    <div className="text-xs text-gray-600 flex items-center">
+                      <div className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></div>
+                      Delivers within {provider.serviceRadius} km radius
+                    </div>
+                  )}
+                </div>
+
+                {/* Price and Order Button */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold text-primary-600">
+                      ₹{provider.pricePerCan}
+                    </div>
+                    <div className="text-xs text-gray-500">per can</div>
+                  </div>
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (provider.isOnline) {
+                        const defaultAddress = addresses.find(addr => addr.isDefault);
+                        setSelectedProvider(provider);
+                        setOrderForm({ 
+                          providerId: provider._id,
+                          quantity: 1,
+                          paymentMethod: 'cash_on_delivery',
+                          specialInstructions: '',
+                          deliveryAddress: defaultAddress || null,
+                          deliveryTime: 'immediate'
+                        });
+                        setShowOrderModal(true);
+                      }
+                    }}
+                    disabled={!provider.isOnline}
+                    className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${
+                      provider.isOnline 
+                        ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-md hover:shadow-lg' 
+                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {provider.isOnline ? 'Order Now' : 'Closed'}
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
 
+        {/* Empty State */}
         {filteredProviders.length === 0 && (
-          <div className="text-center py-12 bg-gray-50 rounded-lg">
-            <Droplets className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600">
-              {providers.length === 0 ? 'No providers available in your area' : 'No providers match your filters'}
+          <div className="text-center py-16 bg-gray-50 rounded-2xl">
+            <div className="mb-4">
+              <Droplets className="h-16 w-16 text-gray-300 mx-auto" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Providers Found</h3>
+            <p className="text-gray-600 mb-6">
+              {providers.length === 0 
+                ? "We couldn't find any water providers in your area yet." 
+                : 'Try adjusting your search or filters.'}
             </p>
+            {searchQuery || priceFilter !== 'all' ? (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setPriceFilter('all');
+                }}
+                className="bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+              >
+                Clear Filters
+              </button>
+            ) : null}
           </div>
         )}
       </div>
     );
   };
 
-  // 📦 3. MY ORDERS
+  // 🛒 2. ORDER WATER
+  // 📦 2. MY ORDERS
   const MyOrders = () => {
     const [orderFilter, setOrderFilter] = useState('all');
     const orders = ordersData?.data?.orders || [];
@@ -517,7 +674,7 @@ const CustomerDashboard = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-xs text-gray-600">Provider</p>
-                  <p className="font-medium text-gray-900">{order.provider?.businessName || 'N/A'}</p>
+                  <p className="font-medium text-gray-900">{order.providerId?.businessName || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-600">Quantity</p>
@@ -534,6 +691,14 @@ const CustomerDashboard = () => {
                   </div>
                 )}
               </div>
+
+              {/* Special Instructions */}
+              {order.specialInstructions && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-xs text-gray-600 mb-1">Special Instructions</p>
+                  <p className="text-sm text-gray-900 italic">"{order.specialInstructions}"</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -709,95 +874,11 @@ const CustomerDashboard = () => {
     );
   };
 
-  // 💳 5. PAYMENTS
-  const Payments = () => {
-    const paymentsResponse = paymentsData?.data || {};
-    const summary = paymentsResponse.summary || { totalAmount: 0, totalPaid: 0, totalPending: 0 };
-    const transactions = paymentsResponse.transactions || [];
-
-    if (paymentsLoading) return <LoadingSpinner />;
-
-    return (
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Payments</h1>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-6">
-            <p className="text-sm text-primary-700 mb-1">Total Spent</p>
-            <p className="text-2xl font-bold text-primary-900">₹{summary.totalAmount || 0}</p>
-          </div>
-          <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-lg p-6">
-            <p className="text-sm text-success-700 mb-1">Paid</p>
-            <p className="text-2xl font-bold text-success-900">₹{summary.totalPaid || 0}</p>
-          </div>
-          <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-6">
-            <p className="text-sm text-warning-700 mb-1">Pending</p>
-            <p className="text-2xl font-bold text-warning-900">₹{summary.totalPending || 0}</p>
-          </div>
-        </div>
-
-        {/* Transaction History */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold mb-4">Transaction History</h3>
-          <div className="space-y-4">
-            {transactions.map((txn) => (
-              <div key={txn.id} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
-                <div>
-                  <p className="font-medium text-gray-900">Order #{txn.orderNumber}</p>
-                  <p className="text-sm text-gray-600">{txn.provider}</p>
-                  <p className="text-xs text-gray-500">{formatDateTime(txn.date)}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900">₹{txn.amount}</p>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    txn.paymentStatus === 'paid' ? 'bg-success-100 text-success-800' : 'bg-warning-100 text-warning-800'
-                  }`}>
-                    {txn.paymentStatus}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // 🔔 6. NOTIFICATIONS
-  const Notifications = () => {
-    return (
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Notifications</h1>
-        
-        <div className="space-y-4">
-          {[
-            { type: 'success', title: 'Order Delivered', message: 'Your order #12345 has been delivered successfully', time: '2 hours ago' },
-            { type: 'info', title: 'Order Accepted', message: 'Provider accepted your order #12344', time: '5 hours ago' },
-            { type: 'warning', title: 'Payment Pending', message: 'Payment pending for order #12343', time: '1 day ago' },
-          ].map((notif, idx) => (
-            <div key={idx} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex items-start space-x-4">
-              <Bell className={`h-5 w-5 ${notif.type === 'success' ? 'text-success-600' : notif.type === 'warning' ? 'text-warning-600' : 'text-primary-600'}`} />
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">{notif.title}</h3>
-                <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
-                <p className="text-xs text-gray-500 mt-2">{notif.time}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard': return <DashboardHome />;
-      case 'order-water': return <OrderWater />;
       case 'my-orders': return <MyOrders />;
       case 'addresses': return <AddressManagement />;
-      case 'payments': return <Payments />;
-      case 'notifications': return <Notifications />;
       default: return <DashboardHome />;
     }
   };
@@ -901,107 +982,6 @@ const CustomerDashboard = () => {
                   >
                     + Add New Address
                   </button>
-                </div>
-
-                {/* Delivery Time */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Time *</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setOrderForm({ ...orderForm, deliveryTime: 'immediate' })}
-                      className={`p-3 border-2 rounded-lg text-sm font-medium transition-all ${
-                        orderForm.deliveryTime === 'immediate'
-                          ? 'border-primary-600 bg-primary-50 text-primary-700'
-                          : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                      }`}
-                    >
-                      <Clock className="h-5 w-5 mx-auto mb-1" />
-                      Immediate
-                      <div className="text-xs text-gray-600 mt-1">~30 mins</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setOrderForm({ ...orderForm, deliveryTime: 'scheduled' })}
-                      className={`p-3 border-2 rounded-lg text-sm font-medium transition-all ${
-                        orderForm.deliveryTime === 'scheduled'
-                          ? 'border-primary-600 bg-primary-50 text-primary-700'
-                          : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                      }`}
-                    >
-                      <Clock className="h-5 w-5 mx-auto mb-1" />
-                      Later Today
-                      <div className="text-xs text-gray-600 mt-1">Choose time</div>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Payment Method */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
-                  <div className="space-y-3">
-                    <button
-                      type="button"
-                      onClick={() => setOrderForm({ ...orderForm, paymentMethod: 'cash_on_delivery' })}
-                      className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                        orderForm.paymentMethod === 'cash_on_delivery'
-                          ? 'border-primary-600 bg-primary-50'
-                          : 'border-gray-300 hover:border-gray-400'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="h-10 w-10 rounded-full bg-success-100 flex items-center justify-center">
-                            <IndianRupee className="h-5 w-5 text-success-600" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900">Cash on Delivery</div>
-                            <div className="text-xs text-gray-600">Pay when you receive</div>
-                          </div>
-                        </div>
-                        <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
-                          orderForm.paymentMethod === 'cash_on_delivery'
-                            ? 'border-primary-600 bg-primary-600'
-                            : 'border-gray-300'
-                        }`}>
-                          {orderForm.paymentMethod === 'cash_on_delivery' && (
-                            <CheckCircle className="h-4 w-4 text-white" />
-                          )}
-                        </div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setOrderForm({ ...orderForm, paymentMethod: 'online' })}
-                      className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                        orderForm.paymentMethod === 'online'
-                          ? 'border-primary-600 bg-primary-50'
-                          : 'border-gray-300 hover:border-gray-400'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                            <CreditCard className="h-5 w-5 text-primary-600" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900">UPI / Online Payment</div>
-                            <div className="text-xs text-gray-600">GPay, PhonePe, Paytm, Cards</div>
-                          </div>
-                        </div>
-                        <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
-                          orderForm.paymentMethod === 'online'
-                            ? 'border-primary-600 bg-primary-600'
-                            : 'border-gray-300'
-                        }`}>
-                          {orderForm.paymentMethod === 'online' && (
-                            <CheckCircle className="h-4 w-4 text-white" />
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  </div>
                 </div>
 
                 {/* Special Instructions */}

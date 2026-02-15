@@ -146,18 +146,70 @@ class UserService {
         return formatResponse(false, 'User not found', null, 404);
       }
       
-      // Find providers in the same area that are online and approved
-      const searchArea = area || user.address?.area;
-      if (!searchArea) {
-        return formatResponse(false, 'Area information is required', null, 400);
+      // Get customer coordinates
+      const customerLat = user.address?.coordinates?.latitude;
+      const customerLon = user.address?.coordinates?.longitude;
+      
+      console.log('📍 Customer Info:');
+      console.log('  - User ID:', userId);
+      console.log('  - Name:', user.name);
+      console.log('  - Has Address:', !!user.address);
+      console.log('  - Has Coordinates:', !!(customerLat && customerLon));
+      console.log('  - Latitude:', customerLat);
+      console.log('  - Longitude:', customerLon);
+      
+      // Fetch all providers
+      let providers = await Provider.find()
+        .populate('userId', 'name phone email')
+        .sort({ isOnline: -1, 'rating.average': -1 });
+      
+      console.log('📊 getNearbyProviders - Total providers:', providers.length);
+      
+      // Filter by distance if customer has coordinates
+      if (customerLat && customerLon) {
+        providers = providers.filter(provider => {
+          // Skip providers without coordinates
+          if (!provider.coordinates?.latitude || !provider.coordinates?.longitude) {
+            console.log(`⚠️ Provider ${provider.businessName} has no coordinates, skipping`);
+            return false;
+          }
+          
+          // Calculate distance between customer and provider
+          const distance = calculateDistance(
+            customerLat,
+            customerLon,
+            provider.coordinates.latitude,
+            provider.coordinates.longitude
+          );
+          
+          // Check if customer is within provider's service radius
+          const isInRange = distance <= provider.serviceRadius;
+          
+          // Add distance to provider object for frontend display
+          provider._doc.distance = parseFloat(distance.toFixed(2));
+          
+          console.log(`🔍 Provider: ${provider.businessName}, Distance: ${distance.toFixed(2)}km, Radius: ${provider.serviceRadius}km, InRange: ${isInRange}`);
+          
+          return isInRange;
+        });
+        
+        // Sort by distance (closest first) after filtering
+        providers.sort((a, b) => a._doc.distance - b._doc.distance);
+        
+        console.log('✅ Providers in range:', providers.length);
+      } else {
+        console.log('⚠️ Customer has no coordinates, showing all providers without distance filtering');
+        // Still add distance as null for all providers to indicate it's not available
+        providers.forEach(provider => {
+          provider._doc.distance = null;
+        });
       }
       
-      const providers = await Provider.findAvailableProviders(searchArea);
-      
-      return formatResponse(true, 'Nearby providers retrieved successfully', providers, 200);
+      // Return providers in correct format
+      return formatResponse(true, 'Providers retrieved successfully', { providers }, 200);
       
     } catch (error) {
-      console.error('Get nearby providers error:', error);
+      console.error('❌ Get nearby providers error:', error);
       return formatResponse(false, 'Failed to retrieve nearby providers', null, 500);
     }
   }

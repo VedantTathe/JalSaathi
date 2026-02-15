@@ -53,7 +53,12 @@ const seedUsers = async () => {
       area: 'Provider Area',
       pricePerCan: 40,
       serviceRadius: 10,
-      isActive: true
+      coordinates: {
+        latitude: 19.0760, // Mumbai coordinates as example
+        longitude: 72.8777
+      },
+      isOnline: true,
+      isApproved: true
     });
     console.log('✅ Created provider:', providerUser.email);
 
