@@ -20,6 +20,7 @@ const orderRoutes = require('./modules/order/routes');
 const deliveryRoutes = require('./modules/delivery/routes');
 const adminRoutes = require('./modules/admin/routes');
 const addressRoutes = require('./modules/address/routes');
+const paymentWebhook = require('./modules/payment/webhook');
 
 // Import middlewares
 const { errorHandler } = require('./middlewares/errorHandler');
@@ -48,7 +49,8 @@ app.use(cors({
   ],
   credentials: true
 }));
-app.use(express.json({ limit: '10mb' }));
+// Keep raw body for webhook signature verification
+app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Database connection
@@ -76,6 +78,9 @@ app.use('/api/order', authenticateToken, orderRoutes);
 app.use('/api/delivery', authenticateToken, deliveryRoutes);
 app.use('/api/admin', authenticateToken, adminRoutes);
 app.use('/api/address', authenticateToken, addressRoutes);
+
+// Webhook endpoint (public) - verify using raw body
+app.use('/api/webhook', paymentWebhook);
 
 // 404 handler
 app.use('*', (req, res) => {

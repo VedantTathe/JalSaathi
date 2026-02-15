@@ -42,6 +42,7 @@ const rejectOrder = asyncHandler(async (req, res) => {
 
 // Assign delivery boy
 const assignDeliveryBoy = asyncHandler(async (req, res) => {
+  console.log(`[assignDeliveryBoy Controller] orderId=${req.params.orderId}, body=`, req.body);
   const { orderId } = req.params;
   const { deliveryBoyId } = req.body;
   
@@ -57,6 +58,7 @@ const assignDeliveryBoy = asyncHandler(async (req, res) => {
     orderId, 
     deliveryBoyId
   );
+  console.log(`[assignDeliveryBoy Controller] response status=${statusCode}`);
   res.status(statusCode).json(response);
 });
 
@@ -101,6 +103,12 @@ const getAnalytics = asyncHandler(async (req, res) => {
   res.status(statusCode).json(response);
 });
 
+// Get order history grouped by day
+const getOrderHistory = asyncHandler(async (req, res) => {
+  const { response, statusCode } = await ProviderService.getOrderHistory(req.user._id, req.query);
+  res.status(statusCode).json(response);
+});
+
 // Get customers who ordered from this provider
 const getCustomers = asyncHandler(async (req, res) => {
   const { response, statusCode } = await ProviderService.getCustomers(req.user._id, req.query);
@@ -117,7 +125,7 @@ module.exports = {
   getDeliveryBoys,
   addDeliveryBoy,
   removeDeliveryBoy,
-  getAnalytics
-  ,
+  getAnalytics,
+  getOrderHistory,
   getCustomers
 };

@@ -78,15 +78,21 @@ class ProviderService {
     }
   }
   
-  // Get provider orders
-  static async getProviderOrders(userId, status = null, limit = 20, page = 1) {
+  // Get provider orders (last 16 hours only)
+  static async getProviderOrders(userId, status = null, limit = 100, page = 1) {
     try {
       const provider = await Provider.findOne({ userId });
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }
       
-      const query = { providerId: provider._id };
+      // Only fetch orders from last 16 hours
+      const sixteenHoursAgo = new Date(Date.now() - 16 * 60 * 60 * 1000);
+      
+      const query = { 
+        providerId: provider._id,
+        createdAt: { $gte: sixteenHoursAgo }
+      };
       if (status) query.status = status;
       
       const skip = (page - 1) * limit;
@@ -182,27 +188,34 @@ class ProviderService {
   // Assign delivery boy to order
   static async assignDeliveryBoy(userId, orderId, deliveryBoyId) {
     try {
+      console.log(`[assignDeliveryBoy] userId=${userId}, orderId=${orderId}, deliveryBoyId=${deliveryBoyId}`);
+      
       const provider = await Provider.findOne({ userId });
       if (!provider) {
+        console.log('[assignDeliveryBoy] Provider not found');
         return formatResponse(false, 'Provider not found', null, 404);
       }
       
       // Check if delivery boy belongs to this provider
       if (!provider.deliveryBoys.includes(deliveryBoyId)) {
+        console.log('[assignDeliveryBoy] Delivery boy not in provider list');
         return formatResponse(false, 'Delivery boy not associated with this provider', null, 400);
       }
       
+      // Allow assigning to orders in accepted, assigned, or out_for_delivery status
       const order = await Order.findOne({
         _id: orderId,
         providerId: provider._id,
-        status: 'accepted'
+        status: { $in: ['accepted', 'assigned', 'out_for_delivery'] }
       });
       
       if (!order) {
-        return formatResponse(false, 'Order not found or not in accepted status', null, 404);
+        console.log('[assignDeliveryBoy] Order not found or wrong status');
+        return formatResponse(false, 'Order not found or not in assignable status', null, 404);
       }
       
       await order.assignDeliveryBoy(deliveryBoyId);
+      console.log('[assignDeliveryBoy] Successfully assigned');
       
       return formatResponse(true, 'Delivery boy assigned successfully', null, 200);
       
@@ -366,6 +379,85 @@ class ProviderService {
     } catch (error) {
       console.error('Get analytics error:', error);
       return formatResponse(false, 'Failed to retrieve analytics', null, 500);
+    }
+  }
+
+  // Get order history grouped by day with revenue summary
+  static async getOrderHistory(userId, query = {}) {
+    try {
+      const provider = await Provider.findOne({ userId });
+      if (!provider) {
+        return formatResponse(false, 'Provider not found', null, 404);
+      }
+
+      const days = parseInt(query.days) || 30; // Default last 30 days
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+
+      // Get all orders in date range
+      const orders = await Order.find({
+        providerId: provider._id,
+        createdAt: { $gte: startDate }
+      })
+        .populate('customerId', 'name phone email')
+        .populate('deliveryBoyId', 'name phone')
+        .sort({ createdAt: -1 });
+
+      // Group orders by date
+      const groupedByDay = {};
+      orders.forEach(order => {
+        const dateKey = new Date(order.createdAt).toISOString().split('T')[0]; // YYYY-MM-DD
+        if (!groupedByDay[dateKey]) {
+          groupedByDay[dateKey] = {
+            date: dateKey,
+            orders: [],
+            totalOrders: 0,
+            totalRevenue: 0,
+            deliveredOrders: 0,
+            cancelledOrders: 0,
+            pendingOrders: 0
+          };
+        }
+        groupedByDay[dateKey].orders.push(order);
+        groupedByDay[dateKey].totalOrders++;
+        groupedByDay[dateKey].totalRevenue += order.items?.totalPrice || 0;
+        
+        if (order.status === 'delivered') groupedByDay[dateKey].deliveredOrders++;
+        else if (order.status === 'cancelled') groupedByDay[dateKey].cancelledOrders++;
+        else groupedByDay[dateKey].pendingOrders++;
+      });
+
+      // Convert to array sorted by date descending
+      const dailySummary = Object.values(groupedByDay).sort((a, b) => 
+        new Date(b.date) - new Date(a.date)
+      );
+
+      // Calculate overall stats
+      const totalRevenue = orders.reduce((sum, o) => sum + (o.items?.totalPrice || 0), 0);
+      const totalOrders = orders.length;
+      const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
+      const paidOrders = orders.filter(o => o.paymentStatus === 'paid').length;
+      const paidRevenue = orders
+        .filter(o => o.paymentStatus === 'paid')
+        .reduce((sum, o) => sum + (o.items?.totalPrice || 0), 0);
+
+      return formatResponse(true, 'Order history retrieved successfully', {
+        dailySummary,
+        overallStats: {
+          totalRevenue,
+          totalOrders,
+          deliveredOrders,
+          paidOrders,
+          paidRevenue,
+          avgOrderValue: totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0,
+          days
+        }
+      }, 200);
+
+    } catch (error) {
+      console.error('Get order history error:', error);
+      return formatResponse(false, 'Failed to retrieve order history', null, 500);
     }
   }
 

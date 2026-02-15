@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQuery } from 'react-query';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Package, 
@@ -13,12 +13,94 @@ import {
   Download,
   Truck
 } from 'lucide-react';
-import { userApi } from '../services/api';
+import { userApi, orderApi } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../utils/helpers';
+import toast from 'react-hot-toast';
+
+// Helper to load Razorpay SDK
+const loadRazorpayScript = () => {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+    document.body.appendChild(script);
+  });
+};
+
+// Payment button component
+const MakePaymentButton = ({ order, onSuccess }) => {
+  const createPayment = useMutation(() => orderApi.createPayment(order._id));
+  const verifyPayment = useMutation(({ orderId, payload }) => orderApi.verifyPayment(orderId, payload));
+
+  const handlePay = async () => {
+    try {
+      const res = await createPayment.mutateAsync();
+      const key = res?.data?.key || res?.key;
+      const rOrder = res?.data?.order || res?.order;
+      if (!rOrder || !key) throw new Error('Failed to create payment');
+
+      await loadRazorpayScript();
+
+      const options = {
+        key,
+        amount: rOrder.amount,
+        currency: rOrder.currency,
+        name: 'JalSaathi',
+        description: `Order ${order.orderNumber}`,
+        order_id: rOrder.id,
+        handler: async function(paymentResult) {
+          try {
+            await verifyPayment.mutateAsync({ orderId: order._id, payload: paymentResult });
+            toast.success('Payment successful! Redirecting...');
+            if (onSuccess) onSuccess();
+          } catch (err) {
+            console.error('Verification failed', err);
+            toast.error('Payment verification failed');
+          }
+        },
+        prefill: {
+          name: order.customerId?.name || '',
+          email: order.customerId?.email || '',
+          contact: order.customerId?.phone || ''
+        },
+        theme: { color: '#3399cc' }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error('Payment error', error);
+      toast.error(error.message || 'Payment failed');
+    }
+  };
+
+  return (
+    <button 
+      onClick={handlePay} 
+      disabled={createPayment.isLoading || verifyPayment.isLoading}
+      className="btn-primary w-full disabled:opacity-50"
+    >
+      {createPayment.isLoading ? 'Processing...' : 'Make Payment'}
+    </button>
+  );
+};
 
 const OrderDetails = () => {
   const { orderId } = useParams();
+  const queryClient = useQueryClient();
+
+  // Handle successful payment
+  const handlePaymentSuccess = () => {
+    queryClient.invalidateQueries(['order-details', orderId]);
+    queryClient.invalidateQueries('customer-orders');
+    // Refresh the page data after short delay to show updated status
+    setTimeout(() => {
+      queryClient.refetchQueries(['order-details', orderId]);
+    }, 500);
+  };
 
   // Fetch order details
   const { data: order, isLoading, error } = useQuery(
@@ -305,6 +387,12 @@ const OrderDetails = () => {
                     {formatCurrency(order.items?.totalPrice)}
                   </span>
                 </div>
+                {/* Make Payment Button for online payments */}
+                {order.paymentStatus !== 'paid' && order.paymentMethod !== 'cash_on_delivery' && (
+                  <div className="mt-4">
+                    <MakePaymentButton order={order} onSuccess={handlePaymentSuccess} />
+                  </div>
+                )}
               </div>
             </div>
 

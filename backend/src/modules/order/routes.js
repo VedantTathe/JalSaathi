@@ -25,6 +25,17 @@ router.patch('/:orderId/cancel',
   orderController.cancelOrder
 );
 
+// Payment endpoints
+router.post('/:orderId/payment/create',
+  authorizeRoles('customer'),
+  orderController.createPaymentOrder
+);
+
+router.post('/:orderId/payment/verify',
+  authorizeRoles('customer'),
+  orderController.verifyPayment
+);
+
 // Common routes (multiple roles)
 router.get('/:orderId/track',
   orderController.trackOrder
