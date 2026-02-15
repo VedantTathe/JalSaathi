@@ -95,6 +95,12 @@ const getAnalytics = asyncHandler(async (req, res) => {
   res.status(statusCode).json(response);
 });
 
+// Get customers who ordered from this provider
+const getCustomers = asyncHandler(async (req, res) => {
+  const { response, statusCode } = await ProviderService.getCustomers(req.user._id, req.query);
+  res.status(statusCode).json(response);
+});
+
 module.exports = {
   toggleOnlineStatus,
   updateProviderProfile,
@@ -106,4 +112,6 @@ module.exports = {
   addDeliveryBoy,
   removeDeliveryBoy,
   getAnalytics
+  ,
+  getCustomers
 };
