@@ -120,13 +120,25 @@ const CustomerDashboard = () => {
   // Handle Razorpay checkout after order is placed
   const handleRazorpayCheckout = async (orderId, orderData) => {
     try {
+      console.log('Starting Razorpay checkout for order:', orderId);
+      
       // Create Razorpay order
       const res = await orderApi.createPayment(orderId);
-      const key = res?.data?.key || res?.key;
-      const rOrder = res?.data?.order || res?.order;
-      if (!rOrder || !key) throw new Error('Failed to create payment');
+      console.log('Payment order response:', res);
+      
+      // Handle different response formats from axios interceptor
+      const responseData = res?.data || res;
+      const key = responseData?.key;
+      const rOrder = responseData?.order;
+      
+      if (!rOrder || !key) {
+        console.error('Invalid payment response:', res);
+        throw new Error(responseData?.message || 'Failed to create payment order');
+      }
 
+      console.log('Loading Razorpay SDK...');
       await loadRazorpayScript();
+      console.log('Razorpay SDK loaded successfully');
 
       return new Promise((resolve, reject) => {
         const options = {
@@ -134,22 +146,26 @@ const CustomerDashboard = () => {
           amount: rOrder.amount,
           currency: rOrder.currency,
           name: 'JalSaathi',
-          description: `Order #${orderData?.orderNumber || orderId}`,
+          description: `Order #${orderData?.orderNumber || orderId.slice(-6)}`,
           order_id: rOrder.id,
           handler: async function(paymentResult) {
             try {
-              await orderApi.verifyPayment(orderId, paymentResult);
+              console.log('Payment successful, verifying...', paymentResult);
+              const verifyRes = await orderApi.verifyPayment(orderId, paymentResult);
+              console.log('Payment verified:', verifyRes);
               toast.success('Payment successful! Order confirmed.');
               queryClient.invalidateQueries('customer-orders');
               resolve(true);
             } catch (err) {
-              console.error('Verification failed', err);
-              toast.error('Payment verification failed');
+              console.error('Payment verification failed:', err);
+              const errorMsg = err?.response?.data?.message || 'Payment verification failed';
+              toast.error(errorMsg);
               reject(err);
             }
           },
           modal: {
             ondismiss: function() {
+              console.log('Payment modal dismissed');
               toast('Payment cancelled. You can pay later from Order Details.', { icon: '⚠️' });
               resolve(false);
             }
@@ -162,11 +178,21 @@ const CustomerDashboard = () => {
           theme: { color: '#3399cc' }
         };
 
+        console.log('Opening Razorpay checkout...');
         const rzp = new window.Razorpay(options);
+        
+        rzp.on('payment.failed', function (response){
+          console.error('Payment failed:', response.error);
+          toast.error(`Payment failed: ${response.error.description || 'Unknown error'}`);
+          reject(new Error(response.error.description));
+        });
+        
         rzp.open();
       });
     } catch (error) {
       console.error('Razorpay checkout error:', error);
+      const errorMsg = error?.response?.data?.message || error.message || 'Failed to initialize payment';
+      toast.error(errorMsg);
       throw error;
     }
   };

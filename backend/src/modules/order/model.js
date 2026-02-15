@@ -145,7 +145,7 @@ orderSchema.index({ customerId: 1, status: 1 });
 orderSchema.index({ providerId: 1, status: 1 });
 orderSchema.index({ deliveryBoyId: 1, status: 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
-orderSchema.index({ orderNumber: 1 });
+// orderNumber already has a unique index from schema definition
 orderSchema.index({ 'paymentInfo.orderId': 1 }); // For webhook lookup
 
 // Pre-save middleware to generate order number
