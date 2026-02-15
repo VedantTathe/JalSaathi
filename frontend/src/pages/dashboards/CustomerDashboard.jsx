@@ -64,6 +64,15 @@ const CustomerDashboard = () => {
   const { data: ordersData, isLoading: ordersLoading } = useQuery('customer-orders', () => userApi.getCustomerOrders());
   const { data: addressesData, isLoading: addressesLoading } = useQuery('customer-addresses', () => addressApi.getAddresses());
 
+  // Normalize addresses coordinates to numeric values for validation
+  const normalizedAddresses = (addressesData?.data?.addresses || []).map(a => ({
+    ...a,
+    coordinates: {
+      latitude: a.coordinates && a.coordinates.latitude !== undefined ? Number(a.coordinates.latitude) : (a.coordinates?.lat ? Number(a.coordinates.lat) : null),
+      longitude: a.coordinates && a.coordinates.longitude !== undefined ? Number(a.coordinates.longitude) : (a.coordinates?.lng ? Number(a.coordinates.lng) : null)
+    }
+  }));
+
   // Mutations
   const placeOrderMutation = useMutation((orderData) => userApi.placeOrder(orderData), {
     onSuccess: () => {
@@ -947,17 +956,26 @@ const CustomerDashboard = () => {
                 </div>
 
                 {/* Delivery Address */}
-                <div>
+               <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Address *</label>
                   <select
-                    value={orderForm.deliveryAddress ? JSON.stringify(orderForm.deliveryAddress) : ''}
-                    onChange={(e) => setOrderForm({ ...orderForm, deliveryAddress: e.target.value ? JSON.parse(e.target.value) : null })}
+                    value={orderForm.deliveryAddress ? orderForm.deliveryAddress._id : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return setOrderForm({ ...orderForm, deliveryAddress: null });
+                      const selected = normalizedAddresses.find(a => String(a._id) === String(val));
+                      if (selected) {
+                        setOrderForm({ ...orderForm, deliveryAddress: selected });
+                      } else {
+                        setOrderForm({ ...orderForm, deliveryAddress: null });
+                      }
+                    }}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     required
                   >
                     <option value="">Select delivery address</option>
-                    {addressesData?.data?.addresses?.map((addr) => (
-                      <option key={addr._id} value={JSON.stringify(addr)}>
+                    {normalizedAddresses.map((addr) => (
+                      <option key={addr._id} value={addr._id}>
                         🏠 {addr.label.toUpperCase()} - {addr.street}, {addr.area}, {addr.city}
                       </option>
                     ))}
@@ -1018,12 +1036,17 @@ const CustomerDashboard = () => {
                     return;
                   }
 
-                  // Check coordinates presence
-                  const coords = orderForm.deliveryAddress.coordinates || orderForm.deliveryAddress.address?.coordinates || null;
-                  const hasCoords = coords && coords.latitude && coords.longitude;
+                  // Check coordinates presence (coerce numeric strings)
+                  const rawCoords = orderForm.deliveryAddress?.coordinates || orderForm.deliveryAddress?.address?.coordinates || null;
+                  let lat = null;
+                  let lng = null;
+                  if (rawCoords) {
+                    lat = rawCoords.latitude !== undefined ? Number(rawCoords.latitude) : (rawCoords.lat !== undefined ? Number(rawCoords.lat) : null);
+                    lng = rawCoords.longitude !== undefined ? Number(rawCoords.longitude) : (rawCoords.lng !== undefined ? Number(rawCoords.lng) : null);
+                  }
+                  const hasCoords = lat !== null && !isNaN(lat) && lng !== null && !isNaN(lng);
 
                   if (!hasCoords) {
-                    // Simple validation: ask user to pick an address from dropdown or add one
                     toast.error('Please select an address from the dropdown or add a new address with location');
                     return;
                   }

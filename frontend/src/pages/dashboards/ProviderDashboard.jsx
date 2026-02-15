@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
-import { providerApi } from '../../services/api';
+import { providerApi, orderApi } from '../../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -19,33 +19,37 @@ const ProviderDashboard = () => {
   // Fetch data
   const { data: ordersData, isLoading: ordersLoading } = useQuery('provider-orders', () => providerApi.getOrders());
   const { data: customersData, isLoading: customersLoading } = useQuery('provider-customers', () => providerApi.getCustomers());
+  const { data: deliveryBoysData, isLoading: deliveryBoysLoading } = useQuery('provider-delivery-boys', () => providerApi.getDeliveryBoys());
 
-  const acceptOrderMutation = useMutation(
-    (orderId) => providerApi.acceptOrder(orderId),
+  
+
+  // Mutation to cancel an order (provider action)
+  const cancelOrderMutation = useMutation(
+    (orderId) => orderApi.cancelOrder(orderId, 'Cancelled by provider'),
     {
       onSuccess: () => {
         queryClient.invalidateQueries('provider-orders');
-        toast.success('Order accepted');
+        toast.success('Order cancelled');
       },
-      onError: () => toast.error('Failed to accept order')
+      onError: () => toast.error('Failed to cancel order')
     }
   );
 
-  const rejectOrderMutation = useMutation(
-    (orderId) => providerApi.rejectOrder(orderId, 'Provider rejected'),
+  // Bulk assign mutation
+  const assignManyMutation = useMutation(
+    ({ orderIds, deliveryBoyId }) => Promise.all(orderIds.map(id => providerApi.assignDeliveryBoy(id, deliveryBoyId))),
     {
       onSuccess: () => {
         queryClient.invalidateQueries('provider-orders');
-        toast.success('Order rejected');
+        toast.success('Assigned delivery partner');
       },
-      onError: () => toast.error('Failed to reject order')
+      onError: () => toast.error('Failed to assign delivery partner')
     }
   );
 
   const navigation = [
     { key: 'dashboard', name: 'Dashboard Home', icon: HomeIcon },
-    { key: 'incoming-orders', name: 'Incoming Orders', icon: Package, badge: 2 },
-    { key: 'active-orders', name: 'Active Orders', icon: Clock },
+    { key: 'active-orders', name: 'View Orders', icon: Clock },
     { key: 'delivery-management', name: 'Delivery Management', icon: Truck },
     { key: 'order-history', name: 'Order History', icon: History },
     { key: 'revenue', name: 'Revenue Dashboard', icon: TrendingUp },
@@ -119,12 +123,12 @@ const ProviderDashboard = () => {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <button
-            onClick={() => setActivePage('incoming-orders')}
+            onClick={() => setActivePage('active-orders')}
             className="bg-white border-2 border-primary-200 hover:border-primary-400 rounded-lg p-6 text-left transition-all"
           >
             <Package className="h-8 w-8 text-primary-600 mb-3" />
-            <h3 className="font-semibold text-gray-900 mb-1">View Pending Orders</h3>
-            <p className="text-sm text-gray-600">Accept or reject incoming orders</p>
+            <h3 className="font-semibold text-gray-900 mb-1">View Orders</h3>
+            <p className="text-sm text-gray-600">Manage received orders</p>
           </button>
 
           <button
@@ -149,122 +153,88 @@ const ProviderDashboard = () => {
     );
   };
 
-  // 📦 2. INCOMING ORDERS
-  const IncomingOrders = () => {
-    const orders = ordersData?.data?.orders || [];
-    const incomingOrders = orders.filter(o => o.status === 'pending');
-
-    if (ordersLoading) return <LoadingSpinner />;
-
-    return (
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Incoming Orders</h1>
-        
-        {incomingOrders.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50 rounded-lg">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600">No pending orders</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {incomingOrders.map((order) => (
-              <div key={order._id} className="bg-white rounded-lg shadow-sm border-2 border-warning-200 p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center space-x-3 mb-2">
-                      <Package className="h-5 w-5 text-warning-600" />
-                      <span className="font-mono text-sm text-gray-600">#{order.orderNumber || order._id.slice(-8)}</span>
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-warning-100 text-warning-800">
-                        NEW ORDER
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">{formatDateTime(order.timeline?.ordered)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Order Value</p>
-                    <p className="text-xl font-semibold text-primary-600">₹{order.items?.totalPrice || 0}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div>
-                    <p className="text-xs text-gray-600">Customer</p>
-                    <p className="font-medium text-gray-900">{order.customer?.name || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Quantity</p>
-                    <p className="font-medium text-gray-900">{order.items?.quantity || 0} cans</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Payment</p>
-                    <p className="font-medium text-gray-900">{order.paymentMethod || 'Cash'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Delivery Address</p>
-                    <p className="font-medium text-gray-900 truncate">{order.deliveryAddress?.street || 'N/A'}</p>
-                  </div>
-                </div>
-
-                {order.deliveryNotes && (
-                  <div className="bg-blue-50 rounded-lg p-3 mb-4">
-                    <p className="text-sm text-blue-900"><strong>Notes:</strong> {order.deliveryNotes}</p>
-                  </div>
-                )}
-
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => acceptOrderMutation.mutate(order._id)}
-                    disabled={acceptOrderMutation.isLoading}
-                    className="flex-1 bg-success-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-success-700 flex items-center justify-center space-x-2 disabled:opacity-50"
-                  >
-                    <CheckCircle className="h-5 w-5" />
-                    <span>Accept Order</span>
-                  </button>
-                  <button
-                    onClick={() => rejectOrderMutation.mutate(order._id)}
-                    disabled={rejectOrderMutation.isLoading}
-                    className="flex-1 bg-error-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-error-700 flex items-center justify-center space-x-2 disabled:opacity-50"
-                  >
-                    <XCircle className="h-5 w-5" />
-                    <span>Reject Order</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // 🕐 3. ACTIVE ORDERS
+  // 🕐 2. ACTIVE / RECEIVED ORDERS (replaces IncomingOrders)
   const ActiveOrders = () => {
     const orders = ordersData?.data?.orders || [];
-    const activeOrders = orders.filter(o => ['accepted', 'assigned', 'out_for_delivery'].includes(o.status));
+    // Show received orders (accepted/assigned/out_for_delivery) and also include recently received
+    const receivedOrders = orders.filter(o => ['pending', 'accepted', 'assigned', 'out_for_delivery'].includes(o.status));
+
+    const [selectedOrders, setSelectedOrders] = useState(new Set());
+    const [selectAll, setSelectAll] = useState(false);
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [selectedDeliveryBoy, setSelectedDeliveryBoy] = useState('');
 
     if (ordersLoading) return <LoadingSpinner />;
 
+    const toggleSelect = (orderId) => {
+      const next = new Set(selectedOrders);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      setSelectedOrders(next);
+      setSelectAll(next.size === receivedOrders.length && receivedOrders.length > 0);
+    };
+
+    const handleSelectAll = () => {
+      if (selectAll) {
+        setSelectedOrders(new Set());
+        setSelectAll(false);
+      } else {
+        const allIds = receivedOrders.map(o => o._id);
+        setSelectedOrders(new Set(allIds));
+        setSelectAll(true);
+      }
+    };
+
+    const handleAssign = () => {
+      if (!selectedDeliveryBoy) return toast.error('Select a delivery partner');
+      const orderIds = Array.from(selectedOrders);
+      if (orderIds.length === 0) return toast.error('Select orders to assign');
+      assignManyMutation.mutate({ orderIds, deliveryBoyId: selectedDeliveryBoy });
+      setAssignModalOpen(false);
+      setSelectedOrders(new Set());
+      setSelectAll(false);
+    };
+
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Active Orders</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">View Orders</h1>
+          <div className="flex items-center space-x-3">
+            <label className="inline-flex items-center">
+              <input type="checkbox" checked={selectAll} onChange={handleSelectAll} className="mr-2" />
+              <span className="text-sm text-gray-600">Select All</span>
+            </label>
+            <button
+              onClick={() => setAssignModalOpen(true)}
+              disabled={selectedOrders.size === 0}
+              className="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50"
+            >
+              Assign Partner
+            </button>
+          </div>
+        </div>
 
-        {activeOrders.length === 0 ? (
+        {receivedOrders.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <Clock className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600">No active orders</p>
+            <p className="text-gray-600">No orders received</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {activeOrders.map((order) => (
+            {receivedOrders.map((order) => (
               <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center space-x-3 mb-2">
-                      <Package className="h-5 w-5 text-gray-400" />
-                      <span className="font-mono text-sm text-gray-600">#{order.orderNumber || order._id.slice(-8)}</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {getStatusText(order.status)}
-                      </span>
+                  <div className="flex items-center space-x-3">
+                    <input type="checkbox" checked={selectedOrders.has(order._id)} onChange={() => toggleSelect(order._id)} className="h-4 w-4" />
+                    <div>
+                      <div className="flex items-center space-x-3 mb-2">
+                        <Package className="h-5 w-5 text-gray-400" />
+                        <span className="font-mono text-sm text-gray-600">#{order.orderNumber || order._id.slice(-8)}</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusText(order.status)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">{formatDateTime(order.timeline?.ordered)}</p>
                     </div>
                   </div>
                   <p className="text-xl font-semibold text-primary-600">₹{order.items?.totalPrice || 0}</p>
@@ -285,9 +255,7 @@ const ProviderDashboard = () => {
                     {order.deliveryBoyId ? (
                       <p className="font-medium text-success-600">{order.deliveryBoy?.name || 'Assigned'}</p>
                     ) : (
-                      <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
-                        + Assign Partner
-                      </button>
+                      <p className="text-sm text-gray-600">Not assigned</p>
                     )}
                   </div>
                   <div>
@@ -296,18 +264,59 @@ const ProviderDashboard = () => {
                   </div>
                 </div>
 
-                {!order.deliveryBoyId && order.status === 'accepted' && (
-                  <button className="w-full bg-primary-600 text-white py-2 rounded-lg font-medium hover:bg-primary-700">
-                    Assign Delivery Partner
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => {
+                      if (!window.confirm('Are you sure you want to cancel this order?')) return;
+                      cancelOrderMutation.mutate(order._id);
+                    }}
+                    disabled={cancelOrderMutation.isLoading}
+                    className="bg-error-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-error-700 disabled:opacity-50"
+                  >
+                    Cancel Order
                   </button>
-                )}
+
+                  {!order.deliveryBoyId && order.status === 'accepted' && (
+                    <button
+                      onClick={() => {
+                        setSelectedOrders(new Set([order._id]));
+                        setAssignModalOpen(true);
+                      }}
+                      className="bg-primary-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-700"
+                    >
+                      Assign Partner
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Assign Modal */}
+        {assignModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4">Assign Delivery Partner</h3>
+              <select value={selectedDeliveryBoy} onChange={e => setSelectedDeliveryBoy(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4">
+                <option value="">Select partner</option>
+                {deliveryBoysData?.data?.map(db => (
+                  <option key={db._id} value={db._id}>{db.name} - {db.phone}</option>
+                ))}
+              </select>
+
+              <div className="flex justify-end space-x-3">
+                <button onClick={() => setAssignModalOpen(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
+                <button onClick={handleAssign} className="px-4 py-2 rounded-lg bg-primary-600 text-white">Assign</button>
+              </div>
+            </div>
           </div>
         )}
       </div>
     );
   };
+
+  // (Old ActiveOrders removed — replaced by consolidated View Orders implementation above)
 
   // 🚚 4. DELIVERY MANAGEMENT
   const DeliveryManagement = () => {
@@ -602,7 +611,6 @@ const ProviderDashboard = () => {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard': return <DashboardHome />;
-      case 'incoming-orders': return <IncomingOrders />;
       case 'active-orders': return <ActiveOrders />;
       case 'delivery-management': return <DeliveryManagement />;
       case 'order-history': return <OrderHistory />;

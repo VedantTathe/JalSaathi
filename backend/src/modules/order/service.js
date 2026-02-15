@@ -24,7 +24,7 @@ class OrderService {
         return formatResponse(false, `Minimum order quantity is ${provider.minimumOrder}`, null, 400);
       }
       
-      // Create order
+      // Create order (auto-accepted)
       const order = await Order.create({
         customerId,
         providerId,
@@ -35,7 +35,8 @@ class OrderService {
         },
         deliveryAddress,
         specialInstructions: specialInstructions || '',
-        paymentMethod: paymentMethod || 'cash_on_delivery'
+        paymentMethod: paymentMethod || 'cash_on_delivery',
+        status: 'accepted'
       });
       
       // Populate order details
@@ -43,7 +44,16 @@ class OrderService {
         .populate('customerId', 'name phone email')
         .populate('providerId');
       
-      return formatResponse(true, 'Order created successfully', populatedOrder, 201);
+      // Update provider statistics (auto-accepted count)
+      try {
+        provider.totalOrders = (provider.totalOrders || 0) + 1;
+        await provider.save();
+      } catch (err) {
+        // non-fatal
+        console.error('Failed to update provider stats after auto-accept:', err);
+      }
+
+      return formatResponse(true, 'Order created and auto-accepted', populatedOrder, 201);
       
     } catch (error) {
       console.error('Create order error:', error);
