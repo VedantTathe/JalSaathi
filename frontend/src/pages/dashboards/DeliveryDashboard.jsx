@@ -15,22 +15,54 @@ const DeliveryDashboard = () => {
   const [activePage, setActivePage] = useState('dashboard');
 
   // Fetch data
-  const { data: ordersData, isLoading: ordersLoading } = useQuery('delivery-orders', () => deliveryApi.getAssignedOrders());
+  const { data: ordersData, isLoading: ordersLoading } = useQuery(
+    'delivery-orders', 
+    () => deliveryApi.getAssignedOrders(),
+    {
+      onError: (error) => console.error('Error fetching assigned orders:', error)
+    }
+  );
+
+  const { data: historyData, isLoading: historyLoading } = useQuery(
+    'delivery-history',
+    () => deliveryApi.getDeliveryHistory(),
+    {
+      onError: (error) => console.error('Error fetching delivery history:', error)
+    }
+  );
+
+  // Mutation to update delivery status
+  const updateStatusMutation = useMutation(
+    ({ orderId, status }) => deliveryApi.updateDeliveryStatus(orderId, status, ''),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('delivery-orders');
+        queryClient.invalidateQueries('delivery-history');
+        toast.success('Status updated!');
+      },
+      onError: () => toast.error('Failed to update status')
+    }
+  );
 
   const markDeliveredMutation = useMutation(
     (orderId) => deliveryApi.markAsDelivered(orderId, ''),
     {
       onSuccess: () => {
         queryClient.invalidateQueries('delivery-orders');
+        queryClient.invalidateQueries('delivery-history');
         toast.success('Order marked as delivered!');
       },
       onError: () => toast.error('Failed to update order')
     }
   );
 
+  // Calculate pending orders count for badge
+  const orders = Array.isArray(ordersData?.data) ? ordersData.data : [];
+  const pendingOrdersCount = orders.filter(o => ['assigned', 'out_for_delivery'].includes(o.status)).length;
+
   const navigation = [
     { key: 'dashboard', name: 'Dashboard Home', icon: HomeIcon },
-    { key: 'assigned-orders', name: 'Assigned Orders', icon: Package, badge: 3 },
+    { key: 'assigned-orders', name: 'Assigned Orders', icon: Package, badge: pendingOrdersCount },
     { key: 'delivery-tracking', name: 'Delivery Tracking', icon: MapPin },
     { key: 'history', name: 'Delivery History', icon: History },
     { key: 'earnings', name: 'Earnings', icon: DollarSign },
@@ -43,11 +75,35 @@ const DeliveryDashboard = () => {
 
   // 🏠 1. DASHBOARD HOME
   const DashboardHome = () => {
-    const orders = ordersData?.data?.orders || [];
-    const todayOrders = orders.filter(o => new Date(o.timeline?.assigned).toDateString() === new Date().toDateString());
-    const assignedToday = todayOrders.length;
-    const completedToday = todayOrders.filter(o => o.status === 'delivered').length;
-    const pendingToday = todayOrders.filter(o => ['assigned', 'out_for_delivery'].includes(o.status)).length;
+    const orders = Array.isArray(ordersData?.data) ? ordersData.data : [];
+    const completedOrders = Array.isArray(historyData?.data?.orders) ? historyData.data.orders : [];
+    
+    // Get today's date string for comparison
+    const today = new Date().toDateString();
+    
+    // Orders completed today that were also assigned today
+    const completedAssignedToday = completedOrders.filter(o => {
+      if (!o.timeline?.assigned) return false;
+      return new Date(o.timeline.assigned).toDateString() === today;
+    }).length;
+    
+    // Orders delivered today (regardless of when assigned)
+    const completedToday = completedOrders.filter(o => {
+      if (!o.timeline?.delivered) return false;
+      return new Date(o.timeline.delivered).toDateString() === today;
+    }).length;
+    
+    // Pending deliveries assigned today
+    const pendingAssignedToday = orders.filter(o => {
+      if (!o.timeline?.assigned) return false;
+      return new Date(o.timeline.assigned).toDateString() === today;
+    }).length;
+    
+    // All orders assigned today = completed (assigned today) + pending (assigned today)
+    const assignedToday = completedAssignedToday + pendingAssignedToday;
+    
+    // All pending deliveries (assigned + out_for_delivery)
+    const pendingDeliveries = orders.length;
 
     return (
       <div>
@@ -69,8 +125,8 @@ const DeliveryDashboard = () => {
 
           <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-6">
             <Clock className="h-8 w-8 text-warning-600 mb-2" />
-            <p className="text-3xl font-bold text-warning-900">{pendingToday}</p>
-            <p className="text-sm text-warning-700">Pending Deliveries</p>
+            <p className="text-3xl font-bold text-warning-900">{pendingAssignedToday}</p>
+            <p className="text-sm text-warning-700">Pending (Assigned Today)</p>
           </div>
         </div>
 
@@ -83,7 +139,7 @@ const DeliveryDashboard = () => {
             <div className="flex items-center justify-between mb-3">
               <Package className="h-8 w-8 text-primary-600" />
               <span className="bg-error-500 text-white text-sm rounded-full h-6 w-6 flex items-center justify-center">
-                {pendingToday}
+                {pendingDeliveries}
               </span>
             </div>
             <h3 className="font-semibold text-gray-900 mb-1">View Assigned Orders</h3>
@@ -105,7 +161,7 @@ const DeliveryDashboard = () => {
 
   // 📦 2. ASSIGNED ORDERS (Main Working Screen)
   const AssignedOrders = () => {
-    const orders = ordersData?.data?.orders || [];
+    const orders = Array.isArray(ordersData?.data) ? ordersData.data : [];
     const assignedOrders = orders.filter(o => ['assigned', 'out_for_delivery'].includes(o.status));
 
     if (ordersLoading) return <LoadingSpinner />;
@@ -147,11 +203,11 @@ const DeliveryDashboard = () => {
                 <div className="bg-blue-50 rounded-lg p-4 mb-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-900 mb-1">👤 {order.customer?.name || 'Customer'}</p>
+                      <p className="font-semibold text-gray-900 mb-1">👤 {order.customerId?.name || 'Customer'}</p>
                       <p className="text-sm text-gray-700 mb-2">
                         📍 {order.deliveryAddress?.street || 'Address not available'}, {order.deliveryAddress?.area || ''}
                       </p>
-                      <p className="text-sm text-gray-700">📞 {order.customer?.phone || 'No phone'}</p>
+                      <p className="text-sm text-gray-700">📞 {order.customerId?.phone || 'No phone'}</p>
                     </div>
                   </div>
                 </div>
@@ -160,7 +216,7 @@ const DeliveryDashboard = () => {
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <p className="text-xs text-gray-600">Provider</p>
-                    <p className="font-medium text-gray-900">{order.provider?.businessName || 'N/A'}</p>
+                    <p className="font-medium text-gray-900">{order.providerId?.businessName || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-600">Quantity</p>
@@ -177,10 +233,10 @@ const DeliveryDashboard = () => {
                 </div>
 
                 {/* Special Instructions */}
-                {order.deliveryNotes && (
+                {order.specialInstructions && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
                     <p className="text-sm font-medium text-yellow-900">📝 Special Instructions:</p>
-                    <p className="text-sm text-yellow-800">{order.deliveryNotes}</p>
+                    <p className="text-sm text-yellow-800">{order.specialInstructions}</p>
                   </div>
                 )}
 
@@ -195,21 +251,32 @@ const DeliveryDashboard = () => {
                   </button>
                   
                   <button
-                    onClick={() => window.location.href = `tel:${order.customer?.phone || ''}`}
+                    onClick={() => window.location.href = `tel:${order.customerId?.phone || ''}`}
                     className="bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center space-x-2"
                   >
                     <Phone className="h-5 w-5" />
                     <span>Call</span>
                   </button>
 
-                  <button
-                    onClick={() => markDeliveredMutation.mutate(order._id)}
-                    disabled={markDeliveredMutation.isLoading}
-                    className="bg-success-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-success-700 flex items-center justify-center space-x-2 disabled:opacity-50"
-                  >
-                    <CheckCircle className="h-5 w-5" />
-                    <span>Delivered</span>
-                  </button>
+                  {order.status === 'assigned' ? (
+                    <button
+                      onClick={() => updateStatusMutation.mutate({ orderId: order._id, status: 'out_for_delivery' })}
+                      disabled={updateStatusMutation.isLoading}
+                      className="bg-warning-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-warning-700 flex items-center justify-center space-x-2 disabled:opacity-50"
+                    >
+                      <Truck className="h-5 w-5" />
+                      <span>Start</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => markDeliveredMutation.mutate(order._id)}
+                      disabled={markDeliveredMutation.isLoading}
+                      className="bg-success-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-success-700 flex items-center justify-center space-x-2 disabled:opacity-50"
+                    >
+                      <CheckCircle className="h-5 w-5" />
+                      <span>Delivered</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -274,10 +341,9 @@ const DeliveryDashboard = () => {
   // 📜 4. DELIVERY HISTORY
   const DeliveryHistory = () => {
     const [dateFilter, setDateFilter] = useState('all');
-    const orders = ordersData?.data?.orders || [];
-    const completedOrders = orders.filter(o => o.status === 'delivered');
+    const completedOrders = Array.isArray(historyData?.data?.orders) ? historyData.data.orders : [];
 
-    if (ordersLoading) return <LoadingSpinner />;
+    if (historyLoading) return <LoadingSpinner />;
 
     return (
       <div>
@@ -319,7 +385,7 @@ const DeliveryDashboard = () => {
                         Delivered
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700 mb-1">{order.customer?.name}</p>
+                    <p className="text-sm text-gray-700 mb-1">{order.customerId?.name}</p>
                     <p className="text-xs text-gray-500">{formatDateTime(order.timeline?.delivered)}</p>
                   </div>
                   <div className="text-right">
