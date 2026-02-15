@@ -10,10 +10,22 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import DashboardLayout from '../../components/DashboardLayout.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
-import { userApi, addressApi } from '../../services/api';
+import { userApi, addressApi, orderApi } from '../../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
+
+// Load Razorpay SDK dynamically
+const loadRazorpayScript = () => {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+    document.body.appendChild(script);
+  });
+};
 
 // Fix Leaflet default marker icon issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -73,16 +85,91 @@ const CustomerDashboard = () => {
     }
   }));
 
+  // State for payment processing
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
   // Mutations
   const placeOrderMutation = useMutation((orderData) => userApi.placeOrder(orderData), {
-    onSuccess: () => {
+    onSuccess: async (response) => {
+      // Extract order from response (handles both axios response shapes)
+      const order = response?.data?.data || response?.data || response;
+      const orderId = order?._id || order?.id;
+      const paymentMethod = order?.paymentMethod || orderForm.paymentMethod;
+
+      // If online payment, open Razorpay immediately
+      if (paymentMethod === 'online' && orderId) {
+        setIsProcessingPayment(true);
+        try {
+          await handleRazorpayCheckout(orderId, order);
+        } catch (err) {
+          console.error('Payment failed:', err);
+          toast.error('Payment failed. You can pay later from Order Details.');
+        }
+        setIsProcessingPayment(false);
+      } else {
+        toast.success('Order placed successfully!');
+      }
+
       queryClient.invalidateQueries('customer-orders');
-      toast.success('Order placed successfully!');
       setShowOrderModal(false);
       setOrderForm({ providerId: '', quantity: 1, paymentMethod: 'cash_on_delivery', specialInstructions: '', deliveryAddress: null, deliveryTime: 'immediate' });
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to place order')
   });
+
+  // Handle Razorpay checkout after order is placed
+  const handleRazorpayCheckout = async (orderId, orderData) => {
+    try {
+      // Create Razorpay order
+      const res = await orderApi.createPayment(orderId);
+      const key = res?.data?.key || res?.key;
+      const rOrder = res?.data?.order || res?.order;
+      if (!rOrder || !key) throw new Error('Failed to create payment');
+
+      await loadRazorpayScript();
+
+      return new Promise((resolve, reject) => {
+        const options = {
+          key,
+          amount: rOrder.amount,
+          currency: rOrder.currency,
+          name: 'JalSaathi',
+          description: `Order #${orderData?.orderNumber || orderId}`,
+          order_id: rOrder.id,
+          handler: async function(paymentResult) {
+            try {
+              await orderApi.verifyPayment(orderId, paymentResult);
+              toast.success('Payment successful! Order confirmed.');
+              queryClient.invalidateQueries('customer-orders');
+              resolve(true);
+            } catch (err) {
+              console.error('Verification failed', err);
+              toast.error('Payment verification failed');
+              reject(err);
+            }
+          },
+          modal: {
+            ondismiss: function() {
+              toast('Payment cancelled. You can pay later from Order Details.', { icon: '⚠️' });
+              resolve(false);
+            }
+          },
+          prefill: {
+            name: orderData?.customerId?.name || '',
+            email: orderData?.customerId?.email || '',
+            contact: orderData?.customerId?.phone || ''
+          },
+          theme: { color: '#3399cc' }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      });
+    } catch (error) {
+      console.error('Razorpay checkout error:', error);
+      throw error;
+    }
+  };
 
   const createAddressMutation = useMutation((addressData) => addressApi.createAddress(addressData), {
     onSuccess: () => {
@@ -1003,6 +1090,19 @@ const CustomerDashboard = () => {
                     placeholder="e.g., Call before delivery, Gate code, etc."
                   />
                 </div>
+
+                {/* Payment Method */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
+                  <select
+                    value={orderForm.paymentMethod}
+                    onChange={(e) => setOrderForm({ ...orderForm, paymentMethod: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="cash_on_delivery">💵 Cash on Delivery</option>
+                    <option value="online">💳 Pay Online (UPI/Card)</option>
+                  </select>
+                </div>
               </form>
             </div>
 
@@ -1016,6 +1116,10 @@ const CustomerDashboard = () => {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-600">Price per can:</span>
                   <span className="font-medium text-gray-900">₹{selectedProvider.pricePerCan}</span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">Payment:</span>
+                  <span className="font-medium text-gray-900">{orderForm.paymentMethod === 'online' ? '💳 Online' : '💵 Cash'}</span>
                 </div>
                 <div className="h-px bg-gray-300 my-2"></div>
                 <div className="flex justify-between items-center">
@@ -1056,21 +1160,21 @@ const CustomerDashboard = () => {
                     providerId: selectedProvider._id
                   });
                 }}
-                disabled={placeOrderMutation.isLoading}
+                disabled={placeOrderMutation.isLoading || isProcessingPayment}
                 className="w-full bg-primary-600 text-white py-3.5 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center justify-center space-x-2"
               >
-                {placeOrderMutation.isLoading ? (
+                {placeOrderMutation.isLoading || isProcessingPayment ? (
                   <>
                     <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Placing Order...</span>
+                    <span>{isProcessingPayment ? 'Processing Payment...' : 'Placing Order...'}</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle className="h-5 w-5" />
-                    <span>Confirm Order</span>
+                    <span>{orderForm.paymentMethod === 'online' ? 'Confirm & Pay' : 'Confirm Order'}</span>
                   </>
                 )}
               </button>

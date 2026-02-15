@@ -94,6 +94,7 @@ export const providerApi = {
   removeDeliveryBoy: (deliveryBoyId) => apiClient.delete(`/provider/delivery-boys/${deliveryBoyId}`),
   getAnalytics: () => apiClient.get('/provider/analytics'),
   getCustomers: (params) => apiClient.get('/provider/customers', { params }),
+  getHistory: (params) => apiClient.get('/provider/history', { params }),
 };
 
 // Order API
@@ -105,6 +106,8 @@ export const orderApi = {
   cancelOrder: (orderId, reason) => apiClient.patch(`/order/${orderId}/cancel`, { reason }),
   getAllOrders: (params) => apiClient.get('/order', { params }),
   adminCancelOrder: (orderId, reason) => apiClient.patch(`/order/${orderId}/admin-cancel`, { reason }),
+  createPayment: (orderId) => apiClient.post(`/order/${orderId}/payment/create`),
+  verifyPayment: (orderId, payload) => apiClient.post(`/order/${orderId}/payment/verify`, payload),
 };
 
 // Delivery API
