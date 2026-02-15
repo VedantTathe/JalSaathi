@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
   Home as HomeIcon, Package, Truck, Users, History, TrendingUp, UserCircle,
   Settings, CheckCircle, XCircle, Clock, IndianRupee, Phone, MapPin,
-  Calendar, Filter, Plus, Edit2, Trash2, BarChart3, DollarSign, Power
+  Calendar, Filter, Plus, Edit2, Trash2, BarChart3, DollarSign, Power,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
@@ -32,6 +33,7 @@ const ProviderDashboard = () => {
   const { data: customersData, isLoading: customersLoading } = useQuery('provider-customers', () => providerApi.getCustomers());
   const { data: deliveryBoysData, isLoading: deliveryBoysLoading } = useQuery('provider-delivery-boys', () => providerApi.getDeliveryBoys());
   const { data: analyticsData, isLoading: analyticsLoading } = useQuery('provider-analytics', () => providerApi.getAnalytics());
+  const { data: historyData, isLoading: historyLoading } = useQuery('provider-history', () => providerApi.getHistory());
   const { data: profileData } = useQuery('auth-profile', () => authApi.getProfile());
 
   useEffect(() => {
@@ -195,16 +197,22 @@ const ProviderDashboard = () => {
     );
   };
 
-  // 🕐 2. ACTIVE / RECEIVED ORDERS (replaces IncomingOrders)
+  // 🕐 2. VIEW ORDERS (shows ALL orders from last 16 hours including delivered)
   const ActiveOrders = () => {
     const orders = ordersData?.data?.orders || [];
-    // Show received orders (accepted/assigned/out_for_delivery) and also include recently received
-    const receivedOrders = orders.filter(o => ['pending', 'accepted', 'assigned', 'out_for_delivery'].includes(o.status));
+    // Show ALL orders (including delivered) - backend already filters to last 16 hours
+    const allOrders = orders;
 
     const [selectedOrders, setSelectedOrders] = useState(new Set());
     const [selectAll, setSelectAll] = useState(false);
     const [assignModalOpen, setAssignModalOpen] = useState(false);
     const [selectedDeliveryBoy, setSelectedDeliveryBoy] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+
+    // Filter orders by status
+    const filteredOrders = statusFilter === 'all' 
+      ? allOrders 
+      : allOrders.filter(o => o.status === statusFilter);
 
     if (ordersLoading) return <LoadingSpinner />;
 
@@ -213,7 +221,9 @@ const ProviderDashboard = () => {
       if (next.has(orderId)) next.delete(orderId);
       else next.add(orderId);
       setSelectedOrders(next);
-      setSelectAll(next.size === receivedOrders.length && receivedOrders.length > 0);
+      // Only count assignable orders for select all
+      const assignableOrders = filteredOrders.filter(o => ['accepted', 'assigned', 'out_for_delivery'].includes(o.status));
+      setSelectAll(next.size === assignableOrders.length && assignableOrders.length > 0);
     };
 
     const handleSelectAll = () => {
@@ -221,8 +231,11 @@ const ProviderDashboard = () => {
         setSelectedOrders(new Set());
         setSelectAll(false);
       } else {
-        const allIds = receivedOrders.map(o => o._id);
-        setSelectedOrders(new Set(allIds));
+        // Only select assignable orders (not delivered/cancelled)
+        const assignableIds = filteredOrders
+          .filter(o => ['accepted', 'assigned', 'out_for_delivery'].includes(o.status))
+          .map(o => o._id);
+        setSelectedOrders(new Set(assignableIds));
         setSelectAll(true);
       }
     };
@@ -240,8 +253,25 @@ const ProviderDashboard = () => {
     return (
       <div>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">View Orders</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">View Orders</h1>
+            <p className="text-sm text-gray-500">Showing orders from last 16 hours</p>
+          </div>
           <div className="flex items-center space-x-3">
+            {/* Status Filter */}
+            <select 
+              value={statusFilter} 
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="all">All Status ({allOrders.length})</option>
+              <option value="pending">Pending ({allOrders.filter(o => o.status === 'pending').length})</option>
+              <option value="accepted">Accepted ({allOrders.filter(o => o.status === 'accepted').length})</option>
+              <option value="assigned">Assigned ({allOrders.filter(o => o.status === 'assigned').length})</option>
+              <option value="out_for_delivery">Out for Delivery ({allOrders.filter(o => o.status === 'out_for_delivery').length})</option>
+              <option value="delivered">Delivered ({allOrders.filter(o => o.status === 'delivered').length})</option>
+              <option value="cancelled">Cancelled ({allOrders.filter(o => o.status === 'cancelled').length})</option>
+            </select>
             <label className="inline-flex items-center">
               <input type="checkbox" checked={selectAll} onChange={handleSelectAll} className="mr-2" />
               <span className="text-sm text-gray-600">Select All</span>
@@ -256,18 +286,22 @@ const ProviderDashboard = () => {
           </div>
         </div>
 
-        {receivedOrders.length === 0 ? (
+        {filteredOrders.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <Clock className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600">No orders received</p>
+            <p className="text-gray-600">No orders found</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {receivedOrders.map((order) => (
-              <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            {filteredOrders.map((order) => {
+              const isAssignable = ['accepted', 'assigned', 'out_for_delivery'].includes(order.status);
+              return (
+              <div key={order._id} className={`bg-white rounded-lg shadow-sm border p-6 ${order.status === 'delivered' ? 'border-success-300 bg-success-50' : order.status === 'cancelled' ? 'border-error-300 bg-error-50' : 'border-gray-200'}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">
-                    <input type="checkbox" checked={selectedOrders.has(order._id)} onChange={() => toggleSelect(order._id)} className="h-4 w-4" />
+                    {isAssignable && (
+                      <input type="checkbox" checked={selectedOrders.has(order._id)} onChange={() => toggleSelect(order._id)} className="h-4 w-4" />
+                    )}
                     <div>
                       <div className="flex items-center space-x-3 mb-2">
                         <Package className="h-5 w-5 text-gray-400" />
@@ -276,7 +310,7 @@ const ProviderDashboard = () => {
                           {getStatusText(order.status)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">{formatDateTime(order.timeline?.ordered)}</p>
+                      <p className="text-sm text-gray-600">{formatDateTime(order.timeline?.ordered || order.createdAt)}</p>
                     </div>
                   </div>
                   <p className="text-xl font-semibold text-primary-600">₹{order.items?.totalPrice || 0}</p>
@@ -285,8 +319,8 @@ const ProviderDashboard = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div>
                     <p className="text-xs text-gray-600">Customer</p>
-                    <p className="font-medium text-gray-900">{order.customer?.name || 'N/A'}</p>
-                    <p className="text-xs text-gray-600">{order.customer?.phone || ''}</p>
+                    <p className="font-medium text-gray-900">{order.customerId?.name || order.customer?.name || 'N/A'}</p>
+                    <p className="text-xs text-gray-600">{order.customerId?.phone || order.customer?.phone || ''}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-600">Quantity</p>
@@ -295,43 +329,60 @@ const ProviderDashboard = () => {
                   <div>
                     <p className="text-xs text-gray-600">Delivery Partner</p>
                     {order.deliveryBoyId ? (
-                      <p className="font-medium text-success-600">{order.deliveryBoy?.name || 'Assigned'}</p>
+                      <p className="font-medium text-success-600">{order.deliveryBoyId?.name || order.deliveryBoy?.name || 'Assigned'}</p>
                     ) : (
-                      <p className="text-sm text-gray-600">Not assigned</p>
+                      <p className="text-sm text-warning-600">Not assigned</p>
                     )}
                   </div>
                   <div>
                     <p className="text-xs text-gray-600">Payment</p>
-                    <p className="font-medium text-gray-900">{order.paymentStatus || 'Pending'}</p>
+                    <p className={`font-medium ${order.paymentStatus === 'paid' ? 'text-success-600' : 'text-warning-600'}`}>
+                      {order.paymentStatus === 'paid' ? '✓ Paid' : 'Pending'}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => {
-                      if (!window.confirm('Are you sure you want to cancel this order?')) return;
-                      cancelOrderMutation.mutate(order._id);
-                    }}
-                    disabled={cancelOrderMutation.isLoading}
-                    className="bg-error-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-error-700 disabled:opacity-50"
-                  >
-                    Cancel Order
-                  </button>
+                {/* Delivery Address */}
+                <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                  <p className="text-xs text-gray-600 mb-1">Delivery Address</p>
+                  <p className="text-sm text-gray-900">
+                    {order.deliveryAddress?.street || ''}{order.deliveryAddress?.street ? ', ' : ''}
+                    {order.deliveryAddress?.area || ''}{order.deliveryAddress?.area ? ', ' : ''}
+                    {order.deliveryAddress?.city || ''}{order.deliveryAddress?.city ? ' - ' : ''}
+                    {order.deliveryAddress?.pincode || ''}
+                    {!order.deliveryAddress?.street && !order.deliveryAddress?.area && 'Address not available'}
+                  </p>
+                </div>
 
-                  {!order.deliveryBoyId && order.status === 'accepted' && (
+                {isAssignable && (
+                  <div className="flex space-x-3">
                     <button
                       onClick={() => {
-                        setSelectedOrders(new Set([order._id]));
-                        setAssignModalOpen(true);
+                        if (!window.confirm('Are you sure you want to cancel this order?')) return;
+                        cancelOrderMutation.mutate(order._id);
                       }}
-                      className="bg-primary-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-700"
+                      disabled={cancelOrderMutation.isLoading}
+                      className="bg-error-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-error-700 disabled:opacity-50"
                     >
-                      Assign Partner
+                      Cancel Order
                     </button>
-                  )}
-                </div>
+
+                    {!order.deliveryBoyId && order.status === 'accepted' && (
+                      <button
+                        onClick={() => {
+                          setSelectedOrders(new Set([order._id]));
+                          setAssignModalOpen(true);
+                        }}
+                        className="bg-primary-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-700"
+                      >
+                        Assign Partner
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -445,123 +496,184 @@ const ProviderDashboard = () => {
     );
   };
 
-  // 📜 5. ORDER HISTORY
+  // 📜 5. ORDER HISTORY & REVENUE (Combined)
   const OrderHistory = () => {
-    const [dateFilter, setDateFilter] = useState('all');
-    const orders = ordersData?.data?.orders || [];
-    const deliveredOrders = orders.filter(o => o.status === 'delivered' || o.status === 'cancelled');
+    const [expandedDay, setExpandedDay] = useState(null);
+    
+    const dailySummary = historyData?.data?.dailySummary || [];
+    const overallStats = historyData?.data?.overallStats || {};
 
-    const stats = {
-      totalOrders: deliveredOrders.length,
-      avgDeliveryTime: '32 min',
-      paymentReceived: deliveredOrders.reduce((sum, o) => sum + (o.items?.totalPrice || 0), 0)
+    if (historyLoading) return <LoadingSpinner />;
+
+    const formatDate = (dateStr) => {
+      const date = new Date(dateStr);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      if (date.toDateString() === today.toDateString()) return 'Today';
+      if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+      return date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
     };
-
-    if (ordersLoading) return <LoadingSpinner />;
 
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Order History</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">History & Revenue</h1>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <p className="text-sm text-gray-600 mb-1">Total Orders</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+        {/* Overall Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-lg p-4">
+            <DollarSign className="h-6 w-6 text-success-600 mb-1" />
+            <p className="text-xs text-success-700">Total Revenue</p>
+            <p className="text-xl font-bold text-success-900">₹{overallStats.totalRevenue || 0}</p>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <p className="text-sm text-gray-600 mb-1">Avg Delivery Time</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.avgDeliveryTime}</p>
+          <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-4">
+            <Package className="h-6 w-6 text-primary-600 mb-1" />
+            <p className="text-xs text-primary-700">Total Orders</p>
+            <p className="text-xl font-bold text-primary-900">{overallStats.totalOrders || 0}</p>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <p className="text-sm text-gray-600 mb-1">Payment Received</p>
-            <p className="text-2xl font-bold text-success-600">₹{stats.paymentReceived}</p>
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
+            <CheckCircle className="h-6 w-6 text-blue-600 mb-1" />
+            <p className="text-xs text-blue-700">Delivered</p>
+            <p className="text-xl font-bold text-blue-900">{overallStats.deliveredOrders || 0}</p>
+          </div>
+          <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-4">
+            <IndianRupee className="h-6 w-6 text-warning-600 mb-1" />
+            <p className="text-xs text-warning-700">Paid Revenue</p>
+            <p className="text-xl font-bold text-warning-900">₹{overallStats.paidRevenue || 0}</p>
           </div>
         </div>
 
-        {/* Orders Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">All Orders</h3>
-            <select className="border border-gray-300 rounded-lg px-4 py-2 text-sm">
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-            </select>
-          </div>
+        {/* Daily Summary Cards */}
+        <div className="space-y-4">
+          {dailySummary.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+              <History className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500">No order history found</p>
+            </div>
+          ) : (
+            dailySummary.map((day) => (
+              <div key={day.date} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                {/* Day Header - Clickable */}
+                <button
+                  onClick={() => setExpandedDay(expandedDay === day.date ? null : day.date)}
+                  className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                      <Calendar className="h-5 w-5 text-primary-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-gray-900">{formatDate(day.date)}</p>
+                      <p className="text-sm text-gray-500">
+                        {day.totalOrders} order{day.totalOrders !== 1 ? 's' : ''} • 
+                        <span className="text-success-600"> {day.deliveredOrders} delivered</span>
+                        {day.cancelledOrders > 0 && <span className="text-danger-600"> • {day.cancelledOrders} cancelled</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="font-bold text-success-600">₹{day.totalRevenue}</p>
+                      <p className="text-xs text-gray-500">Revenue</p>
+                    </div>
+                    {expandedDay === day.date ? (
+                      <ChevronUp className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-gray-400" />
+                    )}
+                  </div>
+                </button>
 
-          <div className="space-y-3">
-            {deliveredOrders.map((order) => (
-              <div key={order._id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <div>
-                  <p className="font-medium text-gray-900">#{order.orderNumber || order._id.slice(-8)}</p>
-                  <p className="text-sm text-gray-600">{order.customer?.name}</p>
-                  <p className="text-xs text-gray-500">{formatDateTime(order.timeline?.ordered)}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900">₹{order.items?.totalPrice || 0}</p>
-                  <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(order.status)}`}>
-                    {getStatusText(order.status)}
-                  </span>
-                </div>
+                {/* Expanded Orders List */}
+                {expandedDay === day.date && (
+                  <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+                    <div className="space-y-3">
+                      {day.orders.map((order) => (
+                        <div key={order._id} className="bg-white rounded-lg p-4 border border-gray-100 flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <p className="font-medium text-gray-900">#{order.orderNumber || order._id.slice(-8)}</p>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(order.status)}`}>
+                                {getStatusText(order.status)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">{order.customerName}</p>
+                            <p className="text-xs text-gray-500">
+                              {order.quantity} can{order.quantity !== 1 ? 's' : ''} • 
+                              {order.paymentMethod === 'online' ? ' Online' : ' COD'} 
+                              {order.paymentStatus === 'paid' && <span className="text-success-600"> (Paid)</span>}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(order.orderedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900">₹{order.totalPrice}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
+            ))
+          )}
         </div>
       </div>
     );
   };
 
-  // 💰 6. REVENUE DASHBOARD
+  // 💰 6. REVENUE DASHBOARD (uses same data as History)
   const RevenueDashboard = () => {
-    const [revenueView, setRevenueView] = useState('daily');
+    const overallStats = historyData?.data?.overallStats || {};
     
+    if (historyLoading) return <LoadingSpinner />;
+
     return (
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Revenue Dashboard</h1>
-
-        {/* View Selector */}
-        <div className="flex space-x-4 mb-6">
-          {['daily', 'weekly', 'monthly'].map(view => (
-            <button
-              key={view}
-              onClick={() => setRevenueView(view)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                revenueView === view 
-                  ? 'bg-primary-600 text-white' 
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {view.charAt(0).toUpperCase() + view.slice(1)}
-            </button>
-          ))}
-        </div>
 
         {/* Revenue Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-lg p-6">
             <DollarSign className="h-8 w-8 text-success-600 mb-2" />
-            <p className="text-sm text-success-700 mb-1">Total Revenue ({revenueView})</p>
-            <p className="text-3xl font-bold text-success-900">₹5,240</p>
+            <p className="text-sm text-success-700 mb-1">Total Revenue</p>
+            <p className="text-3xl font-bold text-success-900">₹{overallStats.totalRevenue || 0}</p>
           </div>
           <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-6">
-            <Clock className="h-8 w-8 text-warning-600 mb-2" />
-            <p className="text-sm text-warning-700 mb-1">Outstanding Payments</p>
-            <p className="text-3xl font-bold text-warning-900">₹1,180</p>
+            <IndianRupee className="h-8 w-8 text-warning-600 mb-2" />
+            <p className="text-sm text-warning-700 mb-1">Paid Revenue</p>
+            <p className="text-3xl font-bold text-warning-900">₹{overallStats.paidRevenue || 0}</p>
           </div>
           <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-6">
             <BarChart3 className="h-8 w-8 text-primary-600 mb-2" />
-            <p className="text-sm text-primary-700 mb-1">Orders ({revenueView})</p>
-            <p className="text-3xl font-bold text-primary-900">67</p>
+            <p className="text-sm text-primary-700 mb-1">Total Orders</p>
+            <p className="text-3xl font-bold text-primary-900">{overallStats.totalOrders || 0}</p>
           </div>
         </div>
 
-        {/* Chart Placeholder */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold mb-4">Revenue Trends</h3>
-          <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-            <p className="text-gray-500">Revenue chart will be displayed here</p>
+        {/* Additional Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p className="text-xs text-gray-500">Delivered Orders</p>
+            <p className="text-lg font-bold text-success-600">{overallStats.deliveredOrders || 0}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p className="text-xs text-gray-500">Paid Orders</p>
+            <p className="text-lg font-bold text-primary-600">{overallStats.paidOrders || 0}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p className="text-xs text-gray-500">Avg Order Value</p>
+            <p className="text-lg font-bold text-gray-900">₹{overallStats.avgOrderValue || 0}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p className="text-xs text-gray-500">Collection Rate</p>
+            <p className="text-lg font-bold text-gray-900">
+              {overallStats.totalOrders > 0 
+                ? Math.round((overallStats.paidOrders / overallStats.totalOrders) * 100) 
+                : 0}%
+            </p>
           </div>
         </div>
       </div>

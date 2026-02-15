@@ -125,6 +125,16 @@ const orderSchema = new mongoose.Schema({
   deliveryNotes: {
     type: String,
     maxlength: [300, 'Delivery notes cannot exceed 300 characters']
+  },
+  // Payment gateway info (Razorpay etc)
+  paymentInfo: {
+    provider: { type: String },       // 'razorpay'
+    orderId: { type: String },         // razorpay order id
+    paymentId: { type: String },       // razorpay payment id
+    signature: { type: String },       // signature for verification
+    capturedAt: { type: Date },
+    failedReason: { type: String },
+    verifiedAt: { type: Date }
   }
 }, {
   timestamps: true
@@ -136,6 +146,7 @@ orderSchema.index({ providerId: 1, status: 1 });
 orderSchema.index({ deliveryBoyId: 1, status: 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ orderNumber: 1 });
+orderSchema.index({ 'paymentInfo.orderId': 1 }); // For webhook lookup
 
 // Pre-save middleware to generate order number
 orderSchema.pre('save', async function(next) {

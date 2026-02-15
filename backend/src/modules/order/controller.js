@@ -59,6 +59,20 @@ const cancelOrder = asyncHandler(async (req, res) => {
   res.status(statusCode).json(response);
 });
 
+// Create payment order (Razorpay) for an existing order
+const createPaymentOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { response, statusCode } = await OrderService.createRazorpayOrder(req.user._id, orderId);
+  res.status(statusCode).json(response);
+});
+
+// Verify payment after client checkout
+const verifyPayment = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { response, statusCode } = await OrderService.verifyRazorpayPayment(req.user._id, orderId, req.body);
+  res.status(statusCode).json(response);
+});
+
 // Get all orders (admin)
 const getAllOrders = asyncHandler(async (req, res) => {
   const { status, providerId, customerId, dateFrom, dateTo, limit = 20, page = 1 } = req.query;
@@ -92,6 +106,8 @@ module.exports = {
   getOrderById,
   trackOrder,
   cancelOrder,
+  createPaymentOrder,
+  verifyPayment,
   getAllOrders,
   adminCancelOrder
 };

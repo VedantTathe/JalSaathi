@@ -4,72 +4,48 @@ const router = express.Router();
 const providerController = require('./controller');
 const { authorizeRoles } = require('../../middlewares/auth');
 
+// Debug: log all requests to provider routes
+router.use((req, res, next) => {
+  console.log(`[Provider Routes] ${req.method} ${req.path}`);
+  next();
+});
+
 // Quick unauthenticated test endpoint to verify router mounting
 router.get('/__test', (req, res) => {
   res.json({ success: true, message: 'provider routes mounted' });
 });
 
-// All routes require provider role
+// All routes below require provider or admin role
 router.use(authorizeRoles('provider', 'admin'));
 
 // Provider status management
-router.patch('/toggle-status', 
-  authorizeRoles('provider'),
-  providerController.toggleOnlineStatus
-);
-
-router.put('/update-profile', 
-  authorizeRoles('provider'),
-  providerController.updateProviderProfile
-);
+router.patch('/toggle-status', providerController.toggleOnlineStatus);
+router.put('/update-profile', providerController.updateProviderProfile);
 
 // Order management
-router.get('/orders', 
-  authorizeRoles('provider'),
-  providerController.getProviderOrders
-);
+router.get('/orders', providerController.getProviderOrders);
+router.patch('/orders/:orderId/accept', providerController.acceptOrder);
+router.patch('/orders/:orderId/reject', providerController.rejectOrder);
 
-router.patch('/orders/:orderId/accept', 
-  authorizeRoles('provider'),
-  providerController.acceptOrder
-);
+// Test endpoint to verify route exists
+router.get('/orders/:orderId/assign-delivery-test', (req, res) => {
+  res.json({ success: true, message: 'Route exists!', orderId: req.params.orderId });
+});
 
-router.patch('/orders/:orderId/reject', 
-  authorizeRoles('provider'),
-  providerController.rejectOrder
-);
-
-router.patch('/orders/:orderId/assign-delivery', 
-  authorizeRoles('provider'),
-  providerController.assignDeliveryBoy
-);
+router.patch('/orders/:orderId/assign-delivery', providerController.assignDeliveryBoy);
 
 // Delivery boy management
-router.get('/delivery-boys', 
-  authorizeRoles('provider'),
-  providerController.getDeliveryBoys
-);
-
-router.post('/delivery-boys', 
-  authorizeRoles('provider'),
-  providerController.addDeliveryBoy
-);
-
-router.delete('/delivery-boys/:deliveryBoyId', 
-  authorizeRoles('provider'),
-  providerController.removeDeliveryBoy
-);
+router.get('/delivery-boys', providerController.getDeliveryBoys);
+router.post('/delivery-boys', providerController.addDeliveryBoy);
+router.delete('/delivery-boys/:deliveryBoyId', providerController.removeDeliveryBoy);
 
 // Analytics
-router.get('/analytics', 
-  authorizeRoles('provider'),
-  providerController.getAnalytics
-);
+router.get('/analytics', providerController.getAnalytics);
+
+// Order history with daily grouping
+router.get('/history', providerController.getOrderHistory);
 
 // Customers who ordered from this provider
-router.get('/customers',
-  authorizeRoles('provider'),
-  providerController.getCustomers
-);
+router.get('/customers', providerController.getCustomers);
 
 module.exports = router;
