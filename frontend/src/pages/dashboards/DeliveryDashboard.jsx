@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
   Home as HomeIcon, Package, MapPin, History, DollarSign, User,
   CheckCircle, Clock, Phone, Navigation, Truck, IndianRupee, Calendar,
-  Wallet, Coins
+  Wallet, Coins, ExternalLink
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
@@ -323,54 +323,148 @@ const DeliveryDashboard = () => {
     );
   };
 
-  // 🗺️ 3. DELIVERY TRACKING
+  // 🗺️ 3. DELIVERY NAVIGATION - Simple Google Maps Integration
   const DeliveryTracking = () => {
+    // Get all orders that need delivery (assigned or out_for_delivery)
+    const allPendingOrders = orders.filter(o => 
+      ['assigned', 'out_for_delivery'].includes(o.status)
+    );
+
+    // Get address text for an order
+    const getAddressText = (order) => {
+      const addr = order.deliveryAddress;
+      return `${addr?.street || ''}, ${addr?.area || ''}, ${addr?.city || ''}, ${addr?.pincode || ''}`;
+    };
+
+    // Navigate to single order
+    const navigateToOrder = (order) => {
+      const addressText = getAddressText(order);
+      const url = `https://www.google.com/maps/dir/?api=1&origin=My+Location&destination=${encodeURIComponent(addressText)}&travelmode=driving`;
+      window.open(url, '_blank');
+    };
+
+    // Open Google Maps: My Location -> All Stops (sorted) -> Last as Destination
+    const openGoogleMapsFromMyLocation = () => {
+      if (allPendingOrders.length === 0) {
+        toast.error('No pending orders to navigate');
+        return;
+      }
+
+      // Single order - direct navigation
+      if (allPendingOrders.length === 1) {
+        const addressText = getAddressText(allPendingOrders[0]);
+        const url = `https://www.google.com/maps/dir/?api=1&origin=My+Location&destination=${encodeURIComponent(addressText)}&travelmode=driving`;
+        window.open(url, '_blank');
+        return;
+      }
+
+      // Multiple orders - last order is destination, rest are waypoints
+      const lastOrder = allPendingOrders[allPendingOrders.length - 1];
+      const destination = getAddressText(lastOrder);
+
+      // All orders except last become waypoints
+      const waypoints = allPendingOrders.slice(0, -1).map(order => getAddressText(order)).join('|');
+
+      let url = `https://www.google.com/maps/dir/?api=1`;
+      url += `&origin=My+Location`;
+      url += `&destination=${encodeURIComponent(destination)}`;
+      if (waypoints) {
+        url += `&waypoints=${encodeURIComponent(waypoints)}`;
+      }
+      url += `&travelmode=driving`;
+
+      window.open(url, '_blank');
+    };
+
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Delivery Tracking</h1>
-        <p className="text-gray-600 mb-6">Real-time tracking (GPS integration coming soon)</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Delivery Navigation</h1>
+        <p className="text-gray-600 mb-4">Tap to open Google Maps with your route</p>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center mb-6">
-            <div className="text-center">
-              <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600">Map view will be available soon</p>
-              <p className="text-sm text-gray-500 mt-2">GPS tracking integration in progress</p>
-            </div>
-          </div>
-
-          {/* Current Route Status */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-gray-900 mb-3">Current Route</h3>
-            <div className="flex items-center space-x-3 text-sm">
-              <div className="h-8 w-8 rounded-full bg-success-100 flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-success-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">Picked up from provider</p>
-                <p className="text-xs text-gray-500">10:30 AM</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 text-sm">
-              <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
-                <Truck className="h-5 w-5 text-primary-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">Out for delivery</p>
-                <p className="text-xs text-gray-500">Current status</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 text-sm">
-              <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
-                <MapPin className="h-5 w-5 text-gray-400" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-400">Deliver to customer</p>
-                <p className="text-xs text-gray-400">Pending</p>
-              </div>
-            </div>
-          </div>
+        {/* Total Orders Card */}
+        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 text-center mb-6">
+          <p className="text-3xl font-bold text-blue-800">{allPendingOrders.length}</p>
+          <p className="text-sm text-blue-600">Orders in this Journey</p>
         </div>
+
+        {/* Main Navigation Button */}
+        {allPendingOrders.length > 0 && (
+          <button
+            onClick={openGoogleMapsFromMyLocation}
+            className="w-full bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-xl p-5 mb-6 shadow-lg hover:shadow-xl transition-all flex items-center justify-center space-x-3"
+          >
+            <Navigation className="h-8 w-8" />
+            <div className="text-left">
+              <p className="text-lg font-bold">🗺️ Start Navigation ({allPendingOrders.length} stops)</p>
+              <p className="text-sm text-green-100">My Location → All Stops → Destination</p>
+            </div>
+            <ExternalLink className="h-5 w-5" />
+          </button>
+        )}
+
+        {/* No orders message */}
+        {allPendingOrders.length === 0 && (
+          <div className="bg-gray-100 rounded-xl p-8 text-center mb-6">
+            <Package className="h-16 w-16 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-600 font-medium">No pending deliveries</p>
+            <p className="text-sm text-gray-500">All deliveries are complete!</p>
+          </div>
+        )}
+
+        {/* Orders List */}
+        {allPendingOrders.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-900">Delivery Stops</h3>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {allPendingOrders.map((order, index) => (
+                <div key={order._id} className="p-4 hover:bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                        index === allPendingOrders.length - 1 ? 'bg-red-500' : 'bg-blue-500'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{order.customerId?.name || 'Customer'}</p>
+                        <p className="text-xs text-gray-500">
+                          {order.deliveryAddress?.street}, {order.deliveryAddress?.area}
+                        </p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-xs text-gray-600">{order.items?.quantity} cans • Rs. {order.items?.totalPrice}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${
+                            order.paymentMethod === 'cash_on_delivery' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                          }`}>
+                            {order.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Paid'}
+                          </span>
+                          {index === allPendingOrders.length - 1 && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">Destination</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {order.customerId?.phone && (
+                        <a href={`tel:${order.customerId.phone}`} className="p-2 bg-blue-100 rounded-full text-blue-600 hover:bg-blue-200">
+                          <Phone className="h-4 w-4" />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => navigateToOrder(order)}
+                        className="p-2 bg-green-100 rounded-full text-green-600 hover:bg-green-200"
+                        title="Navigate to this address"
+                      >
+                        <Navigation className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };

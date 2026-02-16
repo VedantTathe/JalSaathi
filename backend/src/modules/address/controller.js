@@ -13,7 +13,7 @@ const getAddresses = asyncHandler(async (req, res) => {
 
 // Create new address
 const createAddress = asyncHandler(async (req, res) => {
-  const { label, street, area, city, pincode, isDefault } = req.body;
+  const { label, street, area, city, pincode, isDefault, coordinates } = req.body;
   
   // Validate required fields
   if (!street || !area || !city || !pincode) {
@@ -23,7 +23,7 @@ const createAddress = asyncHandler(async (req, res) => {
     });
   }
   
-  const address = await Address.create({
+  const addressData = {
     userId: req.user._id,
     label: label || 'home',
     street,
@@ -31,7 +31,17 @@ const createAddress = asyncHandler(async (req, res) => {
     city,
     pincode,
     isDefault: isDefault || false
-  });
+  };
+
+  // Add coordinates if provided
+  if (coordinates && (coordinates.latitude || coordinates.lat) && (coordinates.longitude || coordinates.lng)) {
+    addressData.coordinates = {
+      latitude: Number(coordinates.latitude || coordinates.lat),
+      longitude: Number(coordinates.longitude || coordinates.lng)
+    };
+  }
+  
+  const address = await Address.create(addressData);
   
   res.status(201).json({
     success: true,
