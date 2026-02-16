@@ -117,6 +117,8 @@ export const deliveryApi = {
     apiClient.patch(`/delivery/orders/${orderId}/update-status`, { status, notes }),
   markAsDelivered: (orderId, deliveryNotes) => 
     apiClient.patch(`/delivery/orders/${orderId}/mark-delivered`, { deliveryNotes }),
+  markPaymentReceived: (orderId) => 
+    apiClient.patch(`/delivery/orders/${orderId}/mark-payment-received`),
   getDeliveryHistory: (params) => apiClient.get('/delivery/delivery-history', { params }),
   getPerformanceStats: () => apiClient.get('/delivery/performance'),
 };

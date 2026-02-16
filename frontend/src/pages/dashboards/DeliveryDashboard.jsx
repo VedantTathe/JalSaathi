@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
   Home as HomeIcon, Package, MapPin, History, DollarSign, User,
-  CheckCircle, Clock, Phone, Navigation, Truck, IndianRupee, Calendar
+  CheckCircle, Clock, Phone, Navigation, Truck, IndianRupee, Calendar,
+  Wallet, Coins
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
@@ -64,6 +65,18 @@ const DeliveryDashboard = () => {
         toast.success('Order marked as delivered!');
       },
       onError: () => toast.error('Failed to update order')
+    }
+  );
+
+  const markPaymentReceivedMutation = useMutation(
+    (orderId) => deliveryApi.markPaymentReceived(orderId),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('delivery-orders');
+        queryClient.invalidateQueries('delivery-history');
+        toast.success('Payment marked as received!');
+      },
+      onError: () => toast.error('Failed to update payment status')
     }
   );
 
@@ -211,7 +224,7 @@ const DeliveryDashboard = () => {
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Package className="h-4 w-4 text-gray-400" />
                     <div>
@@ -235,6 +248,27 @@ const DeliveryDashboard = () => {
                       <a href={`tel:${order.customerId?.phone || ''}`} className="text-sm font-medium text-primary-600">{order.customerId?.phone || 'No phone'}</a>
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    {order.paymentMethod === 'cash_on_delivery' ? (
+                      <Coins className="h-4 w-4 text-orange-500" />
+                    ) : (
+                      <Wallet className="h-4 w-4 text-green-500" />
+                    )}
+                    <div>
+                      <div className="text-xs text-gray-500">Payment</div>
+                      <div className="text-sm font-medium">
+                        <span className={order.paymentMethod === 'cash_on_delivery' ? 'text-orange-600' : 'text-green-600'}>
+                          {order.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Online'}
+                        </span>
+                        {order.paymentMethod === 'cash_on_delivery' && (
+                          <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${order.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {order.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-4 flex items-center justify-end gap-3">
@@ -247,15 +281,39 @@ const DeliveryDashboard = () => {
                     Navigate
                   </button>
 
-                  <button
-                    onClick={() => { setConfirmOrderId(order._id); setConfirmModalOpen(true); }}
-                    disabled={markDeliveredMutation.isLoading}
-                    className="bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
-                    aria-label={`Mark order ${order.orderNumber || order._id.slice(-8)} as delivered`}
-                  >
-                    <CheckCircle className="h-4 w-4 inline-block mr-2" />
-                    Mark Delivered
-                  </button>
+                  {order.paymentMethod === 'cash_on_delivery' && order.paymentStatus !== 'paid' && (
+                    <button
+                      onClick={() => markPaymentReceivedMutation.mutate(order._id)}
+                      disabled={markPaymentReceivedMutation.isLoading}
+                      className="bg-orange-500 text-white py-2 px-3 rounded-lg text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                      aria-label={`Mark payment received for order ${order.orderNumber || order._id.slice(-8)}`}
+                    >
+                      <IndianRupee className="h-4 w-4 inline-block mr-2" />
+                      Payment Done
+                    </button>
+                  )}
+
+                  {/* Disable Mark Delivered for COD orders until payment is collected */}
+                  {(order.paymentMethod !== 'cash_on_delivery' || order.paymentStatus === 'paid') ? (
+                    <button
+                      onClick={() => { setConfirmOrderId(order._id); setConfirmModalOpen(true); }}
+                      disabled={markDeliveredMutation.isLoading}
+                      className="bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      aria-label={`Mark order ${order.orderNumber || order._id.slice(-8)} as delivered`}
+                    >
+                      <CheckCircle className="h-4 w-4 inline-block mr-2" />
+                      Mark Delivered
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-sm font-semibold cursor-not-allowed"
+                      title="Collect payment first"
+                    >
+                      <CheckCircle className="h-4 w-4 inline-block mr-2" />
+                      Mark Delivered
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -449,6 +507,23 @@ const DeliveryDashboard = () => {
                       <div className="bg-gray-50 rounded-lg p-2 border border-gray-200">
                         <p className="text-xs text-gray-500">Provider</p>
                         <p className="text-sm font-semibold text-gray-900">{order.providerId?.businessName || 'N/A'}</p>
+                      </div>
+
+                      <div className={`rounded-lg p-2 border ${order.paymentMethod === 'cash_on_delivery' ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'}`}>
+                        <p className="text-xs text-gray-500">Payment Method</p>
+                        <div className="flex items-center gap-1.5">
+                          {order.paymentMethod === 'cash_on_delivery' ? (
+                            <Coins className="h-4 w-4 text-orange-500" />
+                          ) : (
+                            <Wallet className="h-4 w-4 text-green-500" />
+                          )}
+                          <p className={`text-sm font-semibold ${order.paymentMethod === 'cash_on_delivery' ? 'text-orange-700' : 'text-green-700'}`}>
+                            {order.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online Payment'}
+                          </p>
+                          <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${order.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : order.paymentStatus === 'refunded' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {order.paymentStatus === 'paid' ? 'Paid' : order.paymentStatus === 'refunded' ? 'Refunded' : 'Pending'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
