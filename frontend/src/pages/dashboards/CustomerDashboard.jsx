@@ -39,12 +39,15 @@ const CustomerDashboard = () => {
   const queryClient = useQueryClient();
   const [activePage, setActivePage] = useState('dashboard');
   const [showOrderModal, setShowOrderModal] = useState(false);
-
-  // Reset to dashboard home when component mounts
-  useEffect(() => {
-    setActivePage('dashboard');
-  }, []);
   const [showAddressModal, setShowAddressModal] = useState(false);
+  
+  // Dashboard Home filters state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [priceFilter, setPriceFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('rating');
+  
+  // My Orders filter state
+  const [orderFilter, setOrderFilter] = useState('all');
   const [editingAddress, setEditingAddress] = useState(null);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [orderForm, setOrderForm] = useState({
@@ -71,10 +74,51 @@ const CustomerDashboard = () => {
   const [mapZoom, setMapZoom] = useState(5);
   const [markerPosition, setMarkerPosition] = useState(null);
 
-  // Fetch data
-  const { data: providersData, isLoading: providersLoading } = useQuery('nearby-providers', () => userApi.getNearbyProviders());
-  const { data: ordersData, isLoading: ordersLoading } = useQuery('customer-orders', () => userApi.getCustomerOrders());
-  const { data: addressesData, isLoading: addressesLoading } = useQuery('customer-addresses', () => addressApi.getAddresses());
+  // Reset filters when navigating back to dashboard
+  useEffect(() => {
+    if (activePage === 'dashboard') {
+      setSearchQuery('');
+      setPriceFilter('all');
+      setSortBy('rating');
+    }
+  }, [activePage]);
+
+  // Fetch data with proper cache settings to prevent stale data
+  const { data: providersData, isLoading: providersLoading } = useQuery(
+    'nearby-providers', 
+    () => userApi.getNearbyProviders(),
+    {
+      staleTime: 0, // Always consider data stale
+      cacheTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+      refetchOnMount: true, // Refetch on component mount
+      refetchOnWindowFocus: true, // Refetch when window regains focus
+      refetchInterval: false, // Don't auto-refetch on interval
+    }
+  );
+  
+  const { data: ordersData, isLoading: ordersLoading } = useQuery(
+    'customer-orders', 
+    () => userApi.getCustomerOrders(),
+    {
+      staleTime: 0,
+      cacheTime: 5 * 60 * 1000,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      refetchInterval: false,
+    }
+  );
+  
+  const { data: addressesData, isLoading: addressesLoading } = useQuery(
+    'customer-addresses', 
+    () => addressApi.getAddresses(),
+    {
+      staleTime: 0,
+      cacheTime: 5 * 60 * 1000,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      refetchInterval: false,
+    }
+  );
 
   // Normalize addresses coordinates to numeric values for validation
   const normalizedAddresses = (addressesData?.data?.addresses || []).map(a => ({
@@ -370,7 +414,6 @@ const CustomerDashboard = () => {
     const providers = providersData?.data?.providers || [];
     const addresses = addressesData?.data?.addresses || [];
     const orders = ordersData?.data?.orders || [];
-    const activeOrder = orders.find(o => ['pending', 'accepted', 'assigned', 'out_for_delivery'].includes(o.status));
     
     console.log('🔍 Dashboard Debug:');
     console.log('- providersData:', providersData);
@@ -382,9 +425,7 @@ const CustomerDashboard = () => {
       console.log(`Provider: ${p.businessName}, Distance: ${p.distance}, Coordinates: ${p.coordinates?.latitude}, ${p.coordinates?.longitude}`);
     });
     
-    const [searchQuery, setSearchQuery] = useState('');
-    const [priceFilter, setPriceFilter] = useState('all');
-    const [sortBy, setSortBy] = useState('rating'); // rating, price, delivery
+    // State is now managed at parent level to persist across re-renders
     
     if (providersLoading) return <LoadingSpinner />;
 
@@ -412,25 +453,6 @@ const CustomerDashboard = () => {
 
     return (
       <div>
-        {/* Location Warning Banner - showed when customer has no coordinates */}
-        {providers.length > 0 && providers.every(p => p.distance === null || p.distance === undefined) && (
-          <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 mb-6 flex items-start space-x-3">
-            <MapPin className="h-5 w-5 text-warning-600 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-warning-900 mb-1">Set Your Location for Better Experience</h3>
-              <p className="text-sm text-warning-700 mb-2">
-                You haven't set your location yet! To see accurate distances and get providers who can deliver to you, please update your profile with your location.
-              </p>
-              <button
-                onClick={() => setActivePage('profile')}
-                className="text-sm font-medium text-warning-800 hover:text-warning-900 underline"
-              >
-                Update Location in Profile →
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Hero Banner with Greeting */}
         <div className="bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 rounded-2xl p-8 mb-6 text-white relative overflow-hidden">
           <div className="relative z-10">
@@ -445,12 +467,6 @@ const CustomerDashboard = () => {
                 <Droplets className="h-5 w-5" />
                 <span className="font-medium">{providers.length} Providers</span>
               </div>
-              {activeOrder && (
-                <div className="flex items-center space-x-2 bg-success-500/20 backdrop-blur-sm rounded-lg px-4 py-2">
-                  <Truck className="h-5 w-5" />
-                  <span className="font-medium">Order On The Way</span>
-                </div>
-              )}
             </div>
           </div>
           
@@ -458,36 +474,6 @@ const CustomerDashboard = () => {
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
           <div className="absolute bottom-0 right-0 w-48 h-48 bg-white/5 rounded-full -mb-24 -mr-24"></div>
         </div>
-
-        {/* Active Order Banner (if exists) */}
-        {activeOrder && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="h-12 w-12 rounded-full bg-success-100 flex items-center justify-center">
-                  <Package className="h-6 w-6 text-success-600" />
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2 mb-1">
-                    <h3 className="font-semibold text-gray-900">Order #{activeOrder.orderNumber || activeOrder._id.slice(-6)}</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(activeOrder.status)}`}>
-                      {getStatusText(activeOrder.status)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {activeOrder.items?.quantity || 0} cans • ₹{activeOrder.items?.totalPrice || 0}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setActivePage('my-orders')}
-                className="bg-primary-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors"
-              >
-                Track Order
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Search and Filters - Swiggy Style */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
@@ -578,7 +564,8 @@ const CustomerDashboard = () => {
               key={provider._id} 
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group"
               onClick={() => {
-                if (provider.isOnline) {
+                const canOrder = provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline;
+                if (canOrder) {
                   const defaultAddress = addresses.find(addr => addr.isDefault);
                   setSelectedProvider(provider);
                   setOrderForm({ 
@@ -593,25 +580,18 @@ const CustomerDashboard = () => {
                 }
               }}
             >
-              {/* Image Header with Badge */}
+              {/* Image Header with Status Badge */}
               <div className="relative h-40 bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
                 <Droplets className="h-20 w-20 text-white/30" />
                 <div className="absolute top-3 right-3">
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold shadow-lg ${
-                    provider.isOnline 
+                    (provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline)
                       ? 'bg-success-500 text-white' 
                       : 'bg-gray-500 text-white'
                   }`}>
-                    {provider.isOnline ? '● Online' : '● Offline'}
+                    {(provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline) ? '● Online' : '● Offline'}
                   </span>
                 </div>
-                
-                {/* Discount Badge (if applicable) */}
-                {provider.pricePerCan <= 35 && (
-                  <div className="absolute top-3 left-3 bg-warning-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-lg">
-                    💰 BUDGET
-                  </div>
-                )}
               </div>
 
               {/* Card Content */}
@@ -662,6 +642,16 @@ const CustomerDashboard = () => {
                       Delivers within {provider.serviceRadius} km radius
                     </div>
                   )}
+                  {/* Operating Hours */}
+                  {provider.operatingHours && (
+                    <div className="text-xs text-gray-600 flex items-center">
+                      <Clock className="h-3.5 w-3.5 mr-1.5" />
+                      {provider.operatingHours.open} - {provider.operatingHours.close}
+                      {!provider.isWithinOperatingHours && (
+                        <span className="ml-1 text-red-600 font-medium">(Closed)</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Price and Order Button */}
@@ -676,7 +666,8 @@ const CustomerDashboard = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (provider.isOnline) {
+                      const canOrder = provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline;
+                      if (canOrder) {
                         const defaultAddress = addresses.find(addr => addr.isDefault);
                         setSelectedProvider(provider);
                         setOrderForm({ 
@@ -690,14 +681,14 @@ const CustomerDashboard = () => {
                         setShowOrderModal(true);
                       }
                     }}
-                    disabled={!provider.isOnline}
+                    disabled={!(provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline)}
                     className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${
-                      provider.isOnline 
+                      (provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline)
                         ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-md hover:shadow-lg' 
                         : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {provider.isOnline ? 'Order Now' : 'Closed'}
+                    {(provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline) ? 'Order Now' : 'Closed'}
                   </button>
                 </div>
               </div>
@@ -737,7 +728,7 @@ const CustomerDashboard = () => {
   // 🛒 2. ORDER WATER
   // 📦 2. MY ORDERS
   const MyOrders = () => {
-    const [orderFilter, setOrderFilter] = useState('all');
+    // State is now managed at parent level to persist across re-renders
     const orders = ordersData?.data?.orders || [];
     
     const filteredOrders = orders.filter(order => {
@@ -1255,7 +1246,7 @@ const CustomerDashboard = () => {
               {/* Interactive Map with OpenStreetMap (100% Free - No API Key!) */}
               <div className="mb-4">
                 <p className="text-sm font-medium text-gray-700 mb-2">📍 Select Your Delivery Location</p>
-                <p className="text-xs text-gray-600 mb-3">Click anywhere on the map or use your current location</p>
+                <p className="text-xs text-gray-600 mb-3">Click on the map, use your current location, or manually enter coordinates below</p>
                 <div className="relative border border-gray-300 rounded-lg overflow-hidden" style={{ height: '320px' }}>
                   <MapContainer
                     center={mapCenter}
@@ -1369,6 +1360,69 @@ const CustomerDashboard = () => {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Manual Coordinates Input */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Latitude
+                    <span className="text-xs text-gray-500 ml-1">(Optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={addressForm.coordinates.latitude || ''}
+                    onChange={(e) => {
+                      const lat = e.target.value ? parseFloat(e.target.value) : null;
+                      setAddressForm({ 
+                        ...addressForm, 
+                        coordinates: { ...addressForm.coordinates, latitude: lat }
+                      });
+                      // Update map position if both lat and lng are set
+                      if (lat !== null && addressForm.coordinates.longitude !== null) {
+                        setMarkerPosition([lat, addressForm.coordinates.longitude]);
+                        setMapCenter([lat, addressForm.coordinates.longitude]);
+                        setMapZoom(15);
+                      }
+                    }}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                    placeholder="e.g., 19.0760"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Longitude
+                    <span className="text-xs text-gray-500 ml-1">(Optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={addressForm.coordinates.longitude || ''}
+                    onChange={(e) => {
+                      const lng = e.target.value ? parseFloat(e.target.value) : null;
+                      setAddressForm({ 
+                        ...addressForm, 
+                        coordinates: { ...addressForm.coordinates, longitude: lng }
+                      });
+                      // Update map position if both lat and lng are set
+                      if (addressForm.coordinates.latitude !== null && lng !== null) {
+                        setMarkerPosition([addressForm.coordinates.latitude, lng]);
+                        setMapCenter([addressForm.coordinates.latitude, lng]);
+                        setMapZoom(15);
+                      }
+                    }}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                    placeholder="e.g., 72.8777"
+                  />
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start space-x-2">
+                <MapPin className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-blue-700">
+                  <strong>Tip:</strong> Click on the map, use "Use My Location" button, or manually enter latitude/longitude coordinates above.
+                </p>
               </div>
               </div>
             </form>

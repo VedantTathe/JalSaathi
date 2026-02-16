@@ -1,6 +1,7 @@
 const User = require('./model');
 const Provider = require('../provider/model');
 const Order = require('../order/model');
+const Address = require('../address/model');
 const { formatResponse, calculateDistance } = require('../../utils/helpers');
 
 class UserService {
@@ -146,14 +147,27 @@ class UserService {
         return formatResponse(false, 'User not found', null, 404);
       }
       
-      // Get customer coordinates
-      const customerLat = user.address?.coordinates?.latitude;
-      const customerLon = user.address?.coordinates?.longitude;
+      // Try to get customer coordinates from default address first, fallback to user address
+      let customerLat = null;
+      let customerLon = null;
+      
+      // Check for default address
+      const defaultAddress = await Address.findOne({ userId, isDefault: true });
+      
+      if (defaultAddress && defaultAddress.coordinates) {
+        customerLat = defaultAddress.coordinates.latitude;
+        customerLon = defaultAddress.coordinates.longitude;
+        console.log('📍 Using default address coordinates');
+      } else if (user.address && user.address.coordinates) {
+        customerLat = user.address.coordinates.latitude;
+        customerLon = user.address.coordinates.longitude;
+        console.log('📍 Using user profile address coordinates');
+      }
       
       console.log('📍 Customer Info:');
       console.log('  - User ID:', userId);
       console.log('  - Name:', user.name);
-      console.log('  - Has Address:', !!user.address);
+      console.log('  - Has Default Address:', !!defaultAddress);
       console.log('  - Has Coordinates:', !!(customerLat && customerLon));
       console.log('  - Latitude:', customerLat);
       console.log('  - Longitude:', customerLon);
@@ -185,10 +199,12 @@ class UserService {
           // Check if customer is within provider's service radius
           const isInRange = distance <= provider.serviceRadius;
           
-          // Add distance to provider object for frontend display
+          // Add distance and operating hours status to provider object for frontend display
           provider._doc.distance = parseFloat(distance.toFixed(2));
+          provider._doc.isWithinOperatingHours = provider.isWithinOperatingHours;
+          provider._doc.isAcceptingOrders = provider.isAcceptingOrders;
           
-          console.log(`🔍 Provider: ${provider.businessName}, Distance: ${distance.toFixed(2)}km, Radius: ${provider.serviceRadius}km, InRange: ${isInRange}`);
+          console.log(`🔍 Provider: ${provider.businessName}, Distance: ${distance.toFixed(2)}km, Radius: ${provider.serviceRadius}km, InRange: ${isInRange}, Hours: ${provider.operatingHours?.open}-${provider.operatingHours?.close}, Accepting: ${provider.isAcceptingOrders}`);
           
           return isInRange;
         });
@@ -199,9 +215,11 @@ class UserService {
         console.log('✅ Providers in range:', providers.length);
       } else {
         console.log('⚠️ Customer has no coordinates, showing all providers without distance filtering');
-        // Still add distance as null for all providers to indicate it's not available
+        // Still add distance as null for all providers and add operating hours status
         providers.forEach(provider => {
           provider._doc.distance = null;
+          provider._doc.isWithinOperatingHours = provider.isWithinOperatingHours;
+          provider._doc.isAcceptingOrders = provider.isAcceptingOrders;
         });
       }
       

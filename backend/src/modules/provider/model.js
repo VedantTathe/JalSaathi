@@ -132,6 +132,34 @@ providerSchema.virtual('completionRate').get(function() {
   return Math.round((this.completedOrders / this.totalOrders) * 100);
 });
 
+// Virtual to check if provider is currently within operating hours
+providerSchema.virtual('isWithinOperatingHours').get(function() {
+  if (!this.operatingHours || !this.operatingHours.open || !this.operatingHours.close) {
+    return true; // If no operating hours set, assume always available
+  }
+
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+  // Parse open time
+  const [openHour, openMinute] = this.operatingHours.open.split(':').map(Number);
+  const openTimeInMinutes = openHour * 60 + openMinute;
+
+  // Parse close time
+  const [closeHour, closeMinute] = this.operatingHours.close.split(':').map(Number);
+  const closeTimeInMinutes = closeHour * 60 + closeMinute;
+
+  // Check if current time is within operating hours
+  return currentTimeInMinutes >= openTimeInMinutes && currentTimeInMinutes <= closeTimeInMinutes;
+});
+
+// Virtual to determine if provider should accept orders (combines isOnline and operating hours)
+providerSchema.virtual('isAcceptingOrders').get(function() {
+  return this.isOnline && this.isWithinOperatingHours;
+});
+
 // Pre-save middleware to update monthly revenue
 providerSchema.pre('save', function(next) {
   // Reset monthly revenue on first day of month
