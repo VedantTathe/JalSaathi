@@ -45,6 +45,7 @@ function App() {
         <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Landing />} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
+        <Route path="/register/:role" element={user ? <Navigate to="/dashboard" /> : <Register />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/track/:orderNumber" element={<TrackOrder />} />
