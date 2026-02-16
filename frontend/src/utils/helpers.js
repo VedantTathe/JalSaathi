@@ -1,11 +1,12 @@
 // Format currency (INR)
 export const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
+  if (amount === null || amount === undefined) return 'NA';
+  const num = Number(amount);
+  if (isNaN(num)) return 'NA';
+  return 'Rs. ' + num.toLocaleString('en-IN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(amount || 0);
+  });
 };
 
 // Format date

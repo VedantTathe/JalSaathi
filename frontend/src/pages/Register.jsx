@@ -525,7 +525,7 @@ const Register = () => {
 
                   <div className="form-group">
                     <label htmlFor="pricePerCan" className="form-label">
-                      Price per Can (₹)
+                      Price per Can (Rs.)
                     </label>
                     <input
                       id="pricePerCan"
