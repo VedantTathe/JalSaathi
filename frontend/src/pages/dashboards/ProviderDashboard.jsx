@@ -14,6 +14,10 @@ import toast from 'react-hot-toast';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import {
+  LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -218,6 +222,284 @@ const ProviderDashboard = () => {
             <h3 className="font-semibold text-gray-900 mb-1">Earnings</h3>
             <p className="text-sm text-gray-600">Check settlements</p>
           </button>
+        </div>
+
+        {/* Business Analytics Charts */}
+        <div className="mt-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <BarChart3 className="h-6 w-6 mr-2 text-primary-600" />
+            Business Analytics
+          </h2>
+
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Daily Orders & Revenue - Last 7 Days */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Orders & Revenue (Last 7 Days)</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={(() => {
+                  const last7Days = [];
+                  for (let i = 6; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    const dateStr = date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' });
+                    const dayOrders = orders.filter(o => {
+                      const orderDate = new Date(o.timeline?.ordered || o.createdAt);
+                      return orderDate.toDateString() === date.toDateString();
+                    });
+                    const revenue = dayOrders.reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
+                    const delivered = dayOrders.filter(o => o.status === 'delivered').length;
+                    const cans = dayOrders.reduce((sum, o) => sum + (o.items?.quantity || o.quantity || 0), 0);
+                    last7Days.push({
+                      day: dateStr,
+                      orders: dayOrders.length,
+                      delivered: delivered,
+                      revenue: revenue,
+                      cans: cans
+                    });
+                  }
+                  return last7Days;
+                })()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} allowDecimals={false} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} tickFormatter={(v) => `Rs.${v}`} />
+                  <Tooltip formatter={(value, name) => [name === 'revenue' ? `Rs. ${value}` : value, name === 'revenue' ? 'Revenue' : name === 'orders' ? 'Orders' : name === 'delivered' ? 'Delivered' : 'Cans']} />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="orders" fill="#3b82f6" name="Orders" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="left" dataKey="delivered" fill="#22c55e" name="Delivered" radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#8b5cf6" strokeWidth={3} name="Revenue" dot={{ r: 5, fill: '#8b5cf6' }} />
+                </BarChart>
+              </ResponsiveContainer>
+              {/* Summary Stats */}
+              <div className="mt-4 grid grid-cols-4 gap-3 text-center">
+                {(() => {
+                  const totalOrders = orders.length;
+                  const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
+                  const totalRevenue = orders.reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
+                  const totalCans = orders.reduce((sum, o) => sum + (o.items?.quantity || o.quantity || 0), 0);
+                  return (
+                    <>
+                      <div className="bg-blue-50 rounded-lg p-2">
+                        <p className="text-xs text-blue-600">Total Orders</p>
+                        <p className="text-lg font-bold text-blue-700">{totalOrders}</p>
+                      </div>
+                      <div className="bg-green-50 rounded-lg p-2">
+                        <p className="text-xs text-green-600">Delivered</p>
+                        <p className="text-lg font-bold text-green-700">{deliveredOrders}</p>
+                      </div>
+                      <div className="bg-purple-50 rounded-lg p-2">
+                        <p className="text-xs text-purple-600">Revenue</p>
+                        <p className="text-lg font-bold text-purple-700">Rs. {totalRevenue.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="bg-cyan-50 rounded-lg p-2">
+                        <p className="text-xs text-cyan-600">Cans Sold</p>
+                        <p className="text-lg font-bold text-cyan-700">{totalCans}</p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Peak Hours Analysis */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Peak Hours (Order Timing)</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={(() => {
+                  const hourCounts = {};
+                  for (let i = 6; i <= 22; i++) {
+                    hourCounts[i] = 0;
+                  }
+                  orders.forEach(o => {
+                    const hour = new Date(o.timeline?.ordered || o.createdAt).getHours();
+                    if (hour >= 6 && hour <= 22) {
+                      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+                    }
+                  });
+                  return Object.entries(hourCounts).map(([hour, count]) => ({
+                    hour: `${hour}:00`,
+                    orders: count,
+                    isPeak: count >= Math.max(...Object.values(hourCounts)) * 0.7
+                  }));
+                })()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="hour" tick={{ fontSize: 10 }} interval={1} />
+                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="orders" name="Orders" radius={[4, 4, 0, 0]}>
+                    {(() => {
+                      const hourCounts = {};
+                      orders.forEach(o => {
+                        const hour = new Date(o.timeline?.ordered || o.createdAt).getHours();
+                        if (hour >= 6 && hour <= 22) {
+                          hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+                        }
+                      });
+                      const maxCount = Math.max(...Object.values(hourCounts), 1);
+                      return Object.entries(hourCounts).map(([hour, count], index) => (
+                        <Cell key={`cell-${index}`} fill={count >= maxCount * 0.7 ? '#f59e0b' : '#3b82f6'} />
+                      ));
+                    })()}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                <span className="inline-block w-3 h-3 bg-amber-500 rounded mr-1"></span> Peak Hours
+                <span className="inline-block w-3 h-3 bg-blue-500 rounded ml-3 mr-1"></span> Regular Hours
+              </p>
+            </div>
+
+            {/* Area-wise Orders Distribution */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Area-wise Orders</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={(() => {
+                      const areaCounts = {};
+                      orders.forEach(o => {
+                        const area = o.deliveryAddress?.area || o.deliveryAddress?.city || 'Unknown';
+                        areaCounts[area] = (areaCounts[area] || 0) + 1;
+                      });
+                      const sortedAreas = Object.entries(areaCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6); // Top 6 areas
+                      return sortedAreas.map(([area, count]) => ({
+                        name: area,
+                        value: count
+                      }));
+                    })()}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={85}
+                    paddingAngle={3}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name.substring(0, 10)}${name.length > 10 ? '..' : ''} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={{ stroke: '#666', strokeWidth: 1 }}
+                  >
+                    {(() => {
+                      const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
+                      const areaCounts = {};
+                      orders.forEach(o => {
+                        const area = o.deliveryAddress?.area || o.deliveryAddress?.city || 'Unknown';
+                        areaCounts[area] = (areaCounts[area] || 0) + 1;
+                      });
+                      return Object.keys(areaCounts).slice(0, 6).map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                      ));
+                    })()}
+                  </Pie>
+                  <Tooltip formatter={(value) => [value, 'Orders']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Delivery Boy Performance */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Delivery Boy Performance</h3>
+              {(() => {
+                const deliveryBoys = deliveryBoysData?.data?.deliveryBoys || deliveryBoysData?.data || [];
+                const dbPerformance = {};
+                orders.filter(o => o.deliveryBoyId).forEach(o => {
+                  const dbId = o.deliveryBoyId._id || o.deliveryBoyId;
+                  const dbName = o.deliveryBoyId.name || 'Unknown';
+                  if (!dbPerformance[dbId]) {
+                    dbPerformance[dbId] = { name: dbName, assigned: 0, delivered: 0, revenue: 0 };
+                  }
+                  dbPerformance[dbId].assigned++;
+                  if (o.status === 'delivered') {
+                    dbPerformance[dbId].delivered++;
+                    dbPerformance[dbId].revenue += (o.items?.totalPrice || o.totalPrice || 0);
+                  }
+                });
+                const performanceData = Object.values(dbPerformance).sort((a, b) => b.delivered - a.delivered).slice(0, 5);
+                
+                if (performanceData.length === 0) {
+                  return (
+                    <div className="flex items-center justify-center h-[250px] text-gray-500">
+                      <div className="text-center">
+                        <Truck className="h-12 w-12 mx-auto text-gray-300 mb-2" />
+                        <p>No delivery data yet</p>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={performanceData} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={80} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="assigned" fill="#3b82f6" name="Assigned" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="delivered" fill="#22c55e" name="Delivered" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                );
+              })()}
+            </div>
+
+            {/* Top Customers */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customers</h3>
+              {(() => {
+                const customerStats = {};
+                orders.forEach(o => {
+                  const customerId = o.customerId?._id || o.customerId;
+                  const customerName = o.customerId?.name || 'Unknown';
+                  if (!customerStats[customerId]) {
+                    customerStats[customerId] = { name: customerName, orders: 0, revenue: 0, cans: 0 };
+                  }
+                  customerStats[customerId].orders++;
+                  customerStats[customerId].revenue += (o.items?.totalPrice || o.totalPrice || 0);
+                  customerStats[customerId].cans += (o.items?.quantity || o.quantity || 0);
+                });
+                const topCustomers = Object.values(customerStats)
+                  .sort((a, b) => b.orders - a.orders)
+                  .slice(0, 5);
+                
+                if (topCustomers.length === 0) {
+                  return (
+                    <div className="flex items-center justify-center h-[200px] text-gray-500">
+                      <div className="text-center">
+                        <Users className="h-12 w-12 mx-auto text-gray-300 mb-2" />
+                        <p>No customer data yet</p>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="space-y-3">
+                    {topCustomers.map((customer, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                            index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-600' : 'bg-blue-500'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{customer.name}</p>
+                            <p className="text-xs text-gray-500">{customer.orders} orders | {customer.cans} cans</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-green-600">Rs. {customer.revenue.toLocaleString('en-IN')}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+          </div>
         </div>
       </div>
     );
