@@ -83,7 +83,7 @@ const ProviderDashboard = () => {
       onSuccess: (res) => {
         queryClient.invalidateQueries('provider-delivery-boys');
         const generated = res?.data?.generatedPassword || res?.generatedPassword;
-        if (generated) toast.success(`Delivery boy added — password: ${generated}`);
+        if (generated) toast.success(`Delivery boy added €” password: ${generated}`);
         else toast.success('Delivery boy added');
       },
       onError: () => toast.error('Failed to add delivery boy')
@@ -116,7 +116,8 @@ const ProviderDashboard = () => {
     { key: 'dashboard', name: 'Dashboard Home', icon: HomeIcon },
     { key: 'active-orders', name: 'View Orders', icon: Clock },
     { key: 'delivery-management', name: 'Delivery Boys', icon: Truck },
-    { key: 'history', name: 'History & Revenue', icon: History },
+    { key: 'history', name: 'History', icon: History },
+    { key: 'earnings', name: 'Earnings', icon: DollarSign },
     { key: 'customers', name: 'Customer List', icon: Users },
     { key: 'settings', name: 'Provider Settings', icon: Settings },
   ].map(item => ({
@@ -125,13 +126,14 @@ const ProviderDashboard = () => {
     onClick: () => setActivePage(item.key)
   }));
 
-  // 🏠 1. DASHBOARD HOME
+  // ðŸ  1. DASHBOARD HOME
   const DashboardHome = () => {
     const orders = ordersData?.data?.orders || [];
-    const todayOrders = orders.filter(o => new Date(o.timeline?.ordered).toDateString() === new Date().toDateString());
+    const todayOrders = orders.filter(o => new Date(o.timeline?.ordered || o.createdAt).toDateString() === new Date().toDateString());
     const activeOrders = orders.filter(o => ['accepted', 'assigned', 'out_for_delivery'].includes(o.status)).length;
     const completedToday = todayOrders.filter(o => o.status === 'delivered').length;
-    const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.items?.totalPrice || 0), 0);
+    const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
+    const todayOnlineCollected = todayOrders.filter(o => o.paymentStatus === 'paid').reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
     const totalRevenue = analyticsData?.data?.monthlyRevenue ?? 0;
 
     return (
@@ -155,25 +157,36 @@ const ProviderDashboard = () => {
         </div>
 
         {/* Analytics Widgets */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          {/* Pending Orders widget removed per request */}
-
-          <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-6">
-            <Clock className="h-8 w-8 text-warning-600 mb-2" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-5">
+            <Clock className="h-7 w-7 text-warning-600 mb-2" />
             <p className="text-2xl font-bold text-warning-900">{activeOrders}</p>
             <p className="text-sm text-warning-700">Active Orders</p>
           </div>
 
-          <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-lg p-6">
-            <CheckCircle className="h-8 w-8 text-success-600 mb-2" />
+          <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-lg p-5">
+            <CheckCircle className="h-7 w-7 text-success-600 mb-2" />
             <p className="text-2xl font-bold text-success-900">{completedToday}</p>
             <p className="text-sm text-success-700">Completed Today</p>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6">
-            <IndianRupee className="h-8 w-8 text-purple-600 mb-2" />
-            <p className="text-2xl font-bold text-purple-900">₹{todayRevenue}</p>
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-5">
+            <IndianRupee className="h-7 w-7 text-purple-600 mb-2" />
+            <p className="text-2xl font-bold text-purple-900 flex items-center"><IndianRupee className="h-5 w-5" />{todayRevenue.toLocaleString('en-IN')}</p>
             <p className="text-sm text-purple-700">Today's Revenue</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-5">
+            <CheckCircle className="h-7 w-7 text-blue-600 mb-2" />
+            <p className="text-2xl font-bold text-blue-900 flex items-center"><IndianRupee className="h-5 w-5" />{todayOnlineCollected.toLocaleString('en-IN')}</p>
+            <p className="text-sm text-blue-700">Online Collected</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-5">
+            <DollarSign className="h-7 w-7 text-gray-500 mb-2" />
+            <p className="text-2xl font-bold text-gray-600">—</p>
+            <p className="text-sm text-gray-500">Settled to Bank</p>
+            <p className="text-xs text-gray-400 mt-1">Admin pending</p>
           </div>
         </div>
 
@@ -189,19 +202,28 @@ const ProviderDashboard = () => {
           </button>
 
           <button
-            onClick={() => setActivePage('revenue')}
+            onClick={() => setActivePage('history')}
+            className="bg-white border-2 border-purple-200 hover:border-purple-400 rounded-lg p-6 text-left transition-all"
+          >
+            <History className="h-8 w-8 text-purple-600 mb-3" />
+            <h3 className="font-semibold text-gray-900 mb-1">Order History</h3>
+            <p className="text-sm text-gray-600">View past orders & stats</p>
+          </button>
+
+          <button
+            onClick={() => setActivePage('earnings')}
             className="bg-white border-2 border-success-200 hover:border-success-400 rounded-lg p-6 text-left transition-all"
           >
             <TrendingUp className="h-8 w-8 text-success-600 mb-3" />
-            <h3 className="font-semibold text-gray-900 mb-1">View Revenue</h3>
-            <p className="text-sm text-gray-600">Check earnings and analytics</p>
+            <h3 className="font-semibold text-gray-900 mb-1">Earnings</h3>
+            <p className="text-sm text-gray-600">Check settlements</p>
           </button>
         </div>
       </div>
     );
   };
 
-  // 🕐 2. VIEW ORDERS (shows ALL orders from last 16 hours including delivered)
+  // ðŸ• 2. VIEW ORDERS (shows ALL orders from last 16 hours including delivered)
   const ActiveOrders = () => {
     const orders = ordersData?.data?.orders || [];
     // Show ALL orders (including delivered) - backend already filters to last 16 hours
@@ -317,7 +339,7 @@ const ProviderDashboard = () => {
                       <p className="text-sm text-gray-600">{formatDateTime(order.timeline?.ordered || order.createdAt)}</p>
                     </div>
                   </div>
-                  <p className="text-xl font-semibold text-primary-600">₹{order.items?.totalPrice || 0}</p>
+                  <p className="text-xl font-semibold text-primary-600">{order.items?.totalPrice || 0}</p>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -341,7 +363,7 @@ const ProviderDashboard = () => {
                   <div>
                     <p className="text-xs text-gray-600">Payment</p>
                     <p className={`font-medium ${order.paymentStatus === 'paid' ? 'text-success-600' : 'text-warning-600'}`}>
-                      {order.paymentStatus === 'paid' ? '✓ Paid' : 'Pending'}
+                      {order.paymentStatus === 'paid' ? 'œ“ Paid' : 'Pending'}
                     </p>
                   </div>
                 </div>
@@ -413,9 +435,9 @@ const ProviderDashboard = () => {
     );
   };
 
-  // (Old ActiveOrders removed — replaced by consolidated View Orders implementation above)
+  // (Old ActiveOrders removed €” replaced by consolidated View Orders implementation above)
 
-  // 🚚 4. DELIVERY BOYS
+  // ðŸšš 4. DELIVERY BOYS
   const DeliveryBoys = () => {
     const [showAddModal, setShowAddModal] = useState(false);
       const [newBoy, setNewBoy] = useState({ name: '', phone: '', email: '', password: '' });
@@ -500,8 +522,8 @@ const ProviderDashboard = () => {
     );
   };
 
-  // 📜 5. ORDER HISTORY & REVENUE (Combined)
-  const OrderHistory = () => {
+  // HISTORY PAGE - Order stats and daily breakdown
+  const HistoryPage = () => {
     const [expandedDay, setExpandedDay] = useState(null);
     
     const dailySummary = historyData?.data?.dailySummary || [];
@@ -509,12 +531,19 @@ const ProviderDashboard = () => {
 
     if (historyLoading) return <LoadingSpinner />;
 
+    const totalOrders = overallStats.totalOrders || 0;
+    const totalOrderValue = overallStats.totalRevenue || 0;
+    const onlinePaymentReceived = overallStats.paidRevenue || 0;
+    const paidOrders = overallStats.paidOrders || 0;
+    const deliveredOrders = overallStats.deliveredOrders || 0;
+    const awaitingPayment = totalOrderValue - onlinePaymentReceived;
+
     const formatDate = (dateStr) => {
-      const date = new Date(dateStr);
+      const date = new Date(dateStr + 'T00:00:00');
       const today = new Date();
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
-      
+
       if (date.toDateString() === today.toDateString()) return 'Today';
       if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
       return date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
@@ -522,34 +551,76 @@ const ProviderDashboard = () => {
 
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">History & Revenue</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Order History</h1>
+        <p className="text-sm text-gray-500 mb-6">Track all orders and payment status</p>
 
-        {/* Overall Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-lg p-4">
-            <DollarSign className="h-6 w-6 text-success-600 mb-1" />
-            <p className="text-xs text-success-700">Total Revenue</p>
-            <p className="text-xl font-bold text-success-900">₹{overallStats.totalRevenue || 0}</p>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {/* Total Orders */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                <Package className="h-5 w-5 text-primary-600" />
+              </div>
+              <span className="text-xs text-gray-400 uppercase tracking-wide">Orders</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{totalOrders}</p>
+            <p className="text-sm text-gray-500 mt-1">Total orders (Cash + Online)</p>
+            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between text-xs">
+              <span className="text-success-600">{deliveredOrders} delivered</span>
+              <span className="text-primary-600">{paidOrders} paid online</span>
+            </div>
           </div>
-          <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-4">
-            <Package className="h-6 w-6 text-primary-600 mb-1" />
-            <p className="text-xs text-primary-700">Total Orders</p>
-            <p className="text-xl font-bold text-primary-900">{overallStats.totalOrders || 0}</p>
+
+          {/* Total Order Value */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <IndianRupee className="h-5 w-5 text-blue-600" />
+              </div>
+              <span className="text-xs text-gray-400 uppercase tracking-wide">Total Value</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{totalOrderValue.toLocaleString('en-IN')}</p>
+            <p className="text-sm text-gray-500 mt-1">All orders value</p>
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <p className="text-xs text-gray-400">Avg: {overallStats.avgOrderValue || 0}/order</p>
+            </div>
           </div>
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
-            <CheckCircle className="h-6 w-6 text-blue-600 mb-1" />
-            <p className="text-xs text-blue-700">Delivered</p>
-            <p className="text-xl font-bold text-blue-900">{overallStats.deliveredOrders || 0}</p>
+
+          {/* Online Payment Received */}
+          <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-xl shadow-sm border border-success-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-full bg-success-200 flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-success-700" />
+              </div>
+              <span className="text-xs text-success-600 uppercase tracking-wide">Received</span>
+            </div>
+            <p className="text-2xl font-bold text-success-800">{onlinePaymentReceived.toLocaleString('en-IN')}</p>
+            <p className="text-sm text-success-700 mt-1">Online payment received</p>
+            <div className="mt-3 pt-3 border-t border-success-200">
+              <p className="text-xs text-success-600">{paidOrders} orders paid online</p>
+            </div>
           </div>
-          <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-4">
-            <IndianRupee className="h-6 w-6 text-warning-600 mb-1" />
-            <p className="text-xs text-warning-700">Paid Revenue</p>
-            <p className="text-xl font-bold text-warning-900">₹{overallStats.paidRevenue || 0}</p>
+
+          {/* Awaiting Payment */}
+          <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-xl shadow-sm border border-warning-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-full bg-warning-200 flex items-center justify-center">
+                <Clock className="h-5 w-5 text-warning-700" />
+              </div>
+              <span className="text-xs text-warning-600 uppercase tracking-wide">Pending</span>
+            </div>
+            <p className="text-2xl font-bold text-warning-800">{awaitingPayment.toLocaleString('en-IN')}</p>
+            <p className="text-sm text-warning-700 mt-1">Awaiting payment (COD/Unpaid)</p>
+            <div className="mt-3 pt-3 border-t border-warning-200">
+              <p className="text-xs text-warning-600">{totalOrders - paidOrders} orders pending</p>
+            </div>
           </div>
         </div>
 
-        {/* Daily Summary Cards */}
-        <div className="space-y-4">
+        {/* Daily Order Breakdown */}
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Daily Breakdown</h2>
+        <div className="space-y-3">
           {dailySummary.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
               <History className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -558,65 +629,59 @@ const ProviderDashboard = () => {
           ) : (
             dailySummary.map((day) => (
               <div key={day.date} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                {/* Day Header - Clickable */}
                 <button
                   onClick={() => setExpandedDay(expandedDay === day.date ? null : day.date)}
-                  className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                  className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-center space-x-4">
-                    <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                      <Calendar className="h-5 w-5 text-primary-600" />
+                  <div className="flex items-center space-x-3">
+                    <div className="h-9 w-9 rounded-lg bg-primary-100 flex items-center justify-center">
+                      <Calendar className="h-4 w-4 text-primary-600" />
                     </div>
                     <div className="text-left">
                       <p className="font-semibold text-gray-900">{formatDate(day.date)}</p>
-                      <p className="text-sm text-gray-500">
-                        {day.totalOrders} order{day.totalOrders !== 1 ? 's' : ''} • 
-                        <span className="text-success-600"> {day.deliveredOrders} delivered</span>
-                        {day.cancelledOrders > 0 && <span className="text-danger-600"> • {day.cancelledOrders} cancelled</span>}
+                      <p className="text-xs text-gray-500">
+                        {day.totalOrders} order{day.totalOrders !== 1 ? 's' : ''}
+                        {day.deliveredOrders > 0 && <span className="text-success-600"> €¢ {day.deliveredOrders} delivered</span>}
+                        {day.cancelledOrders > 0 && <span className="text-error-600"> €¢ {day.cancelledOrders} cancelled</span>}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <p className="font-bold text-success-600">₹{day.totalRevenue}</p>
-                      <p className="text-xs text-gray-500">Revenue</p>
-                    </div>
-                    {expandedDay === day.date ? (
-                      <ChevronUp className="h-5 w-5 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-gray-400" />
-                    )}
+                  <div className="flex items-center space-x-3">
+                    <p className="font-bold text-gray-900">{day.totalRevenue}</p>
+                    {expandedDay === day.date ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
                   </div>
                 </button>
 
-                {/* Expanded Orders List */}
                 {expandedDay === day.date && (
-                  <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
-                    <div className="space-y-3">
-                      {day.orders.map((order) => (
-                        <div key={order._id} className="bg-white rounded-lg p-4 border border-gray-100 flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <p className="font-medium text-gray-900">#{order.orderNumber || order._id.slice(-8)}</p>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(order.status)}`}>
-                                {getStatusText(order.status)}
-                              </span>
+                  <div className="border-t border-gray-100 px-5 py-4 bg-gray-50">
+                    <div className="space-y-2">
+                      {(() => {
+                        const uniqueOrders = Array.from(new Map((day.orders || []).map(o => [o._id, o])).values());
+                        return uniqueOrders.map((order) => (
+                          <div key={order._id} className="bg-white rounded-lg p-3 border border-gray-100 flex items-center justify-between">
+                            <div className="text-left">
+                              <div className="flex items-center space-x-2">
+                                <p className="font-medium text-gray-900 text-sm">#{order.orderNumber || (order._id || '').slice(-8)}</p>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(order.status)}`}>
+                                  {getStatusText(order.status)}
+                                </span>
+                                {order.paymentStatus === 'paid' && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-success-100 text-success-700">Paid</span>
+                                )}
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                                  {order.paymentMethod === 'online' ? 'Online' : 'COD'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {order.customerId?.name || order.customerName || 'Customer'} €¢ 
+                                {(order.items?.quantity || order.quantity || 0)} can{(order.items?.quantity || order.quantity || 0) !== 1 ? 's' : ''} €¢ 
+                                {new Date(order.createdAt || order.orderedAt || order.timeline?.ordered).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">{order.customerName}</p>
-                            <p className="text-xs text-gray-500">
-                              {order.quantity} can{order.quantity !== 1 ? 's' : ''} • 
-                              {order.paymentMethod === 'online' ? ' Online' : ' COD'} 
-                              {order.paymentStatus === 'paid' && <span className="text-success-600"> (Paid)</span>}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {new Date(order.orderedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                            <p className="font-semibold text-gray-900">{order.items?.totalPrice || order.totalPrice || 0}</p>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-gray-900">₹{order.totalPrice}</p>
-                          </div>
-                        </div>
-                      ))}
+                        ));
+                      })()}
                     </div>
                   </div>
                 )}
@@ -628,112 +693,218 @@ const ProviderDashboard = () => {
     );
   };
 
-  // 💰 6. REVENUE DASHBOARD (uses same data as History)
-  const RevenueDashboard = () => {
+  // EARNINGS PAGE - Settlement from Admin
+  const EarningsPage = () => {
+    const dailySummary = historyData?.data?.dailySummary || [];
     const overallStats = historyData?.data?.overallStats || {};
-    
+
     if (historyLoading) return <LoadingSpinner />;
+
+    const onlinePaymentReceived = overallStats.paidRevenue || 0;
+
+    // Settlement data would come from admin - for now show "-"
+    const totalSettled = null; // Will be fetched from admin settlement records
+    const pendingSettlement = null;
+
+    const formatDate = (dateStr) => {
+      const date = new Date(dateStr + 'T00:00:00');
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (date.toDateString() === today.toDateString()) return 'Today';
+      if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+      return date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    };
 
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Revenue Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Earnings & Settlements</h1>
+        <p className="text-sm text-gray-500 mb-6">Track money settled to your bank account by admin</p>
 
-        {/* Revenue Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-lg p-6">
-            <DollarSign className="h-8 w-8 text-success-600 mb-2" />
-            <p className="text-sm text-success-700 mb-1">Total Revenue</p>
-            <p className="text-3xl font-bold text-success-900">₹{overallStats.totalRevenue || 0}</p>
+        {/* Settlement Overview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {/* Total Earnings (Online Received) */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <IndianRupee className="h-5 w-5 text-blue-600" />
+              </div>
+              <span className="text-xs text-gray-400 uppercase tracking-wide">Total Earned</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{onlinePaymentReceived.toLocaleString('en-IN')}</p>
+            <p className="text-sm text-gray-500 mt-1">Online payments received</p>
           </div>
-          <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-6">
-            <IndianRupee className="h-8 w-8 text-warning-600 mb-2" />
-            <p className="text-sm text-warning-700 mb-1">Paid Revenue</p>
-            <p className="text-3xl font-bold text-warning-900">₹{overallStats.paidRevenue || 0}</p>
+
+          {/* Settled to Bank */}
+          <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-xl shadow-sm border border-success-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-full bg-success-200 flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-success-700" />
+              </div>
+              <span className="text-xs text-success-600 uppercase tracking-wide">Settled</span>
+            </div>
+            <p className="text-2xl font-bold text-success-800">
+              {totalSettled !== null ? `${totalSettled.toLocaleString('en-IN')}` : '€”'}
+            </p>
+            <p className="text-sm text-success-700 mt-1">Transferred to your bank</p>
+            {totalSettled === null && (
+              <p className="text-xs text-success-600 mt-2">Admin settlement pending</p>
+            )}
           </div>
-          <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-6">
-            <BarChart3 className="h-8 w-8 text-primary-600 mb-2" />
-            <p className="text-sm text-primary-700 mb-1">Total Orders</p>
-            <p className="text-3xl font-bold text-primary-900">{overallStats.totalOrders || 0}</p>
+
+          {/* Pending Settlement */}
+          <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-xl shadow-sm border border-warning-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-full bg-warning-200 flex items-center justify-center">
+                <Clock className="h-5 w-5 text-warning-700" />
+              </div>
+              <span className="text-xs text-warning-600 uppercase tracking-wide">Pending</span>
+            </div>
+            <p className="text-2xl font-bold text-warning-800">
+              {pendingSettlement !== null ? `${pendingSettlement.toLocaleString('en-IN')}` : '€”'}
+            </p>
+            <p className="text-sm text-warning-700 mt-1">Awaiting settlement</p>
+            {pendingSettlement === null && (
+              <p className="text-xs text-warning-600 mt-2">Admin settlement not created</p>
+            )}
           </div>
         </div>
 
-        {/* Additional Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-xs text-gray-500">Delivered Orders</p>
-            <p className="text-lg font-bold text-success-600">{overallStats.deliveredOrders || 0}</p>
+        {/* Info Banner */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-8 flex items-start space-x-3">
+          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <Package className="h-4 w-4 text-blue-600" />
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-xs text-gray-500">Paid Orders</p>
-            <p className="text-lg font-bold text-primary-600">{overallStats.paidOrders || 0}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-xs text-gray-500">Avg Order Value</p>
-            <p className="text-lg font-bold text-gray-900">₹{overallStats.avgOrderValue || 0}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-xs text-gray-500">Collection Rate</p>
-            <p className="text-lg font-bold text-gray-900">
-              {overallStats.totalOrders > 0 
-                ? Math.round((overallStats.paidOrders / overallStats.totalOrders) * 100) 
-                : 0}%
+          <div>
+            <p className="text-sm font-medium text-blue-900">How settlements work</p>
+            <p className="text-xs text-blue-700 mt-1">
+              After customers pay online, the admin will process settlements daily/weekly and transfer funds to your bank account after deducting platform charges. Settlement details will appear here once processed.
             </p>
           </div>
         </div>
-      </div>
-    );
-  };
 
-  // 📚 Combined History (Revenue + Order History)
-  const HistoryPage = () => {
-    return (
-      <div>
-        <RevenueDashboard />
-        <div className="mt-8">
-          <OrderHistory title="Full Order History" />
+        {/* Daily Settlement Status */}
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Daily Settlement Status</h2>
+        <div className="space-y-3">
+          {dailySummary.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+              <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500">No earnings data yet</p>
+            </div>
+          ) : (
+            dailySummary.map((day) => {
+              // Calculate day's online payments
+              const dayOnlineRevenue = (day.orders || [])
+                .filter(o => o.paymentStatus === 'paid')
+                .reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
+              
+              // Settlement status - would come from admin records, null for now
+              const isSettled = null;
+
+              return (
+                <div key={day.date} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="h-9 w-9 rounded-lg bg-primary-100 flex items-center justify-center">
+                        <Calendar className="h-4 w-4 text-primary-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{formatDate(day.date)}</p>
+                        <p className="text-xs text-gray-500">{day.totalOrders} orders</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-6">
+                      <div className="text-right">
+                        <p className="text-xs text-gray-400">Online Earned</p>
+                        <p className="font-bold text-gray-900">{dayOnlineRevenue}</p>
+                      </div>
+                      <div className="text-right min-w-[120px]">
+                        <p className="text-xs text-gray-400">Settlement</p>
+                        {isSettled === null ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            €” Not processed
+                          </span>
+                        ) : isSettled ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-700">
+                            Settled
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-warning-100 text-warning-700">
+                            Pending
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     );
   };
 
-  // 👥 7. CUSTOMER LIST
+  // 7. CUSTOMER LIST
   const CustomerList = () => {
     const customers = customersData?.data?.customers || [];
 
+    const [query, setQuery] = useState('');
+
     if (customersLoading) return <LoadingSpinner />;
+
+    const filteredCustomers = customers.filter(c => {
+      if (!query || query.trim() === '') return true;
+      const q = query.toLowerCase();
+      return (c.name || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q) || (c.phone || '').toLowerCase().includes(q) || (String(c.customerId || c._id) || '').toLowerCase().includes(q);
+    });
 
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Customer List</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Customer List</h1>
+            <p className="text-sm text-gray-500">Customers who ordered from your service</p>
+          </div>
+          <div className="w-72">
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name, email or phone" className="w-full border px-3 py-2 rounded-lg" />
+          </div>
+        </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="space-y-4">
-            {customers.map((customer) => (
-              <div key={customer.customerId || customer._id} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
-                <div className="flex items-center space-x-4">
-                  <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
-                    <UserCircle className="h-6 w-6 text-primary-600" />
+          {filteredCustomers.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">No customers found</div>
+          ) : (
+            <div className="space-y-4">
+              {filteredCustomers.map((customer) => (
+                <div key={customer.customerId || customer._id} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
+                  <div className="flex items-center space-x-4">
+                    <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
+                      <UserCircle className="h-6 w-6 text-primary-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{customer.name}</p>
+                      <p className="text-sm text-gray-600">{customer.email}</p>
+                      <p className="text-xs text-gray-500">{customer.phone}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{customer.name}</p>
-                    <p className="text-sm text-gray-600">{customer.email}</p>
-                    <p className="text-xs text-gray-500">{customer.phone}</p>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900">{customer.totalOrders || 0} orders</p>
+                    <p className="text-sm text-gray-600">{formatCurrency(customer.totalRevenue || 0)}</p>
+                    <p className="text-xs text-gray-500">Last: {customer.lastOrdered ? formatDateTime(customer.lastOrdered) : 'N/A'}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900">{customer.totalOrders || 0} orders</p>
-                  <p className="text-sm text-gray-600">{formatCurrency(customer.totalRevenue || 0)}</p>
-                  <p className="text-xs text-gray-500">Last: {customer.lastOrdered ? formatDateTime(customer.lastOrdered) : 'N/A'}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
   };
 
-  // ⚙️ 8. PROVIDER SETTINGS
+  // š™ï¸ 8. PROVIDER SETTINGS
   const ProviderSettings = () => {
     // Initialize form state from profileData
     const provider = profileData?.data?.providerDetails || {};
@@ -751,7 +922,11 @@ const ProviderDashboard = () => {
       name: contact.name || '',
       email: contact.email || '',
       phone: contact.phone || '',
-      address: contact.address || {}
+      address: contact.address || {},
+      // Payment details (optional)
+      bankDetails: provider.bankDetails || { accountHolder: '', bankName: '', accountNumber: '', ifsc: '' },
+      upiId: provider.upiId || '',
+      upiNumber: provider.upiNumber || ''
     });
 
     useEffect(() => {
@@ -770,7 +945,10 @@ const ProviderDashboard = () => {
         name: c.name || prev.name,
         email: c.email || prev.email,
         phone: c.phone || prev.phone,
-        address: c.address || prev.address
+        address: c.address || prev.address,
+        bankDetails: p.bankDetails || prev.bankDetails,
+        upiId: p.upiId || prev.upiId,
+        upiNumber: p.upiNumber || prev.upiNumber
       }));
     }, [profileData]);
 
@@ -791,6 +969,11 @@ const ProviderDashboard = () => {
         email: form.email,
         phone: form.phone,
         address: form.address
+        ,
+        // Optional payment details
+        bankDetails: form.bankDetails,
+        upiId: form.upiId,
+        upiNumber: form.upiNumber
       };
 
       try {
@@ -848,7 +1031,7 @@ const ProviderDashboard = () => {
             <h3 className="text-lg font-semibold mb-4">Pricing & Service</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price per Can (₹)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price per Can ()</label>
                 <input value={form.pricePerCan} onChange={e => setForm({...form, pricePerCan: e.target.value})} type="number" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
               </div>
               <div>
@@ -919,6 +1102,45 @@ const ProviderDashboard = () => {
             <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full border px-3 py-2 rounded-lg" rows={4} placeholder="Short description about your business" />
           </div>
 
+          {/* Payment Details */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold mb-4">Payment Details (optional)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder Name</label>
+                <input value={form.bankDetails.accountHolder} onChange={e => setForm({...form, bankDetails: {...form.bankDetails, accountHolder: e.target.value}})} type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                <input value={form.bankDetails.bankName} onChange={e => setForm({...form, bankDetails: {...form.bankDetails, bankName: e.target.value}})} type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                <input value={form.bankDetails.accountNumber} onChange={e => setForm({...form, bankDetails: {...form.bankDetails, accountNumber: e.target.value}})} type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">IFSC Code</label>
+                <input value={form.bankDetails.ifsc} onChange={e => setForm({...form, bankDetails: {...form.bankDetails, ifsc: e.target.value}})} type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+              <div className="md:col-span-2">
+                <div className="flex flex-col md:flex-row items-center gap-3">
+                  <div className="flex-1 w-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">UPI ID</label>
+                    <input value={form.upiId} onChange={e => setForm({...form, upiId: e.target.value})} placeholder="example@bank" type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+                  </div>
+                  <div className="flex items-center justify-center px-4 pt-6">
+                    <span className="text-gray-400 font-semibold text-lg">OR</span>
+                  </div>
+                  <div className="flex-1 w-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">UPI Number</label>
+                    <input value={form.upiNumber} onChange={e => setForm({...form, upiNumber: e.target.value})} placeholder="98XXXXXXXX" type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Provide either UPI ID or phone number. All fields are optional.</p>
+              </div>
+            </div>
+          </div>
+
           <div className="flex justify-end">
             <button onClick={saveProfile} className="bg-primary-600 text-white px-6 py-2 rounded-lg">Save Settings</button>
           </div>
@@ -933,8 +1155,9 @@ const ProviderDashboard = () => {
       case 'active-orders': return <ActiveOrders />;
       case 'delivery-management': return <DeliveryBoys />;
       case 'history': return <HistoryPage />;
-      case 'order-history': return <OrderHistory />;
-      case 'revenue': return <RevenueDashboard />;
+      case 'order-history': return <HistoryPage />;
+      case 'earnings': return <EarningsPage />;
+      case 'revenue': return <EarningsPage />;
       case 'customers': return <CustomerList />;
       case 'settings': return <ProviderSettings />;
       default: return <DashboardHome />;
