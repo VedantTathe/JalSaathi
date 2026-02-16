@@ -326,6 +326,102 @@ const getSystemHealth = asyncHandler(async (req, res) => {
   });
 });
 
+// Settlement Management Controllers
+
+// Get all settlements
+const getAllSettlements = asyncHandler(async (req, res) => {
+  const { status, providerId, startDate, endDate, limit = 20, page = 1 } = req.query;
+  
+  const filters = {};
+  if (status) filters.status = status;
+  if (providerId) filters.providerId = providerId;
+  if (startDate && endDate) {
+    filters.startDate = startDate;
+    filters.endDate = endDate;
+  }
+  
+  const { response, statusCode } = await AdminService.getAllSettlements(
+    filters,
+    parseInt(limit),
+    parseInt(page)
+  );
+  res.status(statusCode).json(response);
+});
+
+// Get settlement statistics
+const getSettlementStats = asyncHandler(async (req, res) => {
+  const { response, statusCode } = await AdminService.getSettlementStats();
+  res.status(statusCode).json(response);
+});
+
+// Create settlement
+const createSettlement = asyncHandler(async (req, res) => {
+  const { providerId, periodStart, periodEnd } = req.body;
+  
+  if (!providerId || !periodStart || !periodEnd) {
+    return res.status(400).json({
+      success: false,
+      message: 'Provider ID, period start, and period end are required'
+    });
+  }
+  
+  const { response, statusCode } = await AdminService.createSettlement(
+    providerId,
+    periodStart,
+    periodEnd,
+    req.user._id
+  );
+  res.status(statusCode).json(response);
+});
+
+// Update settlement status
+const updateSettlementStatus = asyncHandler(async (req, res) => {
+  const { settlementId } = req.params;
+  const { status, transactionId, notes, paymentMethod } = req.body;
+  
+  if (!status) {
+    return res.status(400).json({
+      success: false,
+      message: 'Status is required'
+    });
+  }
+  
+  const { response, statusCode } = await AdminService.updateSettlementStatus(
+    settlementId,
+    status,
+    req.user._id,
+    { transactionId, notes, paymentMethod }
+  );
+  res.status(statusCode).json(response);
+});
+
+// Complete settlement
+const completeSettlement = asyncHandler(async (req, res) => {
+  const { settlementId } = req.params;
+  const { transactionId, notes } = req.body;
+  
+  if (!transactionId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Transaction ID is required'
+    });
+  }
+  
+  const { response, statusCode } = await AdminService.completeSettlement(
+    settlementId,
+    transactionId,
+    req.user._id,
+    notes
+  );
+  res.status(statusCode).json(response);
+});
+
+// Create monthly settlements
+const createMonthlySettlements = asyncHandler(async (req, res) => {
+  const { response, statusCode } = await AdminService.createMonthlySettlements(req.user._id);
+  res.status(statusCode).json(response);
+});
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -344,5 +440,11 @@ module.exports = {
   getRevenueAnalytics,
   getPerformanceAnalytics,
   cleanupCancelledOrders,
-  getSystemHealth
+  getSystemHealth,
+  getAllSettlements,
+  getSettlementStats,
+  createSettlement,
+  updateSettlementStatus,
+  completeSettlement,
+  createMonthlySettlements
 };

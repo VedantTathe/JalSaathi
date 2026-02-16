@@ -133,6 +133,7 @@ export const adminApi = {
   
   // Providers
   getAllProviders: (params) => apiClient.get('/admin/providers', { params }),
+  getPendingProviders: (params) => apiClient.get('/admin/providers', { params: { ...params, isApproved: 'false' } }),
   getProviderById: (providerId) => apiClient.get(`/admin/providers/${providerId}`),
   approveProvider: (providerId) => apiClient.patch(`/admin/providers/${providerId}/approve`),
   rejectProvider: (providerId, reason) => apiClient.patch(`/admin/providers/${providerId}/reject`, { reason }),
@@ -145,6 +146,7 @@ export const adminApi = {
   
   // Analytics
   getDashboard: () => apiClient.get('/admin/dashboard'),
+  getDashboardStats: () => apiClient.get('/admin/dashboard'),
   getSystemOverview: () => apiClient.get('/admin/analytics/overview'),
   getRevenueAnalytics: (params) => apiClient.get('/admin/analytics/revenue', { params }),
   getPerformanceAnalytics: () => apiClient.get('/admin/analytics/performance'),
@@ -152,6 +154,21 @@ export const adminApi = {
   // Maintenance
   cleanupCancelledOrders: () => apiClient.post('/admin/maintenance/cleanup-cancelled-orders'),
   getSystemHealth: () => apiClient.get('/admin/system/health'),
+  
+  // Settlements
+  getAllSettlements: (params) => apiClient.get('/admin/settlements', { params }),
+  getSettlementStats: () => apiClient.get('/admin/settlements/stats'),
+  createSettlement: (data) => apiClient.post('/admin/settlements/create', data),
+  updateSettlementStatus: (settlementId, data) => apiClient.patch(`/admin/settlements/${settlementId}/status`, data),
+  completeSettlement: (settlementId, data) => apiClient.post(`/admin/settlements/${settlementId}/complete`, data),
+  createMonthlySettlements: () => apiClient.post('/admin/settlements/create-monthly'),
+};
+
+// Settlement API (for providers)
+export const settlementApi = {
+  getMySettlements: () => apiClient.get('/settlement/provider/my-settlements'),
+  getMyEarnings: () => apiClient.get('/settlement/provider/earnings'),
+  getSettlementById: (settlementId) => apiClient.get(`/settlement/${settlementId}`),
 };
 
 export default apiClient;

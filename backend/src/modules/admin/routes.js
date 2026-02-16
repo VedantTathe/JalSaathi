@@ -35,4 +35,12 @@ router.get('/analytics/performance', adminController.getPerformanceAnalytics);
 router.post('/maintenance/cleanup-cancelled-orders', adminController.cleanupCancelledOrders);
 router.get('/system/health', adminController.getSystemHealth);
 
+// Settlement management
+router.get('/settlements', adminController.getAllSettlements);
+router.get('/settlements/stats', adminController.getSettlementStats);
+router.post('/settlements/create', adminController.createSettlement);
+router.patch('/settlements/:settlementId/status', adminController.updateSettlementStatus);
+router.post('/settlements/:settlementId/complete', adminController.completeSettlement);
+router.post('/settlements/create-monthly', adminController.createMonthlySettlements);
+
 module.exports = router;

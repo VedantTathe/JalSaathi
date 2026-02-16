@@ -197,20 +197,40 @@ const Register = () => {
       const { confirmPassword, ...registrationData } = data;
       registrationData.role = selectedRole;
       
-      // Add coordinates for providers
+      // For customers, remove address data since it's not collected during registration
+      if (selectedRole === 'customer') {
+        delete registrationData.address;
+      }
+      
+      // Add coordinates and format data for providers
       if (selectedRole === 'provider') {
         // Make coordinates optional but recommended
         if (coordinates.latitude && coordinates.longitude) {
           registrationData.coordinates = coordinates;
         }
         registrationData.serviceRadius = parseFloat(serviceRadius);
-      }
-      
-      // Add coordinates for customers to enable distance-based filtering
-      if (selectedRole === 'customer') {
-        if (coordinates.latitude && coordinates.longitude) {
-          registrationData.addressCoordinates = coordinates;
+        
+        // Format minimumOrder as number
+        if (registrationData.minimumOrder) {
+          registrationData.minimumOrder = parseInt(registrationData.minimumOrder);
         }
+        
+        // Ensure operatingHours has default values if not provided
+        if (!registrationData.operatingHours) {
+          registrationData.operatingHours = { open: '08:00', close: '20:00' };
+        }
+        
+        // Clean up empty payment details
+        if (registrationData.bankDetails) {
+          const hasAnyBankDetail = Object.values(registrationData.bankDetails).some(val => val);
+          if (!hasAnyBankDetail) {
+            delete registrationData.bankDetails;
+          }
+        }
+        
+        // Remove empty UPI fields
+        if (!registrationData.upiId) delete registrationData.upiId;
+        if (!registrationData.upiNumber) delete registrationData.upiNumber;
       }
       
       const result = await registerUser(registrationData);
@@ -546,7 +566,9 @@ const Register = () => {
                       <p className="form-error">{errors.pricePerCan.message}</p>
                     )}
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="form-group">
                     <label htmlFor="serviceRadius" className="form-label">
                       Delivery Radius (km)
@@ -566,141 +588,146 @@ const Register = () => {
                       How far from your location will you deliver? (1-50 km)
                     </p>
                   </div>
-                </div>
-              </>
-            )}
 
-            {/* Address (for customers only - providers have it above with map) */}
-            {selectedRole === 'customer' && (
-              <>
-                {/* Customer Location Map */}
-                <div className="form-group">
-                  <label className="form-label flex items-center justify-between">
-                    <span className="flex items-center">
-                      <MapPin className="h-5 w-5 mr-2 text-water-500" />
-                      Your Location (Recommended for distance-based search)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={getCurrentLocation}
-                      disabled={gettingLocation}
-                      className="text-sm bg-water-600 hover:bg-water-700 text-white px-3 py-1.5 rounded-md font-medium flex items-center"
-                    >
-                      <Navigation className="h-4 w-4 mr-1" />
-                      {gettingLocation ? 'Getting...' : 'Use GPS Location'}
-                    </button>
-                  </label>
-                  
-                  <div className="map-container" style={{ height: '320px', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-                    <MapContainer
-                      key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
-                      center={mapCenter}
-                      zoom={mapZoom}
-                      style={{ height: '100%', width: '100%' }}
-                      scrollWheelZoom={true}
-                    >
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      />
-                      <LocationMarker />
-                    </MapContainer>
-                    
-                    {markerPosition && (
-                      <div className="absolute bottom-3 left-3 bg-green-500 text-white px-3 py-1 rounded-md text-xs font-medium z-[1000] shadow-md">
-                        📍 {coordinates.latitude?.toFixed(4)}, {coordinates.longitude?.toFixed(4)}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2">
-                    <p className="text-sm text-blue-800">
-                      <strong>💡 Why set your location?</strong><br />
-                      • See accurate distances to water providers<br />
-                      • Get providers who can deliver to your area<br />
-                      • Better delivery time estimates
+                  <div className="form-group">
+                    <label htmlFor="minimumOrder" className="form-label">
+                      Minimum Order (cans)
+                    </label>
+                    <input
+                      id="minimumOrder"
+                      type="number"
+                      min="1"
+                      step="1"
+                      defaultValue="1"
+                      className="input-field"
+                      placeholder="Minimum order quantity"
+                      {...register('minimumOrder')}
+                    />
+                    <p className="text-sm text-gray-600 mt-1">
+                      Minimum number of cans per order
                     </p>
                   </div>
                 </div>
 
+                {/* Operating Hours */}
                 <div className="form-group">
-                  <label htmlFor="street" className="form-label">
-                    Street Address
-                  </label>
-                  <input
-                    id="street"
-                    type="text"
-                    className={`input-field ${errors['address.street'] ? 'input-error' : ''}`}
-                    placeholder="Enter your street address"
-                    {...register('address.street', {
-                      required: 'Street address is required',
-                    })}
-                  />
-                  {errors['address.street'] && (
-                    <p className="form-error">{errors['address.street'].message}</p>
-                  )}
+                  <label className="form-label">Operating Hours</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="openTime" className="text-sm text-gray-600">Opening Time</label>
+                      <input
+                        id="openTime"
+                        type="time"
+                        defaultValue="08:00"
+                        className="input-field"
+                        {...register('operatingHours.open')}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="closeTime" className="text-sm text-gray-600">Closing Time</label>
+                      <input
+                        id="closeTime"
+                        type="time"
+                        defaultValue="20:00"
+                        className="input-field"
+                        {...register('operatingHours.close')}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="form-group">
-                    <label htmlFor="area" className="form-label">
-                      Area
-                    </label>
-                    <input
-                      id="area"
-                      type="text"
-                      className={`input-field ${errors['address.area'] ? 'input-error' : ''}`}
-                      placeholder="Enter your area"
-                      {...register('address.area', {
-                        required: 'Area is required',
-                      })}
-                    />
-                    {errors['address.area'] && (
-                      <p className="form-error">{errors['address.area'].message}</p>
-                    )}
-                  </div>
+                {/* Business Description */}
+                <div className="form-group">
+                  <label htmlFor="description" className="form-label">
+                    Business Description (Optional)
+                  </label>
+                  <textarea
+                    id="description"
+                    rows="3"
+                    className="input-field"
+                    placeholder="Tell customers about your business, water quality, delivery service..."
+                    {...register('description')}
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Help customers know more about your business
+                  </p>
+                </div>
 
-                  <div className="form-group">
-                    <label htmlFor="city" className="form-label">
-                      City
-                    </label>
-                    <input
-                      id="city"
-                      type="text"
-                      className={`input-field ${errors['address.city'] ? 'input-error' : ''}`}
-                      placeholder="Enter your city"
-                      {...register('address.city', {
-                        required: 'City is required',
-                      })}
-                    />
-                    {errors['address.city'] && (
-                      <p className="form-error">{errors['address.city'].message}</p>
-                    )}
-                  </div>
+                {/* Payment Details - Optional */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <Shield className="h-5 w-5 mr-2 text-blue-600" />
+                    Payment Details (Optional - Can be added later)
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {/* Bank Details */}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Bank Account Details</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="Account Holder Name"
+                          {...register('bankDetails.accountHolder')}
+                        />
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="Bank Name"
+                          {...register('bankDetails.bankName')}
+                        />
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="Account Number"
+                          {...register('bankDetails.accountNumber')}
+                        />
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="IFSC Code"
+                          {...register('bankDetails.ifsc')}
+                        />
+                      </div>
+                    </div>
 
-                  <div className="form-group">
-                    <label htmlFor="pincode" className="form-label">
-                      Pincode
-                    </label>
-                    <input
-                      id="pincode"
-                      type="text"
-                      className={`input-field ${errors['address.pincode'] ? 'input-error' : ''}`}
-                      placeholder="Enter pincode"
-                      {...register('address.pincode', {
-                        required: 'Pincode is required',
-                        pattern: {
-                          value: /^[1-9][0-9]{5}$/,
-                          message: 'Invalid pincode',
-                        },
-                      })}
-                    />
-                    {errors['address.pincode'] && (
-                      <p className="form-error">{errors['address.pincode'].message}</p>
-                    )}
+                    {/* UPI Details */}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">UPI Details (Provide either one)</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="UPI ID (example@bank)"
+                          {...register('upiId')}
+                        />
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="UPI Number (98XXXXXXXX)"
+                          {...register('upiNumber')}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </>
+            )}
+
+            {/* Customer info box - address can be added later */}
+            {selectedRole === 'customer' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <MapPin className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-blue-900 mb-1">Delivery Address</h4>
+                    <p className="text-sm text-blue-800">
+                      You can add and manage your delivery addresses from your dashboard after registration.
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Password */}
