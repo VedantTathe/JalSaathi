@@ -5,9 +5,24 @@ const { formatResponse } = require('../../utils/helpers');
 const crypto = require('crypto');
 
 class OrderService {
+  // Check if website is accepting orders (defaults to true if env not set)
+  static isWebsiteAcceptingOrders() {
+    const isWebsiteOn = process.env.IS_WEBSITE_ON;
+    // Default to true if not set, only false if explicitly set to 'false' or '0'
+    if (isWebsiteOn === undefined || isWebsiteOn === null || isWebsiteOn === '') {
+      return true;
+    }
+    return isWebsiteOn === 'true' || isWebsiteOn === '1';
+  }
+
   // Create new order
   static async createOrder(customerId, orderData) {
     try {
+      // Check if website is accepting orders
+      if (!this.isWebsiteAcceptingOrders()) {
+        return formatResponse(false, 'Sorry, we are not able to place orders right now. Please try again later.', null, 503);
+      }
+
       const { providerId, quantity, deliveryAddress, specialInstructions, paymentMethod } = orderData;
       
       // Get provider details
@@ -282,6 +297,11 @@ class OrderService {
   // Create Razorpay order (server-side) and return key+order payload to client
   static async createRazorpayOrder(customerId, orderId) {
     try {
+      // Check if website is accepting orders
+      if (!this.isWebsiteAcceptingOrders()) {
+        return formatResponse(false, 'Sorry, we are not able to process payments right now. Please try again later.', null, 503);
+      }
+
       const order = await Order.findById(orderId);
       if (!order) return formatResponse(false, 'Order not found', null, 404);
       if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
