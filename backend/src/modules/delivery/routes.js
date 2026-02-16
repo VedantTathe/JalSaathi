@@ -33,4 +33,9 @@ router.get('/performance',
   deliveryController.getPerformanceStats
 );
 
+router.patch('/orders/:orderId/mark-payment-received',
+  authorizeRoles('delivery'),
+  deliveryController.markPaymentReceived
+);
+
 module.exports = router;

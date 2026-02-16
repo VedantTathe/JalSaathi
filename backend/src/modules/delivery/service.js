@@ -67,10 +67,14 @@ class DeliveryService {
         return formatResponse(false, 'Order not found or cannot be marked as delivered', null, 404);
       }
       
+      // For COD orders, payment must be collected first
+      if (order.paymentMethod === 'cash_on_delivery' && order.paymentStatus !== 'paid') {
+        return formatResponse(false, 'Please collect COD payment before marking as delivered', null, 400);
+      }
+      
       // Mark as delivered
       await order.updateStatus('delivered', {
-        deliveryNotes,
-        paymentStatus: order.paymentMethod === 'cash_on_delivery' ? 'paid' : order.paymentStatus
+        deliveryNotes
       });
       
       // Update provider statistics
@@ -123,6 +127,32 @@ class DeliveryService {
     } catch (error) {
       console.error('Get delivery history error:', error);
       return formatResponse(false, 'Failed to retrieve delivery history', null, 500);
+    }
+  }
+  
+  // Mark COD payment as received
+  static async markPaymentReceived(deliveryBoyId, orderId) {
+    try {
+      const order = await Order.findOne({
+        _id: orderId,
+        deliveryBoyId,
+        paymentMethod: 'cash_on_delivery',
+        paymentStatus: 'pending'
+      });
+      
+      if (!order) {
+        return formatResponse(false, 'Order not found or payment already received', null, 404);
+      }
+      
+      // Update payment status to paid
+      order.paymentStatus = 'paid';
+      await order.save();
+      
+      return formatResponse(true, 'Payment marked as received successfully', null, 200);
+      
+    } catch (error) {
+      console.error('Mark payment received error:', error);
+      return formatResponse(false, 'Failed to mark payment as received', null, 500);
     }
   }
   

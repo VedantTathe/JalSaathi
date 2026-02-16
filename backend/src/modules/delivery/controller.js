@@ -58,10 +58,22 @@ const getPerformanceStats = asyncHandler(async (req, res) => {
   res.status(statusCode).json(response);
 });
 
+// Mark COD payment as received
+const markPaymentReceived = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  
+  const { response, statusCode } = await DeliveryService.markPaymentReceived(
+    req.user._id,
+    orderId
+  );
+  res.status(statusCode).json(response);
+});
+
 module.exports = {
   getAssignedOrders,
   updateDeliveryStatus,
   markAsDelivered,
   getDeliveryHistory,
-  getPerformanceStats
+  getPerformanceStats,
+  markPaymentReceived
 };
