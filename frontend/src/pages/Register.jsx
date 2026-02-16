@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Droplets, ArrowLeft, Users, Store, Truck, Shield, MapPin, Navigation } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,9 +18,10 @@ L.Icon.Default.mergeOptions({
 });
 
 const Register = () => {
+  const { role } = useParams(); // Get role from URL parameter
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState('customer');
+  const [selectedRole, setSelectedRole] = useState(role || 'customer');
   const [loading, setLoading] = useState(false);
   const { register: registerUser, user } = useAuth();
   const navigate = useNavigate();
@@ -39,6 +40,13 @@ const Register = () => {
       navigate('/dashboard', { replace: true });
     }
   }, [user, navigate]);
+
+  // Update selectedRole when URL parameter changes
+  useEffect(() => {
+    if (role && (role === 'customer' || role === 'provider')) {
+      setSelectedRole(role);
+    }
+  }, [role]);
 
   const {
     register,
@@ -180,13 +188,6 @@ const Register = () => {
       icon: Store,
       color: 'secondary',
     },
-    {
-      id: 'delivery',
-      title: 'Delivery Partner',
-      description: 'Deliver water orders to customers',
-      icon: Truck,
-      color: 'warning',
-    },
   ];
 
   const onSubmit = async (data) => {
@@ -251,7 +252,7 @@ const Register = () => {
             </div>
           </div>
           <h2 className="text-center text-3xl font-bold text-gray-900">
-            Create your account
+            {role === 'provider' ? 'Become a Provider' : role === 'customer' ? 'Create Customer Account' : 'Create your account'}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{' '}
@@ -266,41 +267,43 @@ const Register = () => {
 
         <div className="card">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            {/* Role Selection */}
-            <div className="form-group">
-              <label className="form-label">I want to join as a</label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {userRoles.map((role) => {
-                  const Icon = role.icon;
-                  return (
-                    <button
-                      key={role.id}
-                      type="button"
-                      onClick={() => setSelectedRole(role.id)}
-                      className={`p-4 border rounded-lg text-left transition-all ${
-                        selectedRole === role.id
-                          ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500'
-                          : 'border-gray-300 hover:border-gray-400'
-                      }`}
-                    >
-                      <Icon className={`h-6 w-6 mb-2 ${
-                        selectedRole === role.id ? 'text-primary-600' : 'text-gray-400'
-                      }`} />
-                      <h3 className={`font-medium ${
-                        selectedRole === role.id ? 'text-primary-900' : 'text-gray-900'
-                      }`}>
-                        {role.title}
-                      </h3>
-                      <p className={`text-sm ${
-                        selectedRole === role.id ? 'text-primary-600' : 'text-gray-600'
-                      }`}>
-                        {role.description}
-                      </p>
-                    </button>
-                  );
-                })}
+            {/* Role Selection - only show if no role specified in URL */}
+            {!role && (
+              <div className="form-group">
+                <label className="form-label">I want to join as a</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {userRoles.map((roleOption) => {
+                    const Icon = roleOption.icon;
+                    return (
+                      <button
+                        key={roleOption.id}
+                        type="button"
+                        onClick={() => setSelectedRole(roleOption.id)}
+                        className={`p-4 border rounded-lg text-left transition-all ${
+                          selectedRole === roleOption.id
+                            ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        <Icon className={`h-6 w-6 mb-2 ${
+                          selectedRole === roleOption.id ? 'text-primary-600' : 'text-gray-400'
+                        }`} />
+                        <h3 className={`font-medium ${
+                          selectedRole === roleOption.id ? 'text-primary-900' : 'text-gray-900'
+                        }`}>
+                          {roleOption.title}
+                        </h3>
+                        <p className={`text-sm ${
+                          selectedRole === roleOption.id ? 'text-primary-600' : 'text-gray-600'
+                        }`}>
+                          {roleOption.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Name */}
             <div className="form-group">

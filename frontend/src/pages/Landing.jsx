@@ -99,10 +99,10 @@ const Landing = () => {
               track deliveries, and never run out of fresh drinking water again.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-300">
-              <Link to="/register" className="btn-primary bg-white text-water-600 hover:bg-gray-100 text-lg px-8 py-3">
+              <Link to="/register/customer" className="btn-primary bg-white text-water-600 hover:bg-gray-100 text-lg px-8 py-3">
                 Order Water Now <ArrowRight className="h-5 w-5" />
               </Link>
-              <Link to="/register" className="btn-outline border-white text-white hover:bg-white hover:text-water-600 text-lg px-8 py-3">
+              <Link to="/register/provider" className="btn-outline border-white text-white hover:bg-white hover:text-water-600 text-lg px-8 py-3">
                 Become a Provider
               </Link>
             </div>
