@@ -1,6 +1,8 @@
 const User = require('../user/model');
 const Provider = require('../provider/model');
 const Order = require('../order/model');
+const Settlement = require('../settlement/model');
+const settlementService = require('../../services/settlementService');
 const { formatResponse } = require('../../utils/helpers');
 
 class AdminService {
@@ -227,6 +229,21 @@ class AdminService {
         }
       ]);
       
+      // Total all-time revenue from all providers
+      const totalRevenue = await Order.aggregate([
+        {
+          $match: {
+            status: 'delivered'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$items.totalPrice' }
+          }
+        }
+      ]);
+      
       // Order status distribution
       const ordersByStatus = await Order.aggregate([
         {
@@ -245,6 +262,20 @@ class AdminService {
         .limit(5);
       
       return formatResponse(true, 'Admin dashboard data retrieved successfully', {
+        // Stats formatted for easy access
+        totalUsers,
+        totalCustomers,
+        totalProviders,
+        activeProviders: onlineProviders,
+        approvedProviders,
+        totalOrders,
+        totalRevenue: totalRevenue[0]?.total || 0,
+        revenueThisMonth: monthlyRevenue[0]?.total || 0,
+        ordersThisMonth: monthlyOrders,
+        newUsersThisMonth: 0, // Can be calculated if needed
+        pendingProviders: totalProviders - approvedProviders,
+        
+        // Detailed breakdown
         overview: {
           totalUsers,
           totalCustomers,
@@ -366,6 +397,101 @@ class AdminService {
     } catch (error) {
       console.error('Delete user error:', error);
       return formatResponse(false, 'Failed to delete user', null, 500);
+    }
+  }
+
+  // Settlement Management Methods
+  
+  // Get all settlements with filters
+  static async getAllSettlements(filters = {}, limit = 20, page = 1) {
+    try {
+      const settlements = await settlementService.getAllSettlements(filters);
+      
+      return formatResponse(true, 'Settlements retrieved successfully', settlements, 200);
+      
+    } catch (error) {
+      console.error('Get all settlements error:', error);
+      return formatResponse(false, 'Failed to retrieve settlements', null, 500);
+    }
+  }
+  
+  // Get settlement statistics
+  static async getSettlementStats() {
+    try {
+      const stats = await settlementService.getSettlementStats();
+      
+      return formatResponse(true, 'Settlement statistics retrieved successfully', stats, 200);
+      
+    } catch (error) {
+      console.error('Get settlement stats error:', error);
+      return formatResponse(false, 'Failed to retrieve settlement statistics', null, 500);
+    }
+  }
+  
+  // Create settlement for a provider
+  static async createSettlement(providerId, periodStart, periodEnd, adminId) {
+    try {
+      const settlement = await settlementService.createSettlement(
+        providerId,
+        periodStart,
+        periodEnd,
+        adminId
+      );
+      
+      return formatResponse(true, 'Settlement created successfully', settlement, 201);
+      
+    } catch (error) {
+      console.error('Create settlement error:', error);
+      return formatResponse(false, error.message || 'Failed to create settlement', null, 500);
+    }
+  }
+  
+  // Update settlement status
+  static async updateSettlementStatus(settlementId, status, adminId, data = {}) {
+    try {
+      const settlement = await settlementService.updateSettlementStatus(
+        settlementId,
+        status,
+        adminId,
+        data
+      );
+      
+      return formatResponse(true, 'Settlement status updated successfully', settlement, 200);
+      
+    } catch (error) {
+      console.error('Update settlement status error:', error);
+      return formatResponse(false, error.message || 'Failed to update settlement status', null, 500);
+    }
+  }
+  
+  // Complete settlement
+  static async completeSettlement(settlementId, transactionId, adminId, notes) {
+    try {
+      const settlement = await settlementService.completeSettlement(
+        settlementId,
+        transactionId,
+        adminId,
+        notes
+      );
+      
+      return formatResponse(true, 'Settlement completed successfully', settlement, 200);
+      
+    } catch (error) {
+      console.error('Complete settlement error:', error);
+      return formatResponse(false, error.message || 'Failed to complete settlement', null, 500);
+    }
+  }
+  
+  // Create monthly settlements for all providers
+  static async createMonthlySettlements(adminId) {
+    try {
+      const results = await settlementService.createMonthlySettlements(adminId);
+      
+      return formatResponse(true, 'Monthly settlements created', results, 200);
+      
+    } catch (error) {
+      console.error('Create monthly settlements error:', error);
+      return formatResponse(false, error.message || 'Failed to create monthly settlements', null, 500);
     }
   }
 }

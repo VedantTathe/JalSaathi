@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
-import { providerApi, orderApi, authApi } from '../../services/api';
+import { providerApi, orderApi, authApi, settlementApi } from '../../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
@@ -977,26 +977,46 @@ const ProviderDashboard = () => {
 
   // EARNINGS PAGE - Settlement from Admin
   const EarningsPage = () => {
-    const dailySummary = historyData?.data?.dailySummary || [];
+    const { data: settlementsData, isLoading: settlementsLoading } = useQuery(
+      'provider-settlements',
+      () => settlementApi.getMySettlements()
+    );
+    
+    const { data: earningsData, isLoading: earningsLoading } = useQuery(
+      'provider-earnings',
+      () => settlementApi.getMyEarnings()
+    );
+
+    if (settlementsLoading || earningsLoading) return <LoadingSpinner />;
+
+    const settlements = settlementsData?.data || [];
+    const earnings = earningsData?.data || {};
     const overallStats = historyData?.data?.overallStats || {};
 
-    if (historyLoading) return <LoadingSpinner />;
-
-    const onlinePaymentReceived = overallStats.paidRevenue || 0;
-
-    // Settlement data would come from admin - for now show "-"
-    const totalSettled = null; // Will be fetched from admin settlement records
-    const pendingSettlement = null;
+    // Calculate card values from earnings data
+    const totalEarned = earnings.overall?.netEarnings || overallStats.paidRevenue || 0;
+    const totalSettled = (earnings.byStatus?.completed || 0);
+    const pendingSettlement = (earnings.byStatus?.pending || 0) + (earnings.byStatus?.processing || 0);
 
     const formatDate = (dateStr) => {
-      const date = new Date(dateStr + 'T00:00:00');
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    };
 
-      if (date.toDateString() === today.toDateString()) return 'Today';
-      if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-      return date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const getStatusBadge = (status) => {
+      const statusConfig = {
+        pending: { bg: 'bg-warning-100', text: 'text-warning-700', label: 'Pending' },
+        processing: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Processing' },
+        completed: { bg: 'bg-success-100', text: 'text-success-700', label: 'Completed' },
+        failed: { bg: 'bg-danger-100', text: 'text-danger-700', label: 'Failed' }
+      };
+      const config = statusConfig[status] || statusConfig.pending;
+      return (
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+          {config.label}
+        </span>
+      );
     };
 
     return (
@@ -1014,7 +1034,7 @@ const ProviderDashboard = () => {
               </div>
               <span className="text-xs text-gray-400 uppercase tracking-wide">Total Earned</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">Rs. {onlinePaymentReceived.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-gray-900">₹{totalEarned.toLocaleString('en-IN')}</p>
             <p className="text-sm text-gray-500 mt-1">Online payments received</p>
           </div>
 
@@ -1027,7 +1047,7 @@ const ProviderDashboard = () => {
               <span className="text-xs text-success-600 uppercase tracking-wide">Settled</span>
             </div>
             <p className="text-2xl font-bold text-success-800">
-              {totalSettled !== null ? `Rs. ${totalSettled.toLocaleString('en-IN')}` : 'NA'}
+              {totalSettled !== null ? totalSettled.toLocaleString('en-IN') : '0'}
             </p>
             <p className="text-sm text-success-700 mt-1">Transferred to your bank</p>
             {totalSettled === null && (
@@ -1066,63 +1086,60 @@ const ProviderDashboard = () => {
           </div>
         </div>
 
-        {/* Daily Settlement Status */}
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Daily Settlement Status</h2>
+        {/* Settlement History */}
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Settlement History</h2>
         <div className="space-y-3">
-          {dailySummary.length === 0 ? (
+          {settlements.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
               <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500">No earnings data yet</p>
+              <p className="text-gray-500">No settlements yet</p>
+              <p className="text-sm text-gray-400 mt-1">Settlements will appear here once processed by admin</p>
             </div>
           ) : (
-            dailySummary.map((day) => {
-              // Calculate day's online payments
-              const dayOnlineRevenue = (day.orders || [])
-                .filter(o => o.paymentStatus === 'paid')
-                .reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
-              
-              // Settlement status - would come from admin records, null for now
-              const isSettled = null;
-
-              return (
-                <div key={day.date} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            settlements.map((settlement) => (
+              <div key={settlement._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="h-9 w-9 rounded-lg bg-primary-100 flex items-center justify-center">
                         <Calendar className="h-4 w-4 text-primary-600" />
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900">{formatDate(day.date)}</p>
-                        <p className="text-xs text-gray-500">{day.totalOrders} orders</p>
+                        <p className="font-semibold text-gray-900">
+                          {new Date(settlement.periodStart).toLocaleDateString()} - {new Date(settlement.periodEnd).toLocaleDateString()}
+                        </p>
+                        <p className="text-xs text-gray-500">{settlement.orderCount} orders</p>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-6">
                       <div className="text-right">
-                        <p className="text-xs text-gray-400">Online Earned</p>
-                        <p className="font-bold text-gray-900">Rs. {dayOnlineRevenue}</p>
+                        <p className="text-xs text-gray-400">Amount</p>
+                        <p className="font-bold text-gray-900">₹{settlement.netAmount?.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="text-right min-w-[120px]">
-                        <p className="text-xs text-gray-400">Settlement</p>
-                        {isSettled === null ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                             Not processed
-                          </span>
-                        ) : isSettled ? (
+                        <p className="text-xs text-gray-400">Status</p>
+                        {settlement.status === 'completed' ? (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-700">
                             Settled
                           </span>
-                        ) : (
+                        ) : settlement.status === 'processing' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                            Processing
+                          </span>
+                        ) : settlement.status === 'pending' ? (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-warning-100 text-warning-700">
                             Pending
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-error-100 text-error-700">
+                            Failed
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
                 </div>
-              );
-            })
+              ))
           )}
         </div>
       </div>

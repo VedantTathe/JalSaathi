@@ -5,6 +5,17 @@ const { asyncHandler } = require('../../middlewares/errorHandler');
 const getAddresses = asyncHandler(async (req, res) => {
   const addresses = await Address.find({ userId: req.user._id }).sort('-isDefault -createdAt');
   
+  console.log('📋 Fetching addresses for user:', req.user._id);
+  console.log('📋 Found', addresses.length, 'addresses');
+  addresses.forEach((addr, idx) => {
+    console.log(`  Address ${idx + 1}:`, {
+      label: addr.label,
+      isDefault: addr.isDefault,
+      hasCoordinates: !!(addr.coordinates?.latitude && addr.coordinates?.longitude),
+      coordinates: addr.coordinates
+    });
+  });
+  
   res.status(200).json({
     success: true,
     data: { addresses }
@@ -15,6 +26,9 @@ const getAddresses = asyncHandler(async (req, res) => {
 const createAddress = asyncHandler(async (req, res) => {
   const { label, street, area, city, pincode, isDefault, coordinates } = req.body;
   
+  console.log('📍 Creating address with data:', JSON.stringify(req.body, null, 2));
+  console.log('📍 Coordinates received:', coordinates);
+  
   // Validate required fields
   if (!street || !area || !city || !pincode) {
     return res.status(400).json({
@@ -24,6 +38,7 @@ const createAddress = asyncHandler(async (req, res) => {
   }
   
   const addressData = {
+  const addressData = {
     userId: req.user._id,
     label: label || 'home',
     street,
@@ -32,16 +47,20 @@ const createAddress = asyncHandler(async (req, res) => {
     pincode,
     isDefault: isDefault || false
   };
-
+  
   // Add coordinates if provided
-  if (coordinates && (coordinates.latitude || coordinates.lat) && (coordinates.longitude || coordinates.lng)) {
+  if (coordinates && coordinates.latitude && coordinates.longitude) {
     addressData.coordinates = {
-      latitude: Number(coordinates.latitude || coordinates.lat),
-      longitude: Number(coordinates.longitude || coordinates.lng)
+      latitude: parseFloat(coordinates.latitude),
+      longitude: parseFloat(coordinates.longitude)
     };
+    console.log('✅ Coordinates added to address:', addressData.coordinates);
+  } else {
+    console.log('⚠️ No valid coordinates provided');
   }
   
   const address = await Address.create(addressData);
+  console.log('💾 Address saved to DB:', JSON.stringify(address, null, 2));
   
   res.status(201).json({
     success: true,
@@ -64,10 +83,21 @@ const updateAddress = asyncHandler(async (req, res) => {
     });
   }
   
+  // Prepare update data
+  const updateData = { ...req.body };
+  
+  // Handle coordinates properly if provided
+  if (updateData.coordinates && updateData.coordinates.latitude && updateData.coordinates.longitude) {
+    updateData.coordinates = {
+      latitude: parseFloat(updateData.coordinates.latitude),
+      longitude: parseFloat(updateData.coordinates.longitude)
+    };
+  }
+  
   // Update address
   const updatedAddress = await Address.findByIdAndUpdate(
     addressId,
-    req.body,
+    updateData,
     { new: true, runValidators: true }
   );
   

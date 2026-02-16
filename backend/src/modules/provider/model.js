@@ -105,6 +105,22 @@ const providerSchema = new mongoose.Schema({
     maxlength: [500, 'Description cannot exceed 500 characters'],
     default: ''
   },
+  // Payment details (optional)
+  bankDetails: {
+    accountHolder: { type: String, trim: true },
+    bankName: { type: String, trim: true },
+    accountNumber: { type: String, trim: true },
+    ifsc: { type: String, trim: true, uppercase: true }
+  },
+  upiId: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
+  upiNumber: {
+    type: String,
+    trim: true
+  },
   isApproved: {
     type: Boolean,
     default: true  // Auto-approve for MVP - change to false for production with admin approval

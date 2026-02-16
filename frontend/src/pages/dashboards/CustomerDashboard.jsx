@@ -244,7 +244,8 @@ const CustomerDashboard = () => {
   const createAddressMutation = useMutation((addressData) => addressApi.createAddress(addressData), {
     onSuccess: () => {
       queryClient.invalidateQueries('customer-addresses');
-      toast.success('Address added successfully!');
+      queryClient.invalidateQueries('nearby-providers'); // Refetch providers to recalculate distances
+      toast.success('Address added successfully! Distances updated.');
       setShowAddressModal(false);
       setAddressForm({ label: 'home', street: '', area: '', city: '', pincode: '', coordinates: { latitude: null, longitude: null } });
     },
@@ -254,7 +255,8 @@ const CustomerDashboard = () => {
   const updateAddressMutation = useMutation(({ addressId, data }) => addressApi.updateAddress(addressId, data), {
     onSuccess: () => {
       queryClient.invalidateQueries('customer-addresses');
-      toast.success('Address updated successfully!');
+      queryClient.invalidateQueries('nearby-providers'); // Refetch providers to recalculate distances
+      toast.success('Address updated successfully! Distances updated.');
       setShowAddressModal(false);
       setEditingAddress(null);
       setAddressForm({ label: 'home', street: '', area: '', city: '', pincode: '', coordinates: { latitude: null, longitude: null } });
@@ -272,7 +274,8 @@ const CustomerDashboard = () => {
 
   const setDefaultAddressMutation = useMutation((addressId) => addressApi.setDefaultAddress(addressId), {
     onSuccess: () => {
-      queryClient.invalidateQueries('customer-addresses');
+      queryClient.invalidateQueries('nearby-providers'); // Refetch providers to recalculate distances
+      toast.success('Default address updated! Distances recalculated.-addresses');
       toast.success('Default address updated!');
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to set default address')

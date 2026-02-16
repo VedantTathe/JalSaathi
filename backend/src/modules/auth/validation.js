@@ -25,25 +25,29 @@ const registerValidation = [
     .withMessage('Invalid role specified'),
     
   body('address.street')
-    .if(body('role').isIn(['customer', 'provider']))
+    .optional()
+    .if(body('role').equals('provider'))
     .notEmpty()
-    .withMessage('Street address is required'),
+    .withMessage('Street address is required for providers'),
     
   body('address.area')
-    .if(body('role').isIn(['customer', 'provider']))
+    .optional()
+    .if(body('role').equals('provider'))
     .notEmpty()
-    .withMessage('Area is required'),
+    .withMessage('Area is required for providers'),
     
   body('address.city')
-    .if(body('role').isIn(['customer', 'provider']))
+    .optional()
+    .if(body('role').equals('provider'))
     .notEmpty()
-    .withMessage('City is required'),
+    .withMessage('City is required for providers'),
     
   body('address.pincode')
-    .if(body('role').isIn(['customer', 'provider']))
+    .optional()
+    .if(body('role').equals('provider'))
     .isLength({ min: 6, max: 6 })
     .isNumeric()
-    .withMessage('Pincode must be 6 digits')
+    .withMessage('Pincode must be 6 digits for providers')
 ];
 
 // Validation rules for user login

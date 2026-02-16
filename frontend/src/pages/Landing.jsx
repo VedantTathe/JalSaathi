@@ -78,7 +78,6 @@ const Landing = () => {
               <Link to="/about" className="text-gray-600 hover:text-gray-900">About</Link>
               <Link to="/contact" className="text-gray-600 hover:text-gray-900">Contact</Link>
               <Link to="/login" className="btn-outline">Sign In</Link>
-              <Link to="/register" className="btn-primary">Get Started</Link>
             </div>
           </div>
         </nav>
