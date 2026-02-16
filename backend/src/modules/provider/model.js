@@ -117,7 +117,9 @@ const providerSchema = new mongoose.Schema({
     type: Date
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
 // Index for geospatial queries and common searches
@@ -155,9 +157,9 @@ providerSchema.virtual('isWithinOperatingHours').get(function() {
   return currentTimeInMinutes >= openTimeInMinutes && currentTimeInMinutes <= closeTimeInMinutes;
 });
 
-// Virtual to determine if provider should accept orders (combines isOnline and operating hours)
+// Virtual to determine if provider should accept orders (same as isOnline for now)
 providerSchema.virtual('isAcceptingOrders').get(function() {
-  return this.isOnline && this.isWithinOperatingHours;
+  return this.isOnline;
 });
 
 // Pre-save middleware to update monthly revenue

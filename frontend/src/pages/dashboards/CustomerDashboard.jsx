@@ -564,9 +564,8 @@ const CustomerDashboard = () => {
               key={provider._id} 
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group"
               onClick={() => {
-                const canOrder = provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline;
-                if (canOrder) {
-                  const defaultAddress = addresses.find(addr => addr.isDefault);
+                if (provider.isOnline) {
+                  const defaultAddress = normalizedAddresses.find(addr => addr.isDefault);
                   setSelectedProvider(provider);
                   setOrderForm({ 
                     providerId: provider._id,
@@ -585,11 +584,11 @@ const CustomerDashboard = () => {
                 <Droplets className="h-20 w-20 text-white/30" />
                 <div className="absolute top-3 right-3">
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold shadow-lg ${
-                    (provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline)
+                    provider.isOnline
                       ? 'bg-success-500 text-white' 
                       : 'bg-gray-500 text-white'
                   }`}>
-                    {(provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline) ? '● Online' : '● Offline'}
+                    {provider.isOnline ? '● Online' : '● Offline'}
                   </span>
                 </div>
               </div>
@@ -647,7 +646,7 @@ const CustomerDashboard = () => {
                     <div className="text-xs text-gray-600 flex items-center">
                       <Clock className="h-3.5 w-3.5 mr-1.5" />
                       {provider.operatingHours.open} - {provider.operatingHours.close}
-                      {!provider.isWithinOperatingHours && (
+                      {!provider.isOnline && (
                         <span className="ml-1 text-red-600 font-medium">(Closed)</span>
                       )}
                     </div>
@@ -666,9 +665,8 @@ const CustomerDashboard = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      const canOrder = provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline;
-                      if (canOrder) {
-                        const defaultAddress = addresses.find(addr => addr.isDefault);
+                      if (provider.isOnline) {
+                        const defaultAddress = normalizedAddresses.find(addr => addr.isDefault);
                         setSelectedProvider(provider);
                         setOrderForm({ 
                           providerId: provider._id,
@@ -681,14 +679,14 @@ const CustomerDashboard = () => {
                         setShowOrderModal(true);
                       }
                     }}
-                    disabled={!(provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline)}
+                    disabled={!provider.isOnline}
                     className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${
-                      (provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline)
+                      provider.isOnline
                         ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-md hover:shadow-lg' 
                         : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {(provider.isAcceptingOrders !== undefined ? provider.isAcceptingOrders : provider.isOnline) ? 'Order Now' : 'Closed'}
+                    {provider.isOnline ? 'Order Now' : 'Closed'}
                   </button>
                 </div>
               </div>
