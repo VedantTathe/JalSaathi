@@ -34,7 +34,7 @@ class ProviderService {
       // Allow updating provider-specific fields plus coordinates and area
       const allowedProviderUpdates = [
         'businessName', 'area', 'pricePerCan', 'serviceRadius', 'minimumOrder',
-        'operatingHours', 'description', 'coordinates', 'bankDetails', 'upiId', 'upiNumber'
+        'operatingHours', 'description', 'coordinates'
       ];
 
       const providerUpdates = {};

@@ -105,25 +105,6 @@ const providerSchema = new mongoose.Schema({
     maxlength: [500, 'Description cannot exceed 500 characters'],
     default: ''
   },
-  // Optional payment details for providers
-  bankDetails: {
-    accountHolder: { type: String, trim: true, default: '' },
-    bankName: { type: String, trim: true, default: '' },
-    accountNumber: { type: String, trim: true, default: '' },
-    ifsc: { type: String, trim: true, default: '' }
-  },
-  // UPI ID (e.g. example@bank)
-  upiId: {
-    type: String,
-    trim: true,
-    default: ''
-  },
-  // UPI Number (phone number linked to UPI)
-  upiNumber: {
-    type: String,
-    trim: true,
-    default: ''
-  },
   isApproved: {
     type: Boolean,
     default: true  // Auto-approve for MVP - change to false for production with admin approval
