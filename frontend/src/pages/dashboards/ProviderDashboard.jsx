@@ -8,9 +8,20 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
-import { providerApi, authApi, orderApi } from '../../services/api';
+import { providerApi, orderApi, authApi } from '../../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../../utils/helpers';
 import toast from 'react-hot-toast';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix default marker icon issues in many build setups
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png')
+});
 
 const ProviderDashboard = () => {
   const queryClient = useQueryClient();
@@ -43,48 +54,65 @@ const ProviderDashboard = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('provider-orders');
-        toast.success('Order accepted');
+        toast.success('Order cancelled');
       },
-      onError: () => toast.error('Failed to accept order')
+      onError: () => toast.error('Failed to cancel order')
     }
   );
 
-  const rejectOrderMutation = useMutation(
-    (orderId) => providerApi.rejectOrder(orderId, 'Provider rejected'),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('provider-orders');
-        toast.success('Order rejected');
-      },
-      onError: () => toast.error('Failed to reject order')
-    }
-  );
-
-  // Mutation to assign multiple orders to a delivery boy
+  // Bulk assign mutation
   const assignManyMutation = useMutation(
-    async ({ orderIds, deliveryBoyId }) => {
-      // Assign each order sequentially
-      const results = await Promise.all(
-        orderIds.map(orderId => providerApi.assignDeliveryBoy(orderId, deliveryBoyId))
-      );
-      return results;
-    },
+    ({ orderIds, deliveryBoyId }) => Promise.all(orderIds.map(id => providerApi.assignDeliveryBoy(id, deliveryBoyId))),
     {
       onSuccess: () => {
         queryClient.invalidateQueries('provider-orders');
-        toast.success('Orders assigned successfully');
+        toast.success('Assigned delivery partner');
       },
-      onError: () => toast.error('Failed to assign orders')
+      onError: () => toast.error('Failed to assign delivery partner')
     }
   );
+
+  // Delivery boy mutations
+  const addDeliveryBoyMutation = useMutation(
+    (data) => providerApi.addDeliveryBoy(data),
+    {
+      onSuccess: (res) => {
+        queryClient.invalidateQueries('provider-delivery-boys');
+        const generated = res?.data?.generatedPassword || res?.generatedPassword;
+        if (generated) toast.success(`Delivery boy added — password: ${generated}`);
+        else toast.success('Delivery boy added');
+      },
+      onError: () => toast.error('Failed to add delivery boy')
+    }
+  );
+
+  const removeDeliveryBoyMutation = useMutation(
+    (deliveryBoyId) => providerApi.removeDeliveryBoy(deliveryBoyId),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('provider-delivery-boys');
+        toast.success('Delivery boy removed');
+      },
+      onError: () => toast.error('Failed to remove delivery boy')
+    }
+  );
+
+  // Toggle online status mutation
+  const toggleOnlineMutation = useMutation(() => providerApi.toggleOnlineStatus(), {
+    onSuccess: (res) => {
+      const isOn = res?.data?.isOnline ?? res?.isOnline ?? false;
+      setIsOnline(isOn);
+      queryClient.invalidateQueries('provider-analytics');
+      toast.success('Provider status updated');
+    },
+    onError: () => toast.error('Failed to update status')
+  });
 
   const navigation = [
     { key: 'dashboard', name: 'Dashboard Home', icon: HomeIcon },
-    { key: 'incoming-orders', name: 'Incoming Orders', icon: Package, badge: 2 },
-    { key: 'active-orders', name: 'Active Orders', icon: Clock },
-    { key: 'delivery-management', name: 'Delivery Management', icon: Truck },
-    { key: 'order-history', name: 'Order History', icon: History },
-    { key: 'revenue', name: 'Revenue Dashboard', icon: TrendingUp },
+    { key: 'active-orders', name: 'View Orders', icon: Clock },
+    { key: 'delivery-management', name: 'Delivery Boys', icon: Truck },
+    { key: 'history', name: 'History & Revenue', icon: History },
     { key: 'customers', name: 'Customer List', icon: Users },
     { key: 'settings', name: 'Provider Settings', icon: Settings },
   ].map(item => ({
@@ -97,9 +125,10 @@ const ProviderDashboard = () => {
   const DashboardHome = () => {
     const orders = ordersData?.data?.orders || [];
     const todayOrders = orders.filter(o => new Date(o.timeline?.ordered).toDateString() === new Date().toDateString());
-    const pendingOrders = orders.filter(o => o.status === 'pending').length;
     const activeOrders = orders.filter(o => ['accepted', 'assigned', 'out_for_delivery'].includes(o.status)).length;
     const completedToday = todayOrders.filter(o => o.status === 'delivered').length;
+    const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.items?.totalPrice || 0), 0);
+    const totalRevenue = analyticsData?.data?.monthlyRevenue ?? 0;
 
     return (
       <div>
@@ -108,12 +137,13 @@ const ProviderDashboard = () => {
           
           {/* IMPORTANT: Online/Offline Toggle */}
           <button
-            onClick={() => setIsOnline(!isOnline)}
+            onClick={() => toggleOnlineMutation.mutate()}
+            disabled={toggleOnlineMutation.isLoading}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-semibold transition-all ${
               isOnline 
                 ? 'bg-success-100 text-success-700 hover:bg-success-200' 
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+            } ${toggleOnlineMutation.isLoading ? 'opacity-70 cursor-wait' : ''}`}
           >
             <Power className="h-5 w-5" />
             <span>{isOnline ? 'Online' : 'Offline'}</span>
@@ -122,16 +152,7 @@ const ProviderDashboard = () => {
 
         {/* Analytics Widgets */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-2">
-              <Package className="h-8 w-8 text-primary-600" />
-              <span className="bg-error-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
-                {pendingOrders}
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-primary-900">{pendingOrders}</p>
-            <p className="text-sm text-primary-700">Pending Orders</p>
-          </div>
+          {/* Pending Orders widget removed per request */}
 
           <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-6">
             <Clock className="h-8 w-8 text-warning-600 mb-2" />
@@ -147,7 +168,7 @@ const ProviderDashboard = () => {
 
           <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6">
             <IndianRupee className="h-8 w-8 text-purple-600 mb-2" />
-            <p className="text-2xl font-bold text-purple-900">₹1,240</p>
+            <p className="text-2xl font-bold text-purple-900">₹{todayRevenue}</p>
             <p className="text-sm text-purple-700">Today's Revenue</p>
           </div>
         </div>
@@ -155,21 +176,12 @@ const ProviderDashboard = () => {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <button
-            onClick={() => setActivePage('incoming-orders')}
+            onClick={() => setActivePage('active-orders')}
             className="bg-white border-2 border-primary-200 hover:border-primary-400 rounded-lg p-6 text-left transition-all"
           >
             <Package className="h-8 w-8 text-primary-600 mb-3" />
-            <h3 className="font-semibold text-gray-900 mb-1">View Pending Orders</h3>
-            <p className="text-sm text-gray-600">Accept or reject incoming orders</p>
-          </button>
-
-          <button
-            onClick={() => setActivePage('active-orders')}
-            className="bg-white border-2 border-warning-200 hover:border-warning-400 rounded-lg p-6 text-left transition-all"
-          >
-            <Truck className="h-8 w-8 text-warning-600 mb-3" />
-            <h3 className="font-semibold text-gray-900 mb-1">Manage Active Orders</h3>
-            <p className="text-sm text-gray-600">Assign delivery partners</p>
+            <h3 className="font-semibold text-gray-900 mb-1">View Orders</h3>
+            <p className="text-sm text-gray-600">Manage received orders</p>
           </button>
 
           <button
@@ -185,108 +197,7 @@ const ProviderDashboard = () => {
     );
   };
 
-  // � 2. INCOMING ORDERS (pending orders requiring action)
-  const IncomingOrders = () => {
-    const orders = ordersData?.data?.orders || [];
-    const pendingOrders = orders.filter(o => o.status === 'pending');
-
-    if (ordersLoading) return <LoadingSpinner />;
-
-    const handleAccept = (orderId) => {
-      cancelOrderMutation.mutate(orderId);
-    };
-
-    const handleReject = (orderId) => {
-      rejectOrderMutation.mutate(orderId);
-    };
-
-    return (
-      <div>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Incoming Orders</h1>
-            <p className="text-sm text-gray-500">{pendingOrders.length} pending order{pendingOrders.length !== 1 ? 's' : ''}</p>
-          </div>
-        </div>
-
-        {pendingOrders.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No pending orders at the moment</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {pendingOrders.map((order) => (
-              <div key={order._id} className="bg-white rounded-lg shadow-md p-6 border-l-4 border-warning-500">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="font-semibold text-lg">Order #{order.orderNumber || order._id.slice(-6)}</h3>
-                      <span className="px-3 py-1 bg-warning-100 text-warning-700 rounded-full text-sm font-medium">
-                        Pending
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Customer</p>
-                        <p className="font-medium">{order.customer?.name || 'N/A'}</p>
-                        <p className="text-sm text-gray-600 flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          {order.customer?.phone || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Delivery Address</p>
-                        <p className="text-sm text-gray-600 flex items-start gap-1">
-                          <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          <span>{order.deliveryAddress?.fullAddress || 'N/A'}</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-6 mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500">Quantity</p>
-                        <p className="font-semibold text-primary-600">{order.quantity || 1} Can(s)</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Total Amount</p>
-                        <p className="font-semibold text-gray-900">{formatCurrency(order.totalAmount)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Ordered</p>
-                        <p className="text-sm text-gray-600">{formatDateTime(order.timeline?.ordered)}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={() => handleAccept(order._id)}
-                      className="flex items-center gap-2 bg-success-600 hover:bg-success-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => handleReject(order._id)}
-                      className="flex items-center gap-2 bg-error-600 hover:bg-error-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // 🕐 3. VIEW ORDERS (shows ALL orders from last 16 hours including delivered)
+  // 🕐 2. VIEW ORDERS (shows ALL orders from last 16 hours including delivered)
   const ActiveOrders = () => {
     const orders = ordersData?.data?.orders || [];
     // Show ALL orders (including delivered) - backend already filters to last 16 hours
@@ -498,66 +409,89 @@ const ProviderDashboard = () => {
     );
   };
 
-  // 🚚 4. DELIVERY MANAGEMENT
-  const DeliveryManagement = () => {
+  // (Old ActiveOrders removed — replaced by consolidated View Orders implementation above)
+
+  // 🚚 4. DELIVERY BOYS
+  const DeliveryBoys = () => {
+    const [showAddModal, setShowAddModal] = useState(false);
+      const [newBoy, setNewBoy] = useState({ name: '', phone: '', email: '', password: '' });
+
+    const boys = deliveryBoysData?.data || [];
+
+    const handleAdd = () => {
+      if (!newBoy.name || !newBoy.phone || !newBoy.password) return toast.error('Name, phone and password are required');
+
+      // Send provided fields including password
+      const payload = { name: newBoy.name, phone: newBoy.phone, password: newBoy.password };
+      if (newBoy.email && newBoy.email.trim() !== '') payload.email = newBoy.email;
+
+      addDeliveryBoyMutation.mutate(payload, {
+        onSuccess: () => {
+          setShowAddModal(false);
+          setNewBoy({ name: '', phone: '', email: '', password: '' });
+        }
+      });
+    };
+
+    const handleRemove = (id) => {
+      if (!window.confirm('Remove this delivery boy?')) return;
+      removeDeliveryBoyMutation.mutate(id);
+    };
+
     return (
       <div>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Delivery Management</h1>
-          <button className="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 flex items-center space-x-2">
+          <h1 className="text-2xl font-bold text-gray-900">Delivery Boys</h1>
+          <button onClick={() => setShowAddModal(true)} className="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 flex items-center space-x-2">
             <Plus className="h-5 w-5" />
-            <span>Add Delivery Partner</span>
+            <span>Add Delivery Boy</span>
           </button>
         </div>
 
-        {/* Sample Delivery Partners */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[
-            { name: 'John Doe', phone: '+91 98765 43210', activeOrders: 3, completedOrders: 145, rating: 4.8, status: 'active' },
-            { name: 'Jane Smith', phone: '+91 98765 43211', activeOrders: 2, completedOrders: 89, rating: 4.6, status: 'active' },
-          ].map((partner, idx) => (
-            <div key={idx} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
-                    <Truck className="h-6 w-6 text-primary-600" />
+        {boys.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-lg">No delivery boys assigned</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {boys.map((d) => (
+              <div key={d._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
+                      <Truck className="h-6 w-6 text-primary-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{d.name}</h3>
+                      <p className="text-sm text-gray-600">{d.phone}</p>
+                      {d.email && <p className="text-xs text-gray-500">{d.email}</p>}
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{partner.name}</h3>
-                    <p className="text-sm text-gray-600">{partner.phone}</p>
-                  </div>
-                </div>
-                <span className="px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800">
-                  {partner.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-xs text-gray-600">Active</p>
-                  <p className="font-semibold text-gray-900">{partner.activeOrders}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">Completed</p>
-                  <p className="font-semibold text-gray-900">{partner.completedOrders}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">Rating</p>
-                  <p className="font-semibold text-warning-600">{partner.rating} ⭐</p>
+                  <button onClick={() => handleRemove(d._id)} className="text-gray-400 hover:text-error-600 px-3">
+                    <Trash2 className="h-5 w-5" />
+                  </button>
                 </div>
               </div>
+            ))}
+          </div>
+        )}
 
-              <div className="flex space-x-2">
-                <button className="flex-1 text-primary-600 border border-primary-600 py-2 rounded-lg font-medium hover:bg-primary-50">
-                  View Details
-                </button>
-                <button className="text-gray-400 hover:text-error-600 px-3">
-                  <Trash2 className="h-5 w-5" />
-                </button>
+        {/* Add Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4">Add Delivery Boy</h3>
+                <div className="space-y-3">
+                <input value={newBoy.name} onChange={e => setNewBoy({...newBoy, name: e.target.value})} placeholder="Name" className="w-full border px-3 py-2 rounded-lg" />
+                <input value={newBoy.phone} onChange={e => setNewBoy({...newBoy, phone: e.target.value})} placeholder="Phone" className="w-full border px-3 py-2 rounded-lg" />
+                <input value={newBoy.email} onChange={e => setNewBoy({...newBoy, email: e.target.value})} placeholder="Email (optional)" className="w-full border px-3 py-2 rounded-lg" />
+                <input type="password" value={newBoy.password} onChange={e => setNewBoy({...newBoy, password: e.target.value})} placeholder="Password" className="w-full border px-3 py-2 rounded-lg" />
+              </div>
+              <div className="flex justify-end space-x-3 mt-4">
+                <button onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
+                <button onClick={handleAdd} className="px-4 py-2 rounded-lg bg-primary-600 text-white">Add</button>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -746,6 +680,18 @@ const ProviderDashboard = () => {
     );
   };
 
+  // 📚 Combined History (Revenue + Order History)
+  const HistoryPage = () => {
+    return (
+      <div>
+        <RevenueDashboard />
+        <div className="mt-8">
+          <OrderHistory title="Full Order History" />
+        </div>
+      </div>
+    );
+  };
+
   // 👥 7. CUSTOMER LIST
   const CustomerList = () => {
     const customers = customersData?.data?.customers || [];
@@ -759,7 +705,7 @@ const ProviderDashboard = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="space-y-4">
             {customers.map((customer) => (
-              <div key={customer._id} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
+              <div key={customer.customerId || customer._id} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
                 <div className="flex items-center space-x-4">
                   <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
                     <UserCircle className="h-6 w-6 text-primary-600" />
@@ -771,10 +717,9 @@ const ProviderDashboard = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">{customer.orderCount || 0} orders</p>
-                  <button className="text-sm text-primary-600 hover:text-primary-700">
-                    Contact
-                  </button>
+                  <p className="font-semibold text-gray-900">{customer.totalOrders || 0} orders</p>
+                  <p className="text-sm text-gray-600">{formatCurrency(customer.totalRevenue || 0)}</p>
+                  <p className="text-xs text-gray-500">Last: {customer.lastOrdered ? formatDateTime(customer.lastOrdered) : 'N/A'}</p>
                 </div>
               </div>
             ))}
@@ -786,65 +731,193 @@ const ProviderDashboard = () => {
 
   // ⚙️ 8. PROVIDER SETTINGS
   const ProviderSettings = () => {
+    // Initialize form state from profileData
+    const provider = profileData?.data?.providerDetails || {};
+    const contact = profileData?.data?.contact || {};
+
+    const [form, setForm] = useState({
+      businessName: provider.businessName || '',
+      area: provider.area || '',
+      pricePerCan: provider.pricePerCan || '',
+      serviceRadius: provider.serviceRadius || '',
+      minimumOrder: provider.minimumOrder || '',
+      coordinates: provider.coordinates || { latitude: '', longitude: '' },
+      operatingHours: provider.operatingHours || { open: '08:00', close: '20:00' },
+      description: provider.description || '',
+      name: contact.name || '',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      address: contact.address || {}
+    });
+
+    useEffect(() => {
+      const p = profileData?.data?.providerDetails || {};
+      const c = profileData?.data?.contact || {};
+      setForm(prev => ({
+        ...prev,
+        businessName: p.businessName || prev.businessName,
+        area: p.area || prev.area,
+        pricePerCan: p.pricePerCan ?? prev.pricePerCan,
+        serviceRadius: p.serviceRadius ?? prev.serviceRadius,
+        minimumOrder: p.minimumOrder ?? prev.minimumOrder,
+        coordinates: p.coordinates || prev.coordinates,
+        operatingHours: p.operatingHours || prev.operatingHours,
+        description: p.description || prev.description,
+        name: c.name || prev.name,
+        email: c.email || prev.email,
+        phone: c.phone || prev.phone,
+        address: c.address || prev.address
+      }));
+    }, [profileData]);
+
+    const saveProfile = async () => {
+      const payload = {
+        businessName: form.businessName,
+        area: form.area,
+        pricePerCan: Number(form.pricePerCan),
+        serviceRadius: Number(form.serviceRadius),
+        minimumOrder: Number(form.minimumOrder),
+        coordinates: {
+          latitude: Number(form.coordinates.latitude),
+          longitude: Number(form.coordinates.longitude)
+        },
+        operatingHours: form.operatingHours,
+        description: form.description,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        address: form.address
+      };
+
+      try {
+        await providerApi.updateProfile(payload);
+        queryClient.invalidateQueries('auth-profile');
+        queryClient.invalidateQueries('provider-analytics');
+        toast.success('Provider settings updated');
+      } catch (err) {
+        toast.error('Failed to update settings');
+      }
+    };
+
+    // Map click handler component to pick coordinates
+    const LocationPicker = ({ coords, onChange }) => {
+      const position = coords && coords.latitude && coords.longitude ? [Number(coords.latitude), Number(coords.longitude)] : null;
+
+      useMapEvents({
+        click(e) {
+          const { lat, lng } = e.latlng;
+          onChange({ latitude: lat, longitude: lng });
+        }
+      });
+
+      return position ? (
+        <Marker position={position} />
+      ) : null;
+    };
+
     return (
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Provider Settings</h1>
 
         <div className="space-y-6">
-          {/* Pricing */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold mb-4">Pricing</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price per Can (₹)</label>
-                <input type="number" defaultValue="40" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
-              </div>
-            </div>
-          </div>
-
-          {/* Delivery Areas */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold mb-4">Delivery Areas</h3>
-            <textarea className="w-full border border-gray-300 rounded-lg px-4 py-2" rows="3" placeholder="Enter delivery areas..."></textarea>
-          </div>
-
-          {/* Working Hours */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold mb-4">Working Hours</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Opening Time</label>
-                <input type="time" defaultValue="08:00" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Closing Time</label>
-                <input type="time" defaultValue="20:00" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
-              </div>
-            </div>
-          </div>
-
           {/* Business Details */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold mb-4">Business Details</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
-                <input type="text" placeholder="Your Business Name" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+                <input value={form.businessName} onChange={e => setForm({...form, businessName: e.target.value})} type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-                <input type="tel" placeholder="+91 98765 43210" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+                <input value={form.email} onChange={e => setForm({...form, email: e.target.value})} type="email" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                <textarea className="w-full border border-gray-300 rounded-lg px-4 py-2" rows="3" placeholder="Business address..."></textarea>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+                <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} type="tel" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
               </div>
             </div>
           </div>
 
-          <button className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700">
-            Save Settings
-          </button>
+          {/* Pricing & Service */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold mb-4">Pricing & Service</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price per Can (₹)</label>
+                <input value={form.pricePerCan} onChange={e => setForm({...form, pricePerCan: e.target.value})} type="number" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Service Radius (km)</label>
+                <input value={form.serviceRadius} onChange={e => setForm({...form, serviceRadius: e.target.value})} type="number" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Order (cans)</label>
+                <input value={form.minimumOrder} onChange={e => setForm({...form, minimumOrder: e.target.value})} type="number" className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+            </div>
+          </div>
+
+          {/* Address & Coordinates */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold mb-4">Address & Coordinates</h3>
+            <div className="space-y-3">
+              <input value={form.area} onChange={e => setForm({...form, area: e.target.value})} placeholder="Area / Locality" className="w-full border px-3 py-2 rounded-lg" />
+              <div className="grid grid-cols-2 gap-2">
+                <input value={form.coordinates.latitude} onChange={e => setForm({...form, coordinates: {...form.coordinates, latitude: e.target.value}})} placeholder="Latitude" className="w-full border px-3 py-2 rounded-lg" />
+                <input value={form.coordinates.longitude} onChange={e => setForm({...form, coordinates: {...form.coordinates, longitude: e.target.value}})} placeholder="Longitude" className="w-full border px-3 py-2 rounded-lg" />
+              </div>
+
+              <div className="mt-3">
+                <div className="h-64 w-full rounded overflow-hidden border">
+                  <MapContainer center={form.coordinates.latitude && form.coordinates.longitude ? [Number(form.coordinates.latitude), Number(form.coordinates.longitude)] : [20.5937,78.9629]} zoom={13} style={{ height: '100%', width: '100%' }}>
+                    <TileLayer
+                      attribution='&copy; OpenStreetMap contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <LocationPicker coords={form.coordinates} onChange={(c) => {
+                      setForm(prev => ({ ...prev, coordinates: { latitude: c.latitude, longitude: c.longitude }, address: { ...prev.address, coordinates: { latitude: c.latitude, longitude: c.longitude } } }));
+                    }} />
+                  </MapContainer>
+                </div>
+
+                <div className="flex items-center space-x-3 mt-2">
+                  <button onClick={() => {
+                    if (!navigator.geolocation) return toast.error('Geolocation not supported');
+                    navigator.geolocation.getCurrentPosition((pos) => {
+                      const lat = pos.coords.latitude;
+                      const lng = pos.coords.longitude;
+                      setForm(prev => ({ ...prev, coordinates: { latitude: lat, longitude: lng }, address: { ...prev.address, coordinates: { latitude: lat, longitude: lng } } }));
+                      toast.success('Location updated');
+                    }, (err) => {
+                      toast.error('Failed to get location');
+                    });
+                  }} className="px-4 py-2 bg-primary-600 text-white rounded-lg">Use current location</button>
+                  <p className="text-sm text-gray-500">Click on the map to pick location, or use current location.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Working Hours & Description */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold mb-4">Working Hours & Description</h3>
+            <div className="grid grid-cols-2 gap-4 mb-3">
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Open</label>
+                <input value={form.operatingHours.open} onChange={e => setForm({...form, operatingHours: {...form.operatingHours, open: e.target.value}})} type="time" className="w-full border px-3 py-2 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Close</label>
+                <input value={form.operatingHours.close} onChange={e => setForm({...form, operatingHours: {...form.operatingHours, close: e.target.value}})} type="time" className="w-full border px-3 py-2 rounded-lg" />
+              </div>
+            </div>
+            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full border px-3 py-2 rounded-lg" rows={4} placeholder="Short description about your business" />
+          </div>
+
+          <div className="flex justify-end">
+            <button onClick={saveProfile} className="bg-primary-600 text-white px-6 py-2 rounded-lg">Save Settings</button>
+          </div>
         </div>
       </div>
     );
@@ -853,9 +926,9 @@ const ProviderDashboard = () => {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard': return <DashboardHome />;
-      case 'incoming-orders': return <IncomingOrders />;
       case 'active-orders': return <ActiveOrders />;
-      case 'delivery-management': return <DeliveryManagement />;
+      case 'delivery-management': return <DeliveryBoys />;
+      case 'history': return <HistoryPage />;
       case 'order-history': return <OrderHistory />;
       case 'revenue': return <RevenueDashboard />;
       case 'customers': return <CustomerList />;
