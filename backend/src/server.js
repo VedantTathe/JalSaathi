@@ -20,6 +20,7 @@ const orderRoutes = require('./modules/order/routes');
 const deliveryRoutes = require('./modules/delivery/routes');
 const adminRoutes = require('./modules/admin/routes');
 const addressRoutes = require('./modules/address/routes');
+const settlementRoutes = require('./modules/settlement/routes');
 const paymentWebhook = require('./modules/payment/webhook');
 
 // Import middlewares
@@ -90,6 +91,7 @@ app.use('/api/order', authenticateToken, orderRoutes);
 app.use('/api/delivery', authenticateToken, deliveryRoutes);
 app.use('/api/admin', authenticateToken, adminRoutes);
 app.use('/api/address', authenticateToken, addressRoutes);
+app.use('/api/settlement', authenticateToken, settlementRoutes);
 
 // Webhook endpoint (public) - verify using raw body
 app.use('/api/webhook', paymentWebhook);

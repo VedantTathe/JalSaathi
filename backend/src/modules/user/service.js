@@ -154,10 +154,18 @@ class UserService {
       // Check for default address
       const defaultAddress = await Address.findOne({ userId, isDefault: true });
       
+      console.log('📍 Default Address Query Result:', defaultAddress ? {
+        _id: defaultAddress._id,
+        label: defaultAddress.label,
+        coordinates: defaultAddress.coordinates,
+        hasLat: !!defaultAddress.coordinates?.latitude,
+        hasLng: !!defaultAddress.coordinates?.longitude
+      } : null);
+      
       if (defaultAddress && defaultAddress.coordinates) {
         customerLat = defaultAddress.coordinates.latitude;
         customerLon = defaultAddress.coordinates.longitude;
-        console.log('📍 Using default address coordinates');
+        console.log('📍 Using default address coordinates:', { customerLat, customerLon });
       } else if (user.address && user.address.coordinates) {
         customerLat = user.address.coordinates.latitude;
         customerLon = user.address.coordinates.longitude;

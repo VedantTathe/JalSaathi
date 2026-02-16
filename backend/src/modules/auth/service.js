@@ -6,7 +6,21 @@ class AuthService {
   // Register a new user
   static async register(userData) {
     try {
-      const { role, businessName, pricePerCan, serviceRadius, coordinates, addressCoordinates, ...userInfo } = userData;
+      const { 
+        role, 
+        businessName, 
+        pricePerCan, 
+        serviceRadius, 
+        minimumOrder,
+        operatingHours,
+        description,
+        bankDetails,
+        upiId,
+        upiNumber,
+        coordinates, 
+        addressCoordinates, 
+        ...userInfo 
+      } = userData;
       
       // Check if user already exists
       const existingUser = await User.findOne({ email: userInfo.email });
@@ -20,17 +34,14 @@ class AuthService {
         role
       };
       
-      // Only include address if provided (not required for delivery partners)
+      // Only include address if provided
       if (role === 'delivery' && !userInfo.address) {
         userPayload.address = {};
       }
       
-      // Add coordinates to customer address if provided
-      if (role === 'customer' && addressCoordinates) {
-        if (!userPayload.address) {
-          userPayload.address = {};
-        }
-        userPayload.address.coordinates = addressCoordinates;
+      // For customers, address is optional - they can add it later from dashboard
+      if (role === 'customer' && !userInfo.address) {
+        delete userPayload.address;
       }
       
       // Create user
@@ -44,8 +55,22 @@ class AuthService {
           area: userInfo.address.area,
           pricePerCan,
           serviceRadius: serviceRadius || 5,
-          coordinates: coordinates || { latitude: 0, longitude: 0 }
+          minimumOrder: minimumOrder || 1,
+          coordinates: coordinates || { latitude: 0, longitude: 0 },
+          operatingHours: operatingHours || { open: '08:00', close: '20:00' },
+          description: description || ''
         };
+        
+        // Add payment details if provided
+        if (bankDetails && (bankDetails.accountHolder || bankDetails.bankName || bankDetails.accountNumber || bankDetails.ifsc)) {
+          providerData.bankDetails = bankDetails;
+        }
+        if (upiId) {
+          providerData.upiId = upiId;
+        }
+        if (upiNumber) {
+          providerData.upiNumber = upiNumber;
+        }
         
         await Provider.create(providerData);
       }

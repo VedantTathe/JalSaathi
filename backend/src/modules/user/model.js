@@ -34,25 +34,25 @@ const userSchema = new mongoose.Schema({
     street: {
       type: String,
       required: function() {
-        return this.role === 'customer' || this.role === 'provider';
+        return this.role === 'provider';
       }
     },
     area: {
       type: String,
       required: function() {
-        return this.role === 'customer' || this.role === 'provider';
+        return this.role === 'provider';
       }
     },
     city: {
       type: String,
       required: function() {
-        return this.role === 'customer' || this.role === 'provider';
+        return this.role === 'provider';
       }
     },
     pincode: {
       type: String,
       required: function() {
-        return this.role === 'customer' || this.role === 'provider';
+        return this.role === 'provider';
       },
       match: [/^\d{6}$/, 'Pincode must be 6 digits']
     },
