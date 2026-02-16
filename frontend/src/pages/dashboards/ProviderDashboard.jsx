@@ -83,7 +83,7 @@ const ProviderDashboard = () => {
       onSuccess: (res) => {
         queryClient.invalidateQueries('provider-delivery-boys');
         const generated = res?.data?.generatedPassword || res?.generatedPassword;
-        if (generated) toast.success(`Delivery boy added €” password: ${generated}`);
+        if (generated) toast.success(`Delivery boy added password: ${generated}`);
         else toast.success('Delivery boy added');
       },
       onError: () => toast.error('Failed to add delivery boy')
@@ -172,13 +172,13 @@ const ProviderDashboard = () => {
 
           <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-5">
             <IndianRupee className="h-7 w-7 text-purple-600 mb-2" />
-            <p className="text-2xl font-bold text-purple-900 flex items-center"><IndianRupee className="h-5 w-5" />{todayRevenue.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-purple-900">Rs. {todayRevenue.toLocaleString('en-IN')}</p>
             <p className="text-sm text-purple-700">Today's Revenue</p>
           </div>
 
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-5">
             <CheckCircle className="h-7 w-7 text-blue-600 mb-2" />
-            <p className="text-2xl font-bold text-blue-900 flex items-center"><IndianRupee className="h-5 w-5" />{todayOnlineCollected.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-blue-900">Rs. {todayOnlineCollected.toLocaleString('en-IN')}</p>
             <p className="text-sm text-blue-700">Online Collected</p>
           </div>
 
@@ -339,7 +339,7 @@ const ProviderDashboard = () => {
                       <p className="text-sm text-gray-600">{formatDateTime(order.timeline?.ordered || order.createdAt)}</p>
                     </div>
                   </div>
-                  <p className="text-xl font-semibold text-primary-600">{order.items?.totalPrice || 0}</p>
+                  <p className="text-xl font-semibold text-primary-600">Rs. {order.items?.totalPrice || 0}</p>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -435,7 +435,7 @@ const ProviderDashboard = () => {
     );
   };
 
-  // (Old ActiveOrders removed €” replaced by consolidated View Orders implementation above)
+  // (Old ActiveOrders removed replaced by consolidated View Orders implementation above)
 
   // ðŸšš 4. DELIVERY BOYS
   const DeliveryBoys = () => {
@@ -580,10 +580,10 @@ const ProviderDashboard = () => {
               </div>
               <span className="text-xs text-gray-400 uppercase tracking-wide">Total Value</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{totalOrderValue.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-gray-900">Rs. {totalOrderValue.toLocaleString('en-IN')}</p>
             <p className="text-sm text-gray-500 mt-1">All orders value</p>
             <div className="mt-3 pt-3 border-t border-gray-100">
-              <p className="text-xs text-gray-400">Avg: {overallStats.avgOrderValue || 0}/order</p>
+              <p className="text-xs text-gray-400">Avg: Rs. {overallStats.avgOrderValue || 0}/order</p>
             </div>
           </div>
 
@@ -595,7 +595,7 @@ const ProviderDashboard = () => {
               </div>
               <span className="text-xs text-success-600 uppercase tracking-wide">Received</span>
             </div>
-            <p className="text-2xl font-bold text-success-800">{onlinePaymentReceived.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-success-800">Rs. {onlinePaymentReceived.toLocaleString('en-IN')}</p>
             <p className="text-sm text-success-700 mt-1">Online payment received</p>
             <div className="mt-3 pt-3 border-t border-success-200">
               <p className="text-xs text-success-600">{paidOrders} orders paid online</p>
@@ -610,7 +610,7 @@ const ProviderDashboard = () => {
               </div>
               <span className="text-xs text-warning-600 uppercase tracking-wide">Pending</span>
             </div>
-            <p className="text-2xl font-bold text-warning-800">{awaitingPayment.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-warning-800">Rs. {awaitingPayment.toLocaleString('en-IN')}</p>
             <p className="text-sm text-warning-700 mt-1">Awaiting payment (COD/Unpaid)</p>
             <div className="mt-3 pt-3 border-t border-warning-200">
               <p className="text-xs text-warning-600">{totalOrders - paidOrders} orders pending</p>
@@ -641,13 +641,13 @@ const ProviderDashboard = () => {
                       <p className="font-semibold text-gray-900">{formatDate(day.date)}</p>
                       <p className="text-xs text-gray-500">
                         {day.totalOrders} order{day.totalOrders !== 1 ? 's' : ''}
-                        {day.deliveredOrders > 0 && <span className="text-success-600"> €¢ {day.deliveredOrders} delivered</span>}
-                        {day.cancelledOrders > 0 && <span className="text-error-600"> €¢ {day.cancelledOrders} cancelled</span>}
+                        {day.deliveredOrders > 0 && <span className="text-success-600">  {day.deliveredOrders} delivered</span>}
+                        {day.cancelledOrders > 0 && <span className="text-error-600">  {day.cancelledOrders} cancelled</span>}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <p className="font-bold text-gray-900">{day.totalRevenue}</p>
+                    <p className="font-bold text-gray-900">Rs. {day.totalRevenue}</p>
                     {expandedDay === day.date ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
                   </div>
                 </button>
@@ -673,12 +673,12 @@ const ProviderDashboard = () => {
                                 </span>
                               </div>
                               <p className="text-xs text-gray-500 mt-1">
-                                {order.customerId?.name || order.customerName || 'Customer'} €¢ 
-                                {(order.items?.quantity || order.quantity || 0)} can{(order.items?.quantity || order.quantity || 0) !== 1 ? 's' : ''} €¢ 
+                                {order.customerId?.name || order.customerName || 'Customer'} 
+                                {(order.items?.quantity || order.quantity || 0)} can{(order.items?.quantity || order.quantity || 0) !== 1 ? 's' : ''} 
                                 {new Date(order.createdAt || order.orderedAt || order.timeline?.ordered).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                               </p>
                             </div>
-                            <p className="font-semibold text-gray-900">{order.items?.totalPrice || order.totalPrice || 0}</p>
+                            <p className="font-semibold text-gray-900">Rs. {order.items?.totalPrice || order.totalPrice || 0}</p>
                           </div>
                         ));
                       })()}
@@ -732,7 +732,7 @@ const ProviderDashboard = () => {
               </div>
               <span className="text-xs text-gray-400 uppercase tracking-wide">Total Earned</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{onlinePaymentReceived.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-gray-900">Rs. {onlinePaymentReceived.toLocaleString('en-IN')}</p>
             <p className="text-sm text-gray-500 mt-1">Online payments received</p>
           </div>
 
@@ -745,7 +745,7 @@ const ProviderDashboard = () => {
               <span className="text-xs text-success-600 uppercase tracking-wide">Settled</span>
             </div>
             <p className="text-2xl font-bold text-success-800">
-              {totalSettled !== null ? `${totalSettled.toLocaleString('en-IN')}` : '€”'}
+              {totalSettled !== null ? `Rs. ${totalSettled.toLocaleString('en-IN')}` : 'NA'}
             </p>
             <p className="text-sm text-success-700 mt-1">Transferred to your bank</p>
             {totalSettled === null && (
@@ -762,7 +762,7 @@ const ProviderDashboard = () => {
               <span className="text-xs text-warning-600 uppercase tracking-wide">Pending</span>
             </div>
             <p className="text-2xl font-bold text-warning-800">
-              {pendingSettlement !== null ? `${pendingSettlement.toLocaleString('en-IN')}` : '€”'}
+              {pendingSettlement !== null ? `Rs. ${pendingSettlement.toLocaleString('en-IN')}` : 'NA'}
             </p>
             <p className="text-sm text-warning-700 mt-1">Awaiting settlement</p>
             {pendingSettlement === null && (
@@ -818,13 +818,13 @@ const ProviderDashboard = () => {
                     <div className="flex items-center space-x-6">
                       <div className="text-right">
                         <p className="text-xs text-gray-400">Online Earned</p>
-                        <p className="font-bold text-gray-900">{dayOnlineRevenue}</p>
+                        <p className="font-bold text-gray-900">Rs. {dayOnlineRevenue}</p>
                       </div>
                       <div className="text-right min-w-[120px]">
                         <p className="text-xs text-gray-400">Settlement</p>
                         {isSettled === null ? (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            €” Not processed
+                             Not processed
                           </span>
                         ) : isSettled ? (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-700">

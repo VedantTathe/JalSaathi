@@ -527,7 +527,7 @@ const CustomerDashboard = () => {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Budget ≤₹35
+              Budget Rs.35 or less
             </button>
             <button
               onClick={() => setPriceFilter('medium')}
@@ -537,7 +537,7 @@ const CustomerDashboard = () => {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              ₹36-45
+              Rs.36-45
             </button>
             <button
               onClick={() => setPriceFilter('high')}
@@ -658,7 +658,7 @@ const CustomerDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-2xl font-bold text-primary-600">
-                      ₹{provider.pricePerCan}
+                      Rs. {provider.pricePerCan}
                     </div>
                     <div className="text-xs text-gray-500">per can</div>
                   </div>
@@ -780,7 +780,7 @@ const CustomerDashboard = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-600">Total</p>
-                  <p className="text-xl font-semibold text-primary-600">₹{order.items?.totalPrice || 0}</p>
+                  <p className="text-xl font-semibold text-primary-600">Rs. {order.items?.totalPrice || 0}</p>
                 </div>
               </div>
 
@@ -1029,7 +1029,7 @@ const CustomerDashboard = () => {
                     <div>
                       <h3 className="font-semibold text-gray-900">{selectedProvider.businessName}</h3>
                       <p className="text-sm text-gray-600">{selectedProvider.area || 'Local Area'}</p>
-                      <p className="text-sm text-primary-600 font-medium">₹{selectedProvider.pricePerCan} per can</p>
+                      <p className="text-sm text-primary-600 font-medium">Rs. {selectedProvider.pricePerCan} per can</p>
                     </div>
                   </div>
                 </div>
@@ -1132,7 +1132,7 @@ const CustomerDashboard = () => {
                 </div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-600">Price per can:</span>
-                  <span className="font-medium text-gray-900">₹{selectedProvider.pricePerCan}</span>
+                  <span className="font-medium text-gray-900">Rs. {selectedProvider.pricePerCan}</span>
                 </div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-600">Payment:</span>
@@ -1142,7 +1142,7 @@ const CustomerDashboard = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold text-gray-900">Total:</span>
                   <span className="text-2xl font-bold text-primary-600">
-                    ₹{selectedProvider.pricePerCan * orderForm.quantity}
+                    Rs. {selectedProvider.pricePerCan * orderForm.quantity}
                   </span>
                 </div>
               </div>
