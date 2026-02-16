@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Package, 
   MapPin, 
@@ -31,7 +31,7 @@ const loadRazorpayScript = () => {
 };
 
 // Payment button component
-const MakePaymentButton = ({ order, onSuccess }) => {
+const MakePaymentButton = ({ order, onSuccess, navigate }) => {
   const createPayment = useMutation(() => orderApi.createPayment(order._id));
   const verifyPayment = useMutation(({ orderId, payload }) => orderApi.verifyPayment(orderId, payload));
 
@@ -66,8 +66,12 @@ const MakePaymentButton = ({ order, onSuccess }) => {
           try {
             console.log('Payment successful, verifying...', paymentResult);
             await verifyPayment.mutateAsync({ orderId: order._id, payload: paymentResult });
-            toast.success('Payment successful! Refreshing order details...');
+            toast.success('Payment successful! Redirecting to dashboard...');
             if (onSuccess) onSuccess();
+            // Redirect to dashboard after short delay
+            setTimeout(() => {
+              navigate('/dashboard');
+            }, 1000);
           } catch (err) {
             console.error('Payment verification failed:', err);
             const errorMsg = err?.response?.data?.message || 'Payment verification failed';
@@ -118,6 +122,7 @@ const MakePaymentButton = ({ order, onSuccess }) => {
 const OrderDetails = () => {
   const { orderId } = useParams();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Handle successful payment
   const handlePaymentSuccess = () => {
@@ -417,7 +422,7 @@ const OrderDetails = () => {
                 {/* Make Payment Button for online payments */}
                 {order.paymentStatus !== 'paid' && order.paymentMethod !== 'cash_on_delivery' && (
                   <div className="mt-4">
-                    <MakePaymentButton order={order} onSuccess={handlePaymentSuccess} />
+                    <MakePaymentButton order={order} onSuccess={handlePaymentSuccess} navigate={navigate} />
                   </div>
                 )}
               </div>

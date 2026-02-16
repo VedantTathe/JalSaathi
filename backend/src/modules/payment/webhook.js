@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const Order = require('../order/model');
+const Provider = require('../provider/model');
+const Transaction = require('../../modules/transaction/model');
 const { formatResponse } = require('../../utils/helpers');
 
 // Raw body is captured in req.rawBody by server.json verify option
@@ -43,6 +45,12 @@ router.post('/razorpay', async (req, res) => {
         return res.status(200).send('ok'); // respond ok to webhook to avoid retries
       }
 
+      // Idempotency: skip if payment already recorded
+      if (order.paymentInfo && order.paymentInfo.paymentId === payment.id) {
+        console.log('Webhook: payment already processed for order', order._id.toString());
+        return res.status(200).send('ok');
+      }
+
       order.paymentStatus = 'paid';
       order.paymentMethod = 'online';
       order.paymentInfo = order.paymentInfo || {};
@@ -51,15 +59,81 @@ router.post('/razorpay', async (req, res) => {
       order.paymentInfo.orderId = razorOrderId;
       order.paymentInfo.capturedAt = new Date(payment.captured_at * 1000) || new Date();
 
-      await order.save();
+      // Update provider wallet and record transaction
+      try {
+        const provider = await Provider.findById(order.providerId).populate('userId', 'email name');
+        const User = require('../user/model');
+        const customer = await User.findById(order.customerId).select('email name');
+        const amount = order.items && order.items.totalPrice ? order.items.totalPrice : 0;
 
-      // Optionally update timeline
-      order.timeline = order.timeline || {};
-      if (!order.timeline.ordered) order.timeline.ordered = order.createdAt;
+        if (provider) {
+          provider.pending_balance = (provider.pending_balance || 0) + amount;
+          provider.total_earnings = (provider.total_earnings || 0) + amount;
+          await provider.save();
 
-      console.log('Webhook: marked order paid', order._id.toString());
+          // Create Route Transfer to send money to provider's linked account
+          try {
+            const { createRouteTransfer } = require('../../services/razorpayService');
+            await createRouteTransfer(payment.id, order.providerId, amount, order._id);
+          } catch (transferErr) {
+            console.error('Webhook: Route transfer failed (funds held in platform account)', transferErr.message);
+            // Don't fail payment - transfer can be done manually later
+          }
+        }
 
-      return res.status(200).send('ok');
+        // Create pending transaction record (idempotent check)
+        const existingTx = await Transaction.findOne({ razorpay_payment_id: payment.id });
+        if (!existingTx) {
+          const tx = new Transaction({
+            order_id: order._id,
+            provider_id: order.providerId,
+            amount,
+            status: 'pending',
+            razorpay_payment_id: payment.id
+          });
+          await tx.save();
+        }
+
+        // Set deadlines on order: deliveryDeadline = today 5 PM, refundDeadline = today 10 PM
+        const now = new Date();
+        const deliveryDeadline = new Date(now);
+        deliveryDeadline.setHours(17, 0, 0, 0);
+        const refundDeadline = new Date(now);
+        refundDeadline.setHours(22, 0, 0, 0);
+
+        order.deliveryDeadline = deliveryDeadline;
+        order.refundDeadline = refundDeadline;
+
+        // Ensure timeline ordered exists
+        order.timeline = order.timeline || {};
+        if (!order.timeline.ordered) order.timeline.ordered = order.createdAt;
+
+        await order.save();
+
+        // Send emails: payment received
+        try {
+          const admin = process.env.ADMIN_EMAIL;
+          const { sendMail } = require('../../utils/mailer');
+          const subject = `Payment Received: ${order.orderNumber || order._id}`;
+          const text = `Payment of amount ${amount} received for order ${order.orderNumber || order._id}.`;
+          if (provider && provider.userId && provider.userId.email) {
+            await sendMail({ to: provider.userId.email, cc: admin, subject, text });
+          }
+          if (customer && customer.email) {
+            await sendMail({ to: customer.email, cc: admin, subject, text });
+          }
+        } catch (mailErr) {
+          console.error('Webhook: email send error', mailErr && mailErr.message);
+        }
+
+        console.log('Webhook: marked order paid and updated provider balances', order._id.toString());
+        return res.status(200).send('ok');
+      } catch (innerErr) {
+        console.error('Webhook: error applying payment side-effects', innerErr && innerErr.message);
+        // still respond ok so webhook isn't retried repeatedly
+        await order.save().catch(() => {});
+        return res.status(200).send('ok');
+      }
     }
 
     if (event === 'payment.failed') {

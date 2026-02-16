@@ -109,6 +109,24 @@ const getCustomers = asyncHandler(async (req, res) => {
   res.status(statusCode).json(response);
 });
 
+// Update bank account details
+const updateBankDetails = asyncHandler(async (req, res) => {
+  const { response, statusCode } = await ProviderService.updateBankDetails(req.user._id, req.body);
+  res.status(statusCode).json(response);
+});
+
+// Get bank account details (masked)
+const getBankDetails = asyncHandler(async (req, res) => {
+  const { response, statusCode } = await ProviderService.getBankDetails(req.user._id);
+  res.status(statusCode).json(response);
+});
+
+// Get wallet/earnings summary
+const getWalletSummary = asyncHandler(async (req, res) => {
+  const { response, statusCode } = await ProviderService.getWalletSummary(req.user._id);
+  res.status(statusCode).json(response);
+});
+
 module.exports = {
   toggleOnlineStatus,
   updateProviderProfile,
@@ -121,5 +139,8 @@ module.exports = {
   removeDeliveryBoy,
   getAnalytics,
   getOrderHistory,
-  getCustomers
+  getCustomers,
+  updateBankDetails,
+  getBankDetails,
+  getWalletSummary
 };

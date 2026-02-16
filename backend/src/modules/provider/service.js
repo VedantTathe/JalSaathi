@@ -520,6 +520,123 @@ class ProviderService {
     }
   }
 
+  // Update provider bank account details
+  static async updateBankDetails(userId, bankData) {
+    try {
+      const provider = await Provider.findOne({ userId });
+      if (!provider) {
+        return formatResponse(false, 'Provider not found', null, 404);
+      }
+
+      const { accountHolderName, accountNumber, ifscCode, bankName, accountType } = bankData;
+      
+      // Validate required fields
+      if (!accountHolderName || !accountNumber || !ifscCode) {
+        return formatResponse(false, 'Account holder name, account number, and IFSC code are required', null, 400);
+      }
+
+      // Basic IFSC validation (11 characters, first 4 alpha, 5th is 0, last 6 alphanumeric)
+      const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+      if (!ifscRegex.test(ifscCode.toUpperCase())) {
+        return formatResponse(false, 'Invalid IFSC code format', null, 400);
+      }
+
+      // Update bank details
+      provider.bankDetails = {
+        accountHolderName: accountHolderName.trim(),
+        accountNumber: accountNumber.trim(),
+        ifscCode: ifscCode.toUpperCase().trim(),
+        bankName: bankName ? bankName.trim() : '',
+        accountType: accountType || 'savings',
+        verified: false // Will be set to true when Razorpay linked account is created
+      };
+
+      await provider.save();
+
+      // Try to create Razorpay linked account
+      try {
+        const { createLinkedAccount } = require('../../services/razorpayService');
+        await createLinkedAccount(provider._id);
+      } catch (rzErr) {
+        console.error('Failed to create Razorpay linked account:', rzErr.message);
+        // Don't fail the request - bank details are saved, linked account can be retried
+      }
+
+      return formatResponse(true, 'Bank details updated successfully', {
+        bankDetails: {
+          accountHolderName: provider.bankDetails.accountHolderName,
+          accountNumber: '****' + provider.bankDetails.accountNumber.slice(-4),
+          ifscCode: provider.bankDetails.ifscCode,
+          bankName: provider.bankDetails.bankName,
+          accountType: provider.bankDetails.accountType,
+          verified: provider.bankDetails.verified
+        },
+        razorpayLinkedAccount: provider.razorpayLinkedAccount
+      }, 200);
+
+    } catch (error) {
+      console.error('Update bank details error:', error);
+      return formatResponse(false, 'Failed to update bank details', null, 500);
+    }
+  }
+
+  // Get provider bank details (masked)
+  static async getBankDetails(userId) {
+    try {
+      const provider = await Provider.findOne({ userId });
+      if (!provider) {
+        return formatResponse(false, 'Provider not found', null, 404);
+      }
+
+      if (!provider.bankDetails || !provider.bankDetails.accountNumber) {
+        return formatResponse(true, 'No bank details found', { bankDetails: null }, 200);
+      }
+
+      return formatResponse(true, 'Bank details retrieved', {
+        bankDetails: {
+          accountHolderName: provider.bankDetails.accountHolderName,
+          accountNumber: '****' + provider.bankDetails.accountNumber.slice(-4),
+          ifscCode: provider.bankDetails.ifscCode,
+          bankName: provider.bankDetails.bankName,
+          accountType: provider.bankDetails.accountType,
+          verified: provider.bankDetails.verified
+        },
+        razorpayLinkedAccount: provider.razorpayLinkedAccount ? {
+          status: provider.razorpayLinkedAccount.status,
+          createdAt: provider.razorpayLinkedAccount.createdAt
+        } : null
+      }, 200);
+
+    } catch (error) {
+      console.error('Get bank details error:', error);
+      return formatResponse(false, 'Failed to retrieve bank details', null, 500);
+    }
+  }
+
+  // Get provider wallet/earnings summary
+  static async getWalletSummary(userId) {
+    try {
+      const provider = await Provider.findOne({ userId });
+      if (!provider) {
+        return formatResponse(false, 'Provider not found', null, 404);
+      }
+
+      return formatResponse(true, 'Wallet summary retrieved', {
+        pending_balance: provider.pending_balance || 0,
+        settled_balance: provider.settled_balance || 0,
+        refund_deductions: provider.refund_deductions || 0,
+        total_earnings: provider.total_earnings || 0,
+        bankDetailsAdded: !!(provider.bankDetails && provider.bankDetails.accountNumber),
+        bankVerified: provider.bankDetails?.verified || false,
+        razorpayLinkedActive: provider.razorpayLinkedAccount?.status === 'active'
+      }, 200);
+
+    } catch (error) {
+      console.error('Get wallet summary error:', error);
+      return formatResponse(false, 'Failed to retrieve wallet summary', null, 500);
+    }
+  }
+
 }
 
 module.exports = ProviderService;

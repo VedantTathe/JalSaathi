@@ -64,7 +64,7 @@ const orderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'assigned', 'out_for_delivery', 'delivered', 'cancelled'],
+    enum: ['pending', 'accepted', 'assigned', 'out_for_delivery', 'delivered', 'cancelled', 'refunded'],
     default: 'pending'
   },
   paymentStatus: {
@@ -102,6 +102,25 @@ const orderSchema = new mongoose.Schema({
     type: Date
   },
   actualDeliveryTime: {
+    type: Date
+  },
+  // Refund / settlement workflow fields
+  refundEligible: {
+    type: Boolean,
+    default: false
+  },
+  autoRefunded: {
+    type: Boolean,
+    default: false
+  },
+  settled: {
+    type: Boolean,
+    default: false
+  },
+  refundDeadline: {
+    type: Date
+  },
+  deliveryDeadline: {
     type: Date
   },
   cancellationReason: {
@@ -147,6 +166,8 @@ orderSchema.index({ deliveryBoyId: 1, status: 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 // orderNumber already has a unique index from schema definition
 orderSchema.index({ 'paymentInfo.orderId': 1 }); // For webhook lookup
+orderSchema.index({ refundEligible: 1, refundDeadline: 1 });
+orderSchema.index({ deliveryDeadline: 1 });
 
 // Pre-save middleware to generate order number
 orderSchema.pre('save', async function(next) {

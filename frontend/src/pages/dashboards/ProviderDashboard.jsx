@@ -923,6 +923,178 @@ const ProviderDashboard = () => {
             <button onClick={saveProfile} className="bg-primary-600 text-white px-6 py-2 rounded-lg">Save Settings</button>
           </div>
         </div>
+
+        {/* Bank Details & Wallet Section - Separate from main form */}
+        <BankDetailsSection />
+      </div>
+    );
+  };
+
+  // Bank Details & Wallet Sub-component
+  const BankDetailsSection = () => {
+    const [bank, setBank] = useState({
+      accountHolderName: '',
+      accountNumber: '',
+      ifscCode: '',
+      bankName: '',
+      accountType: 'savings'
+    });
+    const [wallet, setWallet] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+      const fetchData = async () => {
+        try {
+          const [bankRes, walletRes] = await Promise.all([
+            providerApi.getBankDetails(),
+            providerApi.getWallet()
+          ]);
+          if (bankRes?.data?.bankDetails) {
+            setBank(prev => ({ ...prev, ...bankRes.data.bankDetails }));
+          }
+          if (walletRes?.data) {
+            setWallet(walletRes.data);
+          }
+        } catch (err) {
+          console.error('Failed to load bank/wallet data', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
+    }, []);
+
+    const saveBankDetails = async () => {
+      if (!bank.accountHolderName || !bank.accountNumber || !bank.ifscCode) {
+        return toast.error('Please fill account holder name, account number and IFSC code');
+      }
+      setSaving(true);
+      try {
+        await providerApi.updateBankDetails(bank);
+        toast.success('Bank details saved successfully');
+        // Refresh wallet data
+        const walletRes = await providerApi.getWallet();
+        if (walletRes?.data) setWallet(walletRes.data);
+      } catch (err) {
+        toast.error(err?.response?.data?.message || 'Failed to save bank details');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    if (loading) return <div className="mt-6"><LoadingSpinner /></div>;
+
+    return (
+      <div className="mt-8 space-y-6">
+        {/* Wallet Summary */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center"><IndianRupee className="h-5 w-5 mr-2 text-green-600" /> Wallet & Earnings</h3>
+          {wallet ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">Pending Balance</p>
+                <p className="text-xl font-bold text-yellow-700">{formatCurrency(wallet.pending_balance || 0)}</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">Settled Balance</p>
+                <p className="text-xl font-bold text-green-700">{formatCurrency(wallet.settled_balance || 0)}</p>
+              </div>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">Refund Deductions</p>
+                <p className="text-xl font-bold text-red-700">{formatCurrency(wallet.refund_deductions || 0)}</p>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">Total Earnings</p>
+                <p className="text-xl font-bold text-blue-700">{formatCurrency(wallet.total_earnings || 0)}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-500">Unable to load wallet data</p>
+          )}
+          {wallet && (
+            <div className="mt-4 flex items-center space-x-4 text-sm">
+              <span className={`px-2 py-1 rounded ${wallet.bankDetailsAdded ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {wallet.bankDetailsAdded ? '✓ Bank Added' : '✗ Bank Not Added'}
+              </span>
+              <span className={`px-2 py-1 rounded ${wallet.bankVerified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                {wallet.bankVerified ? '✓ Bank Verified' : '⏳ Pending Verification'}
+              </span>
+              <span className={`px-2 py-1 rounded ${wallet.razorpayLinkedActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                {wallet.razorpayLinkedActive ? '✓ Payouts Active' : '○ Payouts Inactive'}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Bank Details Form */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4">Bank Account Details</h3>
+          <p className="text-sm text-gray-500 mb-4">Add your bank account to receive payments directly. Payments are transferred after order delivery is confirmed.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder Name *</label>
+              <input 
+                value={bank.accountHolderName || ''} 
+                onChange={e => setBank({...bank, accountHolderName: e.target.value})} 
+                type="text" 
+                placeholder="Name as per bank records"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2" 
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Account Number *</label>
+              <input 
+                value={bank.accountNumber || ''} 
+                onChange={e => setBank({...bank, accountNumber: e.target.value})} 
+                type="text" 
+                placeholder="Bank account number"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2" 
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">IFSC Code *</label>
+              <input 
+                value={bank.ifscCode || ''} 
+                onChange={e => setBank({...bank, ifscCode: e.target.value.toUpperCase()})} 
+                type="text" 
+                placeholder="e.g. SBIN0001234"
+                maxLength={11}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 uppercase" 
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+              <input 
+                value={bank.bankName || ''} 
+                onChange={e => setBank({...bank, bankName: e.target.value})} 
+                type="text" 
+                placeholder="e.g. State Bank of India"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2" 
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+              <select 
+                value={bank.accountType || 'savings'} 
+                onChange={e => setBank({...bank, accountType: e.target.value})} 
+                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+              >
+                <option value="savings">Savings</option>
+                <option value="current">Current</option>
+              </select>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button 
+              onClick={saveBankDetails} 
+              disabled={saving}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Bank Details'}
+            </button>
+          </div>
+        </div>
       </div>
     );
   };

@@ -48,4 +48,11 @@ router.get('/history', providerController.getOrderHistory);
 // Customers who ordered from this provider
 router.get('/customers', providerController.getCustomers);
 
+// Bank account management
+router.get('/bank-details', providerController.getBankDetails);
+router.put('/bank-details', providerController.updateBankDetails);
+
+// Wallet/earnings summary
+router.get('/wallet', providerController.getWalletSummary);
+
 module.exports = router;

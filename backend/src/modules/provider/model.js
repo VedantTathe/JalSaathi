@@ -78,6 +78,23 @@ const providerSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Wallet & settlement fields
+  pending_balance: {
+    type: Number,
+    default: 0
+  },
+  settled_balance: {
+    type: Number,
+    default: 0
+  },
+  refund_deductions: {
+    type: Number,
+    default: 0
+  },
+  total_earnings: {
+    type: Number,
+    default: 0
+  },
   revenue: {
     total: {
       type: Number,
@@ -115,6 +132,49 @@ const providerSchema = new mongoose.Schema({
   },
   approvedAt: {
     type: Date
+  },
+  // Bank account details for payouts
+  bankDetails: {
+    accountHolderName: {
+      type: String,
+      trim: true
+    },
+    accountNumber: {
+      type: String,
+      trim: true
+    },
+    ifscCode: {
+      type: String,
+      trim: true,
+      uppercase: true
+    },
+    bankName: {
+      type: String,
+      trim: true
+    },
+    accountType: {
+      type: String,
+      enum: ['savings', 'current'],
+      default: 'savings'
+    },
+    verified: {
+      type: Boolean,
+      default: false
+    }
+  },
+  // Razorpay linked account for Route transfers
+  razorpayLinkedAccount: {
+    accountId: {
+      type: String  // Razorpay linked account ID (acc_xxxxxx)
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'active', 'suspended'],
+      default: 'pending'
+    },
+    createdAt: {
+      type: Date
+    }
   }
 }, {
   timestamps: true

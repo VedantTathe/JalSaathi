@@ -21,6 +21,7 @@ const deliveryRoutes = require('./modules/delivery/routes');
 const adminRoutes = require('./modules/admin/routes');
 const addressRoutes = require('./modules/address/routes');
 const paymentWebhook = require('./modules/payment/webhook');
+const { initCronJobs } = require('./utils/cronJobs');
 
 // Import middlewares
 const { errorHandler } = require('./middlewares/errorHandler');
@@ -96,6 +97,11 @@ app.listen(PORT, () => {
   console.log(`🚀 JalSaathi Backend Server running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health Check: http://localhost:${PORT}/health`);
+  try {
+    initCronJobs();
+  } catch (err) {
+    console.error('Failed to initialize cron jobs', err && err.message);
+  }
 });
 
 module.exports = app;

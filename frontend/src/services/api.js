@@ -95,6 +95,11 @@ export const providerApi = {
   getAnalytics: () => apiClient.get('/provider/analytics'),
   getCustomers: (params) => apiClient.get('/provider/customers', { params }),
   getHistory: (params) => apiClient.get('/provider/history', { params }),
+  // Bank details
+  getBankDetails: () => apiClient.get('/provider/bank-details'),
+  updateBankDetails: (bankData) => apiClient.put('/provider/bank-details', bankData),
+  // Wallet / earnings
+  getWallet: () => apiClient.get('/provider/wallet'),
 };
 
 // Order API
