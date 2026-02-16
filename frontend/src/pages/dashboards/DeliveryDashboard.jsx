@@ -262,7 +262,7 @@ const DeliveryDashboard = () => {
                           {order.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Online'}
                         </span>
                         {order.paymentMethod === 'cash_on_delivery' && (
-                          <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${order.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          <span className={order.paymentStatus === 'paid' ? 'ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700' : 'ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700'}>
                             {order.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
                           </span>
                         )}
@@ -439,7 +439,7 @@ const DeliveryDashboard = () => {
           </div>
           <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg px-4 py-2 border border-green-200">
             <p className="text-xs text-green-700 font-medium">Total Earnings</p>
-            <p className="text-lg font-bold text-green-900">₹{totalEarnings.toLocaleString('en-IN')}</p>
+            <p className="text-lg font-bold text-green-900">Rs. {totalEarnings.toLocaleString('en-IN')}</p>
           </div>
         </div>
 
@@ -467,7 +467,7 @@ const DeliveryDashboard = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-white">₹{order.items?.totalPrice || 0}</p>
+                    <p className="text-lg font-bold text-white">Rs. {order.items?.totalPrice || 0}</p>
                   </div>
                 </div>
 
@@ -509,7 +509,7 @@ const DeliveryDashboard = () => {
                         <p className="text-sm font-semibold text-gray-900">{order.providerId?.businessName || 'N/A'}</p>
                       </div>
 
-                      <div className={`rounded-lg p-2 border ${order.paymentMethod === 'cash_on_delivery' ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'}`}>
+                      <div className={order.paymentMethod === 'cash_on_delivery' ? 'rounded-lg p-2 border bg-orange-50 border-orange-200' : 'rounded-lg p-2 border bg-green-50 border-green-200'}>
                         <p className="text-xs text-gray-500">Payment Method</p>
                         <div className="flex items-center gap-1.5">
                           {order.paymentMethod === 'cash_on_delivery' ? (
@@ -517,10 +517,10 @@ const DeliveryDashboard = () => {
                           ) : (
                             <Wallet className="h-4 w-4 text-green-500" />
                           )}
-                          <p className={`text-sm font-semibold ${order.paymentMethod === 'cash_on_delivery' ? 'text-orange-700' : 'text-green-700'}`}>
+                          <p className={order.paymentMethod === 'cash_on_delivery' ? 'text-sm font-semibold text-orange-700' : 'text-sm font-semibold text-green-700'}>
                             {order.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online Payment'}
                           </p>
-                          <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${order.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : order.paymentStatus === 'refunded' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          <span className={order.paymentStatus === 'paid' ? 'ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700' : order.paymentStatus === 'refunded' ? 'ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700' : 'ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700'}>
                             {order.paymentStatus === 'paid' ? 'Paid' : order.paymentStatus === 'refunded' ? 'Refunded' : 'Pending'}
                           </span>
                         </div>
