@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext.jsx';
 
+//Hello
 // Public components
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
