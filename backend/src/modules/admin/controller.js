@@ -61,6 +61,16 @@ const getAllProviders = asyncHandler(async (req, res) => {
 const getProviderById = asyncHandler(async (req, res) => {
   const { providerId } = req.params;
   const Provider = require('../provider/model');
+  const Order = require('../order/model');
+  const mongoose = require('mongoose');
+
+  // Validate ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(providerId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid provider ID format'
+    });
+  }
   
   const provider = await Provider.findById(providerId)
     .populate('userId', 'name email phone address')
@@ -72,11 +82,44 @@ const getProviderById = asyncHandler(async (req, res) => {
       message: 'Provider not found'
     });
   }
+
+  // Get provider's orders with customer details
+  const orders = await Order.find({ providerId: provider._id })
+    .populate('customerId', 'name email phone')
+    .populate('deliveryBoyId', 'name phone')
+    .sort({ createdAt: -1 })
+    .limit(50);
+
+  // Get order statistics
+  const orderStats = await Order.aggregate([
+    { $match: { providerId: provider._id } },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 },
+        totalRevenue: { $sum: '$items.totalPrice' }
+      }
+    }
+  ]);
+
+  const totalOrders = await Order.countDocuments({ providerId: provider._id });
+  const totalRevenue = await Order.aggregate([
+    { $match: { providerId: provider._id, status: 'delivered' } },
+    { $group: { _id: null, total: { $sum: '$items.totalPrice' } } }
+  ]);
   
   res.status(200).json({
     success: true,
     message: 'Provider retrieved successfully',
-    data: provider
+    data: {
+      provider,
+      orders,
+      statistics: {
+        totalOrders,
+        totalRevenue: totalRevenue[0]?.total || 0,
+        ordersByStatus: orderStats
+      }
+    }
   });
 });
 
