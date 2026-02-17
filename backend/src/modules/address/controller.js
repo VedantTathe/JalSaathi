@@ -38,7 +38,6 @@ const createAddress = asyncHandler(async (req, res) => {
   }
   
   const addressData = {
-  const addressData = {
     userId: req.user._id,
     label: label || 'home',
     street,
