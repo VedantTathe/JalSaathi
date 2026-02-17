@@ -129,10 +129,27 @@ class AdminService {
         .skip(skip)
         .limit(limit);
       
+      // Get order counts and revenue for each provider
+      const providersWithStats = await Promise.all(
+        providers.map(async (provider) => {
+          const orderCount = await Order.countDocuments({ providerId: provider._id });
+          const revenueResult = await Order.aggregate([
+            { $match: { providerId: provider._id, status: 'delivered' } },
+            { $group: { _id: null, total: { $sum: '$items.totalPrice' } } }
+          ]);
+          
+          return {
+            ...provider.toObject(),
+            orderCount,
+            totalRevenue: revenueResult[0]?.total || 0
+          };
+        })
+      );
+      
       const totalProviders = await Provider.countDocuments(query);
       
       return formatResponse(true, 'Providers retrieved successfully', {
-        providers,
+        providers: providersWithStats,
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(totalProviders / limit),
@@ -178,8 +195,8 @@ class AdminService {
   static async getAdminDashboard() {
     try {
       const now = new Date();
-      const startOfToday = new Date(now.setHours(0, 0, 0, 0));
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       
       // Basic counts
       const totalUsers = await User.countDocuments();
