@@ -74,15 +74,28 @@ const AdminDashboard = () => {
     }
   );
 
+  const handleNavigationClick = (key) => {
+    setActiveTab(key);
+  };
+
   const navigation = [
-    { key: 'dashboard', name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
-    { key: 'providers', name: 'Providers', href: '/providers', icon: Store },
-    { key: 'orders', name: 'Orders', href: '/orders', icon: Package },
+    { 
+      key: 'dashboard', 
+      name: 'Dashboard', 
+      icon: BarChart3,
+      onClick: () => handleNavigationClick('dashboard')
+    },
+    { 
+      key: 'providers', 
+      name: 'Providers', 
+      icon: Store,
+      onClick: () => handleNavigationClick('providers')
+    },
   ];
 
-  const stats = dashboardData || {};
-  const providers = pendingProviders?.providers || [];
-  const orders = recentOrders?.orders || [];
+  const stats = dashboardData?.data || {};
+  const providers = pendingProviders?.data?.providers || [];
+  const orders = recentOrders?.data?.orders || [];
 
   if (dashboardLoading) {
     return (
@@ -94,52 +107,68 @@ const AdminDashboard = () => {
     );
   }
 
-  const handleNavigationClick = (key) => {
-    setActiveTab(key);
-  };
-
   return (
     <DashboardLayout navigation={navigation} activeTab={activeTab}>
-      <div className="mb-6">
-        <div className="flex space-x-4 border-b border-gray-200">
-          <button
-            onClick={() => handleNavigationClick('dashboard')}
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === 'dashboard'
-                ? 'text-primary-600 border-b-2 border-primary-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Dashboard Overview
-          </button>
-          <button
-            onClick={() => handleNavigationClick('settlements')}
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === 'settlements'
-                ? 'text-primary-600 border-b-2 border-primary-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Settlements Management
-          </button>
-        </div>
-      </div>
+      {/* Providers Section - Accessed from Sidebar */}
+      {activeTab === 'providers' && <ProvidersManagement />}
 
+      {/* Dashboard Section - With Tabs */}
       {activeTab === 'dashboard' && (
-        <DashboardOverview
-          stats={stats}
-          providers={providers}
-          orders={orders}
-          providersLoading={providersLoading}
-          ordersLoading={ordersLoading}
-          approveProviderMutation={approveProviderMutation}
-          rejectProviderMutation={rejectProviderMutation}
-          setSelectedProvider={setSelectedProvider}
-          selectedProvider={selectedProvider}
-        />
+        <>
+          <div className="mb-6">
+            <div className="flex space-x-4 border-b border-gray-200">
+              <button
+                onClick={() => handleNavigationClick('dashboard')}
+                className="px-4 py-2 font-medium transition-colors text-primary-600 border-b-2 border-primary-600"
+              >
+                Dashboard Overview
+              </button>
+              <button
+                onClick={() => handleNavigationClick('settlements')}
+                className="px-4 py-2 font-medium transition-colors text-gray-600 hover:text-gray-900"
+              >
+                Settlements Management
+              </button>
+            </div>
+          </div>
+
+          <DashboardOverview
+            stats={stats}
+            providers={providers}
+            orders={orders}
+            providersLoading={providersLoading}
+            ordersLoading={ordersLoading}
+            approveProviderMutation={approveProviderMutation}
+            rejectProviderMutation={rejectProviderMutation}
+            setSelectedProvider={setSelectedProvider}
+            selectedProvider={selectedProvider}
+          />
+        </>
       )}
 
-      {activeTab === 'settlements' && <SettlementsManagement />}
+      {/* Settlements Section */}
+      {activeTab === 'settlements' && (
+        <>
+          <div className="mb-6">
+            <div className="flex space-x-4 border-b border-gray-200">
+              <button
+                onClick={() => handleNavigationClick('dashboard')}
+                className="px-4 py-2 font-medium transition-colors text-gray-600 hover:text-gray-900"
+              >
+                Dashboard Overview
+              </button>
+              <button
+                onClick={() => handleNavigationClick('settlements')}
+                className="px-4 py-2 font-medium transition-colors text-primary-600 border-b-2 border-primary-600"
+              >
+                Settlements Management
+              </button>
+            </div>
+          </div>
+
+          <SettlementsManagement />
+        </>
+      )}
     </DashboardLayout>
   );
 };
@@ -176,31 +205,78 @@ const DashboardOverview = ({
           </div>
         </div>
 
-        {/* Total Revenue - Prominent Display */}
-        <div className="bg-gradient-to-r from-success-500 to-success-600 rounded-lg shadow-lg p-8">
+        {/* Revenue Statistics - Prominent Display */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Today's Revenue */}
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-8">
+            <div className="flex items-center justify-between">
+              <div className="text-white">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Calendar className="h-5 w-5" />
+                  <p className="text-sm font-medium opacity-90 uppercase tracking-wide">Today's Revenue</p>
+                </div>
+                <p className="text-5xl font-bold mb-2">
+                  {formatCurrency(stats.today?.revenue || 0)}
+                </p>
+                <div className="flex items-center space-x-4 mt-3">
+                  <div>
+                    <p className="text-xs opacity-75">Orders Today</p>
+                    <p className="text-xl font-semibold">{stats.today?.orders || 0}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white bg-opacity-20 rounded-full p-6">
+                <DollarSign className="h-12 w-12 text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* This Month's Revenue */}
+          <div className="bg-gradient-to-r from-success-500 to-success-600 rounded-lg shadow-lg p-8">
+            <div className="flex items-center justify-between">
+              <div className="text-white">
+                <div className="flex items-center space-x-2 mb-2">
+                  <TrendingUp className="h-5 w-5" />
+                  <p className="text-sm font-medium opacity-90 uppercase tracking-wide">This Month's Revenue</p>
+                </div>
+                <p className="text-5xl font-bold mb-2">
+                  {formatCurrency(stats.monthly?.revenue || 0)}
+                </p>
+                <div className="flex items-center space-x-4 mt-3">
+                  <div>
+                    <p className="text-xs opacity-75">Orders This Month</p>
+                    <p className="text-xl font-semibold">{stats.monthly?.orders || 0}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white bg-opacity-20 rounded-full p-6">
+                <TrendingUp className="h-12 w-12 text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Revenue - Overall Summary */}
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between">
             <div className="text-white">
-              <p className="text-sm font-medium opacity-90 uppercase tracking-wide mb-2">Total Platform Revenue</p>
-              <p className="text-5xl font-bold mb-2">
+              <p className="text-sm font-medium opacity-90 uppercase tracking-wide mb-1">Total Platform Revenue (All Time)</p>
+              <p className="text-4xl font-bold mb-2">
                 {formatCurrency(stats.totalRevenue || 0)}
               </p>
-              <div className="flex items-center space-x-6 mt-4">
-                <div>
-                  <p className="text-xs opacity-75">This Month</p>
-                  <p className="text-xl font-semibold">{formatCurrency(stats.revenueThisMonth || 0)}</p>
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2">
+                  <Package className="h-4 w-4" />
+                  <span className="text-sm">{stats.totalOrders || 0} Total Orders</span>
                 </div>
-                <div>
-                  <p className="text-xs opacity-75">Total Orders</p>
-                  <p className="text-xl font-semibold">{stats.totalOrders || 0}</p>
-                </div>
-                <div>
-                  <p className="text-xs opacity-75">Active Providers</p>
-                  <p className="text-xl font-semibold">{stats.activeProviders || 0}</p>
+                <div className="flex items-center space-x-2">
+                  <Store className="h-4 w-4" />
+                  <span className="text-sm">{stats.activeProviders || 0} Active Providers</span>
                 </div>
               </div>
             </div>
-            <div className="bg-white bg-opacity-20 rounded-full p-6">
-              <TrendingUp className="h-16 w-16 text-white" />
+            <div className="bg-white bg-opacity-20 rounded-full p-4">
+              <CreditCard className="h-10 w-10 text-white" />
             </div>
           </div>
         </div>
@@ -376,6 +452,496 @@ const DashboardOverview = ({
         />
       )}
     </>
+  );
+};
+
+const ProvidersManagement = () => {
+  const queryClient = useQueryClient();
+  const [selectedProvider, setSelectedProvider] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [expandedProviders, setExpandedProviders] = useState(new Set());
+
+  const { data: providersData, isLoading: providersLoading } = useQuery(
+    ['all-providers', filterStatus],
+    () => adminApi.getAllProviders({ 
+      isApproved: filterStatus === 'approved' ? 'true' : filterStatus === 'pending' ? 'false' : undefined 
+    })
+  );
+
+  const providers = providersData?.data?.providers || [];
+
+  const toggleProvider = (providerId) => {
+    const newExpanded = new Set(expandedProviders);
+    if (newExpanded.has(providerId)) {
+      newExpanded.delete(providerId);
+    } else {
+      newExpanded.add(providerId);
+    }
+    setExpandedProviders(newExpanded);
+  };
+
+  const expandAll = () => {
+    setExpandedProviders(new Set(providers.map(p => p._id)));
+  };
+
+  const collapseAll = () => {
+    setExpandedProviders(new Set());
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Providers Management</h2>
+            <p className="text-gray-600">View all providers and their customer orders</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={expandAll}
+              className="btn-secondary text-sm"
+            >
+              Expand All
+            </button>
+            <button
+              onClick={collapseAll}
+              className="btn-secondary text-sm"
+            >
+              Collapse All
+            </button>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="input"
+            >
+              <option value="all">All Providers</option>
+              <option value="approved">Approved Only</option>
+              <option value="pending">Pending Approval</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Providers List */}
+      {providersLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <LoadingSpinner size="large" />
+        </div>
+      ) : providers.length > 0 ? (
+        <div className="grid grid-cols-1 gap-6">
+          {providers.map((provider) => (
+            <ProviderCardWithOrders
+              key={provider._id}
+              provider={provider}
+              isExpanded={expandedProviders.has(provider._id)}
+              onToggle={() => toggleProvider(provider._id)}
+              onViewDetails={() => setSelectedProvider(provider)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="card text-center py-12">
+          <Store className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Providers Found</h3>
+          <p className="text-gray-600">No providers match the selected filter.</p>
+        </div>
+      )}
+
+      {selectedProvider && (
+        <ProviderOrdersModal
+          provider={selectedProvider}
+          onClose={() => setSelectedProvider(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails }) => {
+  const { data: providerData, isLoading } = useQuery(
+    ['provider-orders', provider._id],
+    () => adminApi.getProviderById(provider._id),
+    { enabled: isExpanded }
+  );
+
+  const orders = providerData?.data?.orders || [];
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* Provider Header */}
+      <div className="p-6 hover:bg-gray-50 transition-colors">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="bg-primary-100 rounded-full p-3">
+                <Store className="h-6 w-6 text-primary-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">{provider.businessName}</h3>
+                <p className="text-sm text-gray-600">{provider.area}, {provider.city}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-600 mb-1">Contact Person</p>
+                <p className="font-semibold text-gray-900">{provider.userId?.name || 'N/A'}</p>
+                <p className="text-xs text-gray-600">{provider.userId?.phone || 'N/A'}</p>
+              </div>
+
+              <div className="bg-blue-50 rounded-lg p-3">
+                <p className="text-xs text-gray-600 mb-1">Total Orders</p>
+                <p className="text-2xl font-bold text-blue-600">{provider.orderCount || 0}</p>
+              </div>
+
+              <div className="bg-success-50 rounded-lg p-3">
+                <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
+                <p className="text-xl font-bold text-success-600">{formatCurrency(provider.totalRevenue || 0)}</p>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-600 mb-1">Status</p>
+                <div className="flex flex-col space-y-1">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                    provider.isApproved ? 'bg-success-100 text-success-700' : 'bg-warning-100 text-warning-700'
+                  }`}>
+                    {provider.isApproved ? 'Approved' : 'Pending'}
+                  </span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                    provider.isOnline ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {provider.isOnline ? 'Online' : 'Offline'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="ml-4 flex flex-col space-y-2">
+            <button
+              onClick={onToggle}
+              className="btn-primary flex items-center space-x-2"
+            >
+              <Package className="h-4 w-4" />
+              <span>{isExpanded ? 'Hide Orders' : 'Show Orders'}</span>
+            </button>
+            <button
+              onClick={onViewDetails}
+              className="btn-secondary flex items-center space-x-2 text-sm"
+            >
+              <Eye className="h-4 w-4" />
+              <span>Full Details</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Customer Orders Section */}
+      {isExpanded && (
+        <div className="border-t border-gray-200 bg-gray-50">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner />
+            </div>
+          ) : orders.length > 0 ? (
+            <div className="p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h4 className="text-lg font-semibold text-gray-900">
+                  Customer Orders ({orders.length})
+                </h4>
+              </div>
+              
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="table">
+                    <thead className="table-header bg-gray-100">
+                      <tr>
+                        <th className="table-header-cell">Order #</th>
+                        <th className="table-header-cell">Customer</th>
+                        <th className="table-header-cell">Contact</th>
+                        <th className="table-header-cell">Address</th>
+                        <th className="table-header-cell">Quantity</th>
+                        <th className="table-header-cell">Amount</th>
+                        <th className="table-header-cell">Status</th>
+                        <th className="table-header-cell">Payment</th>
+                        <th className="table-header-cell">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="table-body">
+                      {orders.map((order) => (
+                        <tr key={order._id} className="hover:bg-gray-50">
+                          <td className="table-cell">
+                            <span className="font-medium text-primary-600">#{order.orderNumber}</span>
+                          </td>
+                          <td className="table-cell">
+                            <p className="font-medium text-gray-900">{order.customerId?.name || 'N/A'}</p>
+                          </td>
+                          <td className="table-cell">
+                            <p className="text-sm text-gray-600">{order.customerId?.phone || 'N/A'}</p>
+                            <p className="text-xs text-gray-500">{order.customerId?.email || 'N/A'}</p>
+                          </td>
+                          <td className="table-cell">
+                            <div className="max-w-xs">
+                              <p className="text-sm text-gray-900">{order.deliveryAddress?.street}</p>
+                              <p className="text-xs text-gray-600">
+                                {order.deliveryAddress?.area}, {order.deliveryAddress?.city}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="table-cell">
+                            <span className="font-medium">{order.items?.quantity || 0} cans</span>
+                          </td>
+                          <td className="table-cell">
+                            <span className="font-bold text-gray-900">{formatCurrency(order.items?.totalPrice || 0)}</span>
+                          </td>
+                          <td className="table-cell">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                              {getStatusText(order.status)}
+                            </span>
+                          </td>
+                          <td className="table-cell">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              order.paymentStatus === 'paid' ? 'bg-success-100 text-success-700' :
+                              order.paymentStatus === 'pending' ? 'bg-warning-100 text-warning-700' :
+                              'bg-error-100 text-error-700'
+                            }`}>
+                              {order.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="table-cell">
+                            <span className="text-sm text-gray-600">{formatDateTime(order.createdAt)}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Orders Yet</h3>
+              <p className="text-gray-600">This provider hasn't received any orders yet.</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ProviderCard = ({ provider, onViewDetails }) => {
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="bg-primary-100 rounded-full p-3">
+              <Store className="h-6 w-6 text-primary-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">{provider.businessName}</h3>
+              <p className="text-sm text-gray-600">{provider.area}, {provider.city}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-1">Contact Person</p>
+              <p className="font-semibold text-gray-900">{provider.userId?.name || 'N/A'}</p>
+              <p className="text-xs text-gray-600">{provider.userId?.phone || 'N/A'}</p>
+            </div>
+
+            <div className="bg-blue-50 rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-1">Total Orders</p>
+              <p className="text-2xl font-bold text-blue-600">{provider.orderCount || 0}</p>
+            </div>
+
+            <div className="bg-success-50 rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
+              <p className="text-xl font-bold text-success-600">{formatCurrency(provider.totalRevenue || 0)}</p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-1">Status</p>
+              <div className="flex flex-col space-y-1">
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                  provider.isApproved ? 'bg-success-100 text-success-700' : 'bg-warning-100 text-warning-700'
+                }`}>
+                  {provider.isApproved ? 'Approved' : 'Pending'}
+                </span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                  provider.isOnline ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {provider.isOnline ? 'Online' : 'Offline'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={onViewDetails}
+          className="ml-4 btn-primary flex items-center space-x-2"
+        >
+          <Eye className="h-4 w-4" />
+          <span>View Orders</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ProviderOrdersModal = ({ provider, onClose }) => {
+  const { data: providerData, isLoading } = useQuery(
+    ['provider-details', provider._id],
+    () => adminApi.getProviderById(provider._id),
+    { enabled: !!provider._id }
+  );
+
+  const orders = providerData?.data?.orders || [];
+  const statistics = providerData?.data?.statistics || {};
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center space-x-3">
+                <Store className="h-6 w-6 text-primary-600" />
+                <span>{provider.businessName} - Customer Orders</span>
+              </h2>
+              <p className="text-gray-600 mt-1">{provider.area}, {provider.city}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <XCircle className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* Statistics */}
+        <div className="p-6 bg-gray-50 border-b border-gray-200">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total Orders</p>
+                  <p className="text-3xl font-bold text-gray-900">{statistics.totalOrders || 0}</p>
+                </div>
+                <Package className="h-8 w-8 text-blue-500" />
+              </div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-3xl font-bold text-success-600">{formatCurrency(statistics.totalRevenue || 0)}</p>
+                </div>
+                <DollarSign className="h-8 w-8 text-success-500" />
+              </div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Order Status</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {statistics.ordersByStatus?.map((stat) => (
+                      <span key={stat._id} className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        {stat._id}: {stat.count}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <BarChart3 className="h-8 w-8 text-purple-500" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Orders Table */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <LoadingSpinner size="large" />
+            </div>
+          ) : orders.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead className="table-header sticky top-0 bg-gray-50">
+                  <tr>
+                    <th className="table-header-cell">Order #</th>
+                    <th className="table-header-cell">Customer</th>
+                    <th className="table-header-cell">Quantity</th>
+                    <th className="table-header-cell">Amount</th>
+                    <th className="table-header-cell">Status</th>
+                    <th className="table-header-cell">Payment</th>
+                    <th className="table-header-cell">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="table-body">
+                  {orders.map((order) => (
+                    <tr key={order._id} className="hover:bg-gray-50">
+                      <td className="table-cell">
+                        <span className="font-medium text-primary-600">#{order.orderNumber}</span>
+                      </td>
+                      <td className="table-cell">
+                        <div>
+                          <p className="font-medium text-gray-900">{order.customerId?.name || 'N/A'}</p>
+                          <p className="text-xs text-gray-600">{order.customerId?.phone || 'N/A'}</p>
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <span className="font-medium">{order.items?.quantity || 0} cans</span>
+                      </td>
+                      <td className="table-cell">
+                        <span className="font-bold text-gray-900">{formatCurrency(order.items?.totalPrice || 0)}</span>
+                      </td>
+                      <td className="table-cell">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusText(order.status)}
+                        </span>
+                      </td>
+                      <td className="table-cell">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          order.paymentStatus === 'paid' ? 'bg-success-100 text-success-700' :
+                          order.paymentStatus === 'pending' ? 'bg-warning-100 text-warning-700' :
+                          'bg-error-100 text-error-700'
+                        }`}>
+                          {order.paymentStatus}
+                        </span>
+                      </td>
+                      <td className="table-cell">
+                        <span className="text-sm text-gray-600">{formatDateTime(order.createdAt)}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Orders Yet</h3>
+              <p className="text-gray-600">This provider hasn't received any orders yet.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <button onClick={onClose} className="btn-secondary w-full">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
