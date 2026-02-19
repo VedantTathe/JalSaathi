@@ -373,6 +373,9 @@ OrderService.createCashfreeOrder = async function(customerId, orderId) {
         // Cashfree returns 'order_id' field in response payload
         if (data && (data.order_id || data.id)) {
           order.paymentInfo.orderId = data.order_id || data.id;
+        } else {
+          // Fallback: Cashfree order ids are prefixed with 'order_' + internal id
+          order.paymentInfo.orderId = `order_${order._id}`;
         }
         order.paymentInfo.provider = 'cashfree';
         await order.save();
@@ -487,10 +490,15 @@ OrderService.checkPaymentStatus = async function(customerId, orderId) {
     if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
 
     const cfOrderId = order.paymentInfo && (order.paymentInfo.orderId || order.paymentInfo.order_id);
-    if (!cfOrderId) return formatResponse(false, 'No payment provider order id found', null, 400);
+    // If stored Cashfree order id is missing, try the expected convention 'order_<id>' as a fallback
+    let effectiveCfOrderId = cfOrderId;
+    if (!effectiveCfOrderId) {
+      effectiveCfOrderId = `order_${order._id}`;
+      console.warn('[OrderService] No stored Cashfree order id; using fallback:', effectiveCfOrderId);
+    }
 
-    console.log('[OrderService] Checking payment status for order:', orderId, 'Cashfree Order ID:', cfOrderId);
-    const payments = await cashfreeService.getOrderPayments(cfOrderId);
+    console.log('[OrderService] Checking payment status for order:', orderId, 'Cashfree Order ID:', effectiveCfOrderId);
+    const payments = await cashfreeService.getOrderPayments(effectiveCfOrderId);
     console.log('[OrderService] Payments API result:', JSON.stringify(payments));
     // payments may be an object with 'items' or an array
     const items = Array.isArray(payments) ? payments : (payments.items || payments.data || []);
