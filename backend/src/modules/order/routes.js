@@ -36,6 +36,18 @@ router.post('/:orderId/payment/verify',
   orderController.verifyPayment
 );
 
+// Poll/check payment status (backend queries Cashfree)
+router.get('/:orderId/payment/check',
+  authorizeRoles('customer'),
+  orderController.checkPaymentStatus
+);
+
+// Mark payment as failed (used when client gives up / timeout)
+router.post('/:orderId/payment/fail',
+  authorizeRoles('customer'),
+  orderController.failPayment
+);
+
 // Common routes (multiple roles)
 router.get('/:orderId/track',
   orderController.trackOrder

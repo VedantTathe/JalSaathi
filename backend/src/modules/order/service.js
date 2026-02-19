@@ -3,6 +3,7 @@ const Provider = require('../provider/model');
 const User = require('../user/model');
 const { formatResponse } = require('../../utils/helpers');
 const crypto = require('crypto');
+const cashfreeService = require('../../services/cashfreeService');
 
 class OrderService {
   // Check if website is accepting orders (defaults to true if env not set)
@@ -40,7 +41,12 @@ class OrderService {
         return formatResponse(false, `Minimum order quantity is ${provider.minimumOrder}`, null, 400);
       }
       
-      // Create order (auto-accepted)
+      // Create order
+      // If payment method is online, create order in pending payment state
+      const isOnline = (paymentMethod || '').toString().toLowerCase() === 'online';
+      const initialStatus = isOnline ? 'pending' : 'accepted';
+      const initialPaymentStatus = isOnline ? 'pending' : (paymentMethod === 'cash_on_delivery' ? 'unpaid' : 'pending');
+
       const order = await Order.create({
         customerId,
         providerId,
@@ -52,7 +58,8 @@ class OrderService {
         deliveryAddress,
         specialInstructions: specialInstructions || '',
         paymentMethod: paymentMethod || 'cash_on_delivery',
-        status: 'accepted'
+        status: initialStatus,
+        paymentStatus: initialPaymentStatus
       });
       
       // Populate order details
@@ -60,16 +67,18 @@ class OrderService {
         .populate('customerId', 'name phone email')
         .populate('providerId');
       
-      // Update provider statistics (auto-accepted count)
-      try {
-        provider.totalOrders = (provider.totalOrders || 0) + 1;
-        await provider.save();
-      } catch (err) {
-        // non-fatal
-        console.error('Failed to update provider stats after auto-accept:', err);
+      // Update provider statistics only for auto-accepted (non-online) orders
+      if (!isOnline) {
+        try {
+          provider.totalOrders = (provider.totalOrders || 0) + 1;
+          await provider.save();
+        } catch (err) {
+          // non-fatal
+          console.error('Failed to update provider stats after auto-accept:', err);
+        }
       }
 
-      return formatResponse(true, 'Order created and auto-accepted', populatedOrder, 201);
+      return formatResponse(true, isOnline ? 'Order created, awaiting payment' : 'Order created and auto-accepted', populatedOrder, 201);
     } catch (error) {
       console.error('Create order error:', error);
       return formatResponse(false, 'Failed to create order', null, 500);
@@ -77,13 +86,22 @@ class OrderService {
   }
   
   // Get customer's orders
-  static async getMyOrders(customerId, status = null, limit = 20, page = 1) {
+  static async getMyOrders(customerId, status = null, limit = 20, page = 1, showAll = false) {
     try {
       const query = { customerId };
-      if (status) query.status = status;
-      
+      if (status) {
+        query.status = status;
+      } else if (!showAll) {
+        // Default: show only orders considered "placed" to the user.
+        // Placed = non-online payment orders (e.g., COD) OR online payments that succeeded.
+        query.$or = [
+          { paymentMethod: { $ne: 'online' } },
+          { paymentStatus: 'paid' }
+        ];
+      }
+
       const skip = (page - 1) * limit;
-      
+
       const orders = await Order.find(query)
         .populate('providerId')
         .populate('deliveryBoyId', 'name phone email')
@@ -293,134 +311,260 @@ class OrderService {
       return formatResponse(false, 'Failed to cancel order', null, 500);
     }
   }
+}
 
-  // Create Razorpay order (server-side) and return key+order payload to client
-  static async createRazorpayOrder(customerId, orderId) {
+// Cashfree integration: create order and verify payment
+OrderService.createCashfreeOrder = async function(customerId, orderId) {
+  try {
+    if (!this.isWebsiteAcceptingOrders()) {
+      return formatResponse(false, 'Sorry, we are not able to process payments right now. Please try again later.', null, 503);
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) return formatResponse(false, 'Order not found', null, 404);
+    if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
+
+    if (order.paymentStatus === 'paid') {
+      return formatResponse(false, 'Order payment is already completed', null, 400);
+    }
+
+    const amount = Number(order.items.totalPrice || 0);
+
     try {
-      // Check if website is accepting orders
-      if (!this.isWebsiteAcceptingOrders()) {
-        return formatResponse(false, 'Sorry, we are not able to process payments right now. Please try again later.', null, 503);
+      // Ensure we pass full customer details (not just an ObjectId) to Cashfree
+      let customer = null;
+      try {
+        customer = await User.findById(order.customerId).select('name phone email');
+      } catch (e) {
+        console.error('Failed to fetch customer details for payment:', e);
       }
 
-      const order = await Order.findById(orderId);
-      if (!order) return formatResponse(false, 'Order not found', null, 404);
-      if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
-
-      // Check if payment is already completed
-      if (order.paymentStatus === 'paid') {
-        return formatResponse(false, 'Order payment is already completed', null, 400);
+      // If customer phone is missing, decline creating online payment order
+      const customerPhone = (customer && (customer.phone || customer.mobile || customer.contact)) || null;
+      if (!customerPhone) {
+        console.error('Customer phone missing; cannot create Cashfree order');
+        return formatResponse(false, 'Customer phone is required for online payments', null, 400);
       }
 
-      const amountPaise = Math.round((order.items.totalPrice || 0) * 100);
-      const payload = {
-        amount: amountPaise,
-        currency: 'INR',
-        receipt: `order_${order._id}`,
-        payment_capture: 1
+      // Normalize phone: digits only, add India country code if 10 digits
+      const rawPhone = String(customerPhone || '');
+      const digits = rawPhone.replace(/\D/g, '');
+      let normalizedPhone = digits;
+      if (digits.length === 10) normalizedPhone = '91' + digits;
+      else if (digits.length === 11 && digits.startsWith('0')) normalizedPhone = '91' + digits.slice(1);
+      else if (digits.length < 10 || digits.length > 13) {
+        console.error('Customer phone invalid after normalization:', { rawPhone, digits });
+        return formatResponse(false, 'Customer phone is invalid for online payments', null, 400);
+      }
+
+      const customerPayload = {
+        _id: customer ? customer._id : order.customerId,
+        name: (customer && customer.name) || '',
+        email: (customer && customer.email) || '',
+        phone: normalizedPhone,
+        _rawPhone: rawPhone // debug only
       };
 
-      const keyId = process.env.RAZORPAY_KEY_ID;
-      const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      if (!keyId || !keySecret) {
-        console.error('Razorpay credentials not configured');
-        return formatResponse(false, 'Payment gateway not configured. Please contact support.', null, 500);
-      }
+      const data = await cashfreeService.createOrder({ orderId: order._id, amount, customer: customerPayload });
 
-      console.log('Creating Razorpay order for:', orderId, 'Amount:', amountPaise);
-
-      const resp = await fetch('https://api.razorpay.com/v1/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64')
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await resp.json();
-      if (!resp.ok) {
-        console.error('Razorpay order create failed:', JSON.stringify(data));
-        return formatResponse(false, data.error?.description || 'Failed to create payment order', null, 500);
-      }
-
-      console.log('Razorpay order created successfully:', data.id);
-
-      // Persist razorpay order id on our order for later webhook mapping
+      // Persist cashfree order id (if returned)
       try {
         order.paymentInfo = order.paymentInfo || {};
-        order.paymentInfo.orderId = data.id; // razorpay order id
-        order.paymentInfo.provider = 'razorpay';
+        // Cashfree returns 'order_id' field in response payload
+        if (data && (data.order_id || data.id)) {
+          order.paymentInfo.orderId = data.order_id || data.id;
+        }
+        order.paymentInfo.provider = 'cashfree';
         await order.save();
       } catch (e) {
-        console.error('Failed to persist razorpay order id on order:', e);
+        console.error('Failed to persist cashfree order id on order:', e);
       }
 
-      return formatResponse(true, 'Razorpay order created', { key: keyId, order: data }, 200);
-    } catch (error) {
-      console.error('createRazorpayOrder error:', error);
-      return formatResponse(false, 'Failed to create payment order: ' + error.message, null, 500);
+      return formatResponse(true, 'Cashfree order created', { appId: process.env.CASHFREE_APP_ID, order: data }, 200);
+    } catch (err) {
+      console.error('Cashfree order create failed:', err);
+      let msg = 'Failed to create payment order';
+      if (err) {
+        if (err.details) {
+          if (typeof err.details === 'string') msg = err.details;
+          else if (err.details.message) msg = err.details.message;
+          else {
+            try {
+              msg = JSON.stringify(err.details);
+            } catch (e) {
+              msg = String(err.details);
+            }
+          }
+        } else if (err.message) {
+          msg = err.message;
+        }
+      }
+
+      return formatResponse(false, msg, null, 500);
     }
+  } catch (error) {
+    console.error('createCashfreeOrder error:', error);
+    return formatResponse(false, 'Failed to create payment order: ' + error.message, null, 500);
   }
+};
 
-  // Verify Razorpay payment signature and mark order paid
-  static async verifyRazorpayPayment(customerId, orderId, paymentPayload) {
-    try {
-      const order = await Order.findById(orderId);
-      if (!order) return formatResponse(false, 'Order not found', null, 404);
-      if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
+OrderService.verifyCashfreePayment = async function(customerId, orderId, paymentPayload) {
+  try {
+    const order = await Order.findById(orderId);
+    if (!order) return formatResponse(false, 'Order not found', null, 404);
+    if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
 
-      const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = paymentPayload;
-      if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
-        console.error('Invalid payment payload:', paymentPayload);
-        return formatResponse(false, 'Invalid payment payload', null, 400);
-      }
+    // Expected fields vary; try common names
+    const orderIdFromPayload = paymentPayload.order_id || paymentPayload.orderId || paymentPayload.order;
+    const referenceId = paymentPayload.reference_id || paymentPayload.referenceId || paymentPayload.reference;
+    const txStatus = paymentPayload.tx_status || paymentPayload.txStatus || paymentPayload.status || paymentPayload.txStatus;
+    const signature = paymentPayload.signature || paymentPayload.signature_hash || paymentPayload.sig;
 
-      // Check if payment is already verified
-      if (order.paymentStatus === 'paid') {
-        console.log('Payment already verified for order:', orderId);
-        return formatResponse(true, 'Payment already verified', order, 200);
-      }
+    if (!orderIdFromPayload || !referenceId || !txStatus || !signature) {
+      console.error('Invalid Cashfree payment payload:', paymentPayload);
+      return formatResponse(false, 'Invalid payment payload', null, 400);
+    }
 
-      const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      if (!keySecret) {
-        console.error('Razorpay secret not configured');
-        return formatResponse(false, 'Payment gateway not configured', null, 500);
-      }
+    // Basic signature verification (Cashfree may provide different signature rules).
+    const secret = process.env.CASHFREE_SECRET_KEY;
+    if (!secret) {
+      console.error('Cashfree secret not configured');
+      return formatResponse(false, 'Payment gateway not configured', null, 500);
+    }
 
-      const expected = crypto.createHmac('sha256', keySecret).update(`${razorpay_order_id}|${razorpay_payment_id}`).digest('hex');
-      if (expected !== razorpay_signature) {
-        console.error('Payment signature mismatch', { expected, received: razorpay_signature });
-        order.paymentStatus = 'failed';
-        order.paymentInfo = order.paymentInfo || {};
-        order.paymentInfo.failedReason = 'Signature verification failed';
-        await order.save();
-        return formatResponse(false, 'Payment verification failed', null, 400);
-      }
+    const expected = crypto.createHmac('sha256', secret).update(`${orderIdFromPayload}|${referenceId}|${txStatus}`).digest('hex');
+    if (expected !== signature) {
+      console.error('Cashfree payment signature mismatch', { expected, received: signature });
+      order.paymentStatus = 'failed';
+      order.paymentInfo = order.paymentInfo || {};
+      order.paymentInfo.failedReason = 'Signature verification failed';
+      await order.save();
+      return formatResponse(false, 'Payment verification failed', null, 400);
+    }
 
-      console.log('Payment verified successfully for order:', orderId);
+    if (txStatus.toUpperCase() !== 'SUCCESS') {
+      order.paymentStatus = 'failed';
+      order.paymentInfo = order.paymentInfo || {};
+      order.paymentInfo.provider = 'cashfree';
+      order.paymentInfo.paymentId = referenceId;
+      order.paymentInfo.orderId = orderIdFromPayload;
+      order.paymentInfo.failedReason = 'Transaction not successful';
+      await order.save();
+      return formatResponse(false, 'Payment not successful', null, 400);
+    }
+
+    // Mark paid
+    order.paymentStatus = 'paid';
+    order.paymentMethod = 'online';
+    order.paymentInfo = {
+      provider: 'cashfree',
+      paymentId: referenceId,
+      orderId: orderIdFromPayload,
+      signature,
+      verifiedAt: new Date()
+    };
+
+    await order.save();
+
+    const populatedOrder = await Order.findById(orderId)
+      .populate('customerId', 'name phone email')
+      .populate('providerId');
+
+    return formatResponse(true, 'Payment verified and order marked paid', populatedOrder, 200);
+  } catch (error) {
+    console.error('verifyCashfreePayment error:', error);
+    return formatResponse(false, 'Failed to verify payment: ' + error.message, null, 500);
+  }
+};
+
+module.exports = OrderService;
+
+// Check payment status by querying Cashfree directly (useful when webhooks can't reach localhost)
+OrderService.checkPaymentStatus = async function(customerId, orderId) {
+  try {
+    const order = await Order.findById(orderId);
+    if (!order) return formatResponse(false, 'Order not found', null, 404);
+    if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
+
+    const cfOrderId = order.paymentInfo && (order.paymentInfo.orderId || order.paymentInfo.order_id);
+    if (!cfOrderId) return formatResponse(false, 'No payment provider order id found', null, 400);
+
+    console.log('[OrderService] Checking payment status for order:', orderId, 'Cashfree Order ID:', cfOrderId);
+    const payments = await cashfreeService.getOrderPayments(cfOrderId);
+    console.log('[OrderService] Payments API result:', JSON.stringify(payments));
+    // payments may be an object with 'items' or an array
+    const items = Array.isArray(payments) ? payments : (payments.items || payments.data || []);
+
+    // Find successful payment (support various Cashfree response field names)
+    const successPayment = items.find(p => {
+      const status = (p.txStatus || p.status || p.tx_status || p.payment_status || p.paymentStatus || '').toString().toLowerCase();
+      return status === 'success' || status === 'succeeded' || status === 'successful' || status === 'ok';
+    });
+
+    if (successPayment) {
+      const referenceId = successPayment.reference_id || successPayment.paymentId || successPayment.referenceId || successPayment.reference || successPayment.id || successPayment.cf_payment_id || successPayment.cf_payment_id;
+
+      console.log('[OrderService] Detected successful payment:', { orderId: orderId, cfOrderId, referenceId });
 
       order.paymentStatus = 'paid';
       order.paymentMethod = 'online';
-      order.paymentInfo = {
-        provider: 'razorpay',
-        paymentId: razorpay_payment_id,
-        orderId: razorpay_order_id,
-        signature: razorpay_signature,
-        verifiedAt: new Date()
-      };
+      order.paymentInfo = order.paymentInfo || {};
+      order.paymentInfo.provider = 'cashfree';
+      order.paymentInfo.paymentId = referenceId;
+      order.paymentInfo.orderId = cfOrderId;
+      order.paymentInfo.capturedAt = new Date();
+      order.paymentInfo.verifiedAt = new Date();
+
+      // Accept order and update provider stats if it was pending
+      if (order.status === 'pending') {
+        order.status = 'accepted';
+        try {
+          const provider = await Provider.findById(order.providerId);
+          if (provider) {
+            provider.totalOrders = (provider.totalOrders || 0) + 1;
+            await provider.save();
+          }
+        } catch (e) {
+          console.error('Failed to update provider stats after payment check:', e);
+        }
+      }
 
       await order.save();
-      
-      const populatedOrder = await Order.findById(orderId)
-        .populate('customerId', 'name phone email')
-        .populate('providerId');
-
-      return formatResponse(true, 'Payment verified and order marked paid', populatedOrder, 200);
-    } catch (error) {
-      console.error('verifyRazorpayPayment error:', error);
-      return formatResponse(false, 'Failed to verify payment: ' + error.message, null, 500);
+      const populated = await Order.findById(orderId).populate('providerId');
+      return formatResponse(true, 'Payment verified and order accepted', populated, 200);
     }
-  }
-}
 
-module.exports = OrderService;
+    // If no successful payment found, leave as pending or mark failed if terminal
+    return formatResponse(false, 'No successful payment found yet', { payments: items }, 202);
+  } catch (err) {
+    console.error('[OrderService] checkPaymentStatus error:', err);
+    return formatResponse(false, 'Failed to check payment status: ' + (err.message || ''), null, 500);
+  }
+};
+
+// Mark an order's payment as failed (customer action or timeout)
+OrderService.failPayment = async function(customerId, orderId, reason = 'Payment failed or timeout') {
+  try {
+    const order = await Order.findById(orderId);
+    if (!order) return formatResponse(false, 'Order not found', null, 404);
+    if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
+
+    if (order.paymentStatus === 'paid') {
+      return formatResponse(false, 'Order payment already completed', null, 400);
+    }
+
+    order.paymentStatus = 'failed';
+    order.status = order.status === 'pending' ? 'failed' : order.status;
+    order.paymentInfo = order.paymentInfo || {};
+    order.paymentInfo.failedAt = new Date();
+    order.paymentInfo.failedReason = reason;
+
+    await order.save();
+
+    const populated = await Order.findById(orderId).populate('providerId');
+    return formatResponse(true, 'Order marked as payment failed', populated, 200);
+  } catch (err) {
+    console.error('failPayment error:', err);
+    return formatResponse(false, 'Failed to mark order as failed: ' + (err.message || ''), null, 500);
+  }
+};

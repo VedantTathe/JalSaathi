@@ -18,14 +18,14 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../utils/helpers';
 import toast from 'react-hot-toast';
 
-// Helper to load Razorpay SDK
-const loadRazorpayScript = () => {
+// Helper to load Cashfree SDK
+const loadCashfreeScript = () => {
   return new Promise((resolve, reject) => {
-    if (window.Razorpay) return resolve(true);
+    if (window.cashfree || window.CF) return resolve(true);
     const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.src = 'https://sdk.cashfree.com/js/v1/cashfree.js';
     script.onload = () => resolve(true);
-    script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+    script.onerror = () => reject(new Error('Failed to load Cashfree SDK'));
     document.body.appendChild(script);
   });
 };
@@ -40,63 +40,39 @@ const MakePaymentButton = ({ order, onSuccess }) => {
       console.log('Creating payment for order:', order._id);
       const res = await createPayment.mutateAsync();
       console.log('Payment creation response:', res);
-      
-      // Handle different response formats from axios interceptor
+
       const responseData = res?.data || res;
-      const key = responseData?.key;
-      const rOrder = responseData?.order;
-      
-      if (!rOrder || !key) {
-        console.error('Invalid payment response:', res);
-        throw new Error(responseData?.message || 'Failed to create payment order');
+      const rOrder = responseData?.order || responseData?.data || responseData;
+
+      // Prefer a direct checkout URL if backend returned one
+      const checkoutUrl = rOrder?.checkout_url || rOrder?.payment_link || rOrder?.paymentLink || rOrder?.data?.checkout_url;
+      if (checkoutUrl) {
+        window.open(checkoutUrl, '_blank');
+        return;
       }
 
-      console.log('Loading Razorpay SDK...');
-      await loadRazorpayScript();
-      console.log('Razorpay SDK loaded successfully');
+      // Otherwise try to use Cashfree JS SDK if available
+      console.log('Loading Cashfree SDK...');
+      await loadCashfreeScript();
+      console.log('Cashfree SDK loaded successfully');
 
-      const options = {
-        key,
-        amount: rOrder.amount,
-        currency: rOrder.currency,
-        name: 'JalSaathi',
-        description: `Order ${order.orderNumber}`,
-        order_id: rOrder.id,
-        handler: async function(paymentResult) {
-          try {
-            console.log('Payment successful, verifying...', paymentResult);
-            await verifyPayment.mutateAsync({ orderId: order._id, payload: paymentResult });
-            toast.success('Payment successful! Refreshing order details...');
-            if (onSuccess) onSuccess();
-          } catch (err) {
-            console.error('Payment verification failed:', err);
-            const errorMsg = err?.response?.data?.message || 'Payment verification failed';
-            toast.error(errorMsg);
-          }
-        },
-        modal: {
-          ondismiss: function() {
-            console.log('Payment modal dismissed');
-            toast.info('Payment cancelled. You can try again anytime.');
-          }
-        },
-        prefill: {
-          name: order.customerId?.name || '',
-          email: order.customerId?.email || '',
-          contact: order.customerId?.phone || ''
-        },
-        theme: { color: '#3399cc' }
-      };
+      // Cashfree SDK usage varies; attempt a generic init if available
+      if (window.cashfree && typeof window.cashfree.init === 'function') {
+        try {
+          await window.cashfree.init({
+            orderToken: rOrder?.order_token || rOrder?.token || rOrder?.data?.order_token,
+            orderId: rOrder?.order_id || rOrder?.orderId || rOrder?.id,
+            appId: responseData?.appId || responseData?.key || process.env.REACT_APP_CASHFREE_APP_ID
+          });
+          // After init, open checkout (SDK-specific)
+          if (typeof window.cashfree.open === 'function') window.cashfree.open();
+          return;
+        } catch (e) {
+          console.warn('Cashfree SDK init failed:', e);
+        }
+      }
 
-      console.log('Opening Razorpay checkout...');
-      const rzp = new window.Razorpay(options);
-      
-      rzp.on('payment.failed', function (response){
-        console.error('Payment failed:', response.error);
-        toast.error(`Payment failed: ${response.error.description || 'Unknown error'}`);
-      });
-      
-      rzp.open();
+      toast.error('Unable to open Cashfree checkout. Contact support.');
     } catch (error) {
       console.error('Payment error:', error);
       const errorMsg = error?.response?.data?.message || error.message || 'Payment failed';

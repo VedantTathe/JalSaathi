@@ -13,16 +13,16 @@ import LoadingSpinner from '../../components/LoadingSpinner.jsx';
 import { userApi, addressApi, orderApi } from '../../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../../utils/helpers';
 import toast from 'react-hot-toast';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-// Load Razorpay SDK dynamically
-const loadRazorpayScript = () => {
+// Load Cashfree SDK dynamically
+const loadCashfreeScript = () => {
   return new Promise((resolve, reject) => {
-    if (window.Razorpay) return resolve(true);
+    if (window.cashfree || window.CF) return resolve(true);
     const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.src = 'https://sdk.cashfree.com/js/v1/cashfree.js';
     script.onload = () => resolve(true);
-    script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+    script.onerror = () => reject(new Error('Failed to load Cashfree SDK'));
     document.body.appendChild(script);
   });
 };
@@ -53,7 +53,7 @@ const CustomerDashboard = () => {
   const [orderForm, setOrderForm] = useState({
     providerId: '',
     quantity: 1,
-    paymentMethod: 'cash_on_delivery',
+    paymentMethod: 'online',
     specialInstructions: '',
     deliveryAddress: null,
     deliveryTime: 'immediate'
@@ -107,6 +107,78 @@ const CustomerDashboard = () => {
       refetchInterval: false,
     }
   );
+
+  // Handle Cashfree return redirect in the main window (if popup redirected here)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const cfOrderId = params.get('order_id') || params.get('orderId') || params.get('cf_order_id');
+      const referenceId = params.get('reference_id') || params.get('referenceId') || params.get('reference');
+      const txStatus = params.get('tx_status') || params.get('txStatus') || params.get('status');
+
+      if (cfOrderId || referenceId || txStatus) {
+        (async () => {
+          // Refresh local orders list
+          await queryClient.invalidateQueries('customer-orders');
+
+          // Try to find a matching order by provider order id or by recent pending orders
+          const ordersList = (ordersData && (ordersData.data?.orders || ordersData.orders)) || [];
+          let matched = null;
+
+          if (cfOrderId) {
+            matched = ordersList.find(o => (o.paymentInfo && (o.paymentInfo.orderId === cfOrderId || o.paymentInfo.order_id === cfOrderId)));
+          }
+
+          // Fallback: pick latest pending online order if none matched
+          if (!matched) {
+            matched = ordersList.find(o => o.paymentMethod === 'online' && (o.paymentStatus === 'pending' || !o.paymentStatus));
+          }
+
+          if (matched) {
+            try {
+              const resp = await orderApi.checkPayment(matched._id);
+              const payload = resp?.data || resp;
+              const updated = payload?.data || payload;
+              const paymentStatus = (updated?.paymentStatus || '').toString().toLowerCase();
+              if (paymentStatus === 'paid') {
+                toast.success('Payment successful!');
+                queryClient.invalidateQueries('customer-orders');
+                window.history.replaceState({}, document.title, window.location.pathname);
+                navigate('/dashboard/my-orders');
+                return;
+              }
+
+              // If still pending, wait briefly and then mark failed if still pending
+              setTimeout(async () => {
+                const r2 = await orderApi.checkPayment(matched._id);
+                const u2 = r2?.data || r2;
+                const p2 = (u2?.data || u2)?.paymentStatus || '';
+                if (String(p2).toLowerCase() !== 'paid') {
+                  try {
+                    await orderApi.failPayment(matched._id);
+                    toast.error('Payment not completed. Order marked failed.');
+                    queryClient.invalidateQueries('customer-orders');
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    navigate('/dashboard/my-orders');
+                  } catch (e) {
+                    console.error('Fail payment call error:', e);
+                  }
+                }
+              }, 4000);
+            } catch (e) {
+              console.error('Return URL handling error:', e);
+            }
+          } else {
+            // No match — just refresh queries and clear params
+            queryClient.invalidateQueries('customer-orders');
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        })();
+      }
+    } catch (e) {
+      console.error('Error parsing return URL params', e);
+    }
+  }, []);
   
   const { data: addressesData, isLoading: addressesLoading } = useQuery(
     'customer-addresses', 
@@ -133,6 +205,20 @@ const CustomerDashboard = () => {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Mutations
+  // Always check and update payment status for any pending online orders on dashboard load
+  useEffect(() => {
+    const ordersList = (ordersData && (ordersData.data?.orders || ordersData.orders)) || [];
+    ordersList.forEach(async (order) => {
+      if (order.paymentMethod === 'online' && (order.paymentStatus === 'pending' || !order.paymentStatus)) {
+        try {
+          await orderApi.checkPayment(order._id);
+          queryClient.invalidateQueries('customer-orders');
+        } catch (e) {
+          console.error('Auto payment status check failed for order', order._id, e);
+        }
+      }
+    });
+  }, [ordersData]);
   const placeOrderMutation = useMutation((orderData) => userApi.placeOrder(orderData), {
     onSuccess: async (response) => {
       // Extract order from response (handles both axios response shapes)
@@ -140,11 +226,11 @@ const CustomerDashboard = () => {
       const orderId = order?._id || order?.id;
       const paymentMethod = order?.paymentMethod || orderForm.paymentMethod;
 
-      // If online payment, open Razorpay immediately
+      // If online payment, open Cashfree immediately
       if (paymentMethod === 'online' && orderId) {
         setIsProcessingPayment(true);
         try {
-          await handleRazorpayCheckout(orderId, order);
+          await handleCashfreeCheckout(orderId, order);
         } catch (err) {
           console.error('Payment failed:', err);
           toast.error('Payment failed. You can pay later from Order Details.');
@@ -156,85 +242,91 @@ const CustomerDashboard = () => {
 
       queryClient.invalidateQueries('customer-orders');
       setShowOrderModal(false);
-      setOrderForm({ providerId: '', quantity: 1, paymentMethod: 'cash_on_delivery', specialInstructions: '', deliveryAddress: null, deliveryTime: 'immediate' });
+      setOrderForm({ providerId: '', quantity: 1, paymentMethod: 'online', specialInstructions: '', deliveryAddress: null, deliveryTime: 'immediate' });
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to place order')
   });
 
-  // Handle Razorpay checkout after order is placed
-  const handleRazorpayCheckout = async (orderId, orderData) => {
+  // Handle Cashfree checkout after order is placed
+  const navigate = useNavigate();
+
+  const handleCashfreeCheckout = async (orderId, orderData) => {
     try {
-      console.log('Starting Razorpay checkout for order:', orderId);
-      
-      // Create Razorpay order
+      console.log('Starting Cashfree checkout for order:', orderId);
+
       const res = await orderApi.createPayment(orderId);
       console.log('Payment order response:', res);
-      
-      // Handle different response formats from axios interceptor
+
       const responseData = res?.data || res;
-      const key = responseData?.key;
-      const rOrder = responseData?.order;
-      
-      if (!rOrder || !key) {
-        console.error('Invalid payment response:', res);
-        throw new Error(responseData?.message || 'Failed to create payment order');
+      const rOrder = responseData?.order || responseData?.data || responseData;
+
+      // If backend returned a direct checkout URL/open link, use it
+      const checkoutUrl = rOrder?.checkout_url || rOrder?.payment_link || rOrder?.paymentLink || rOrder?.data?.checkout_url;
+      if (checkoutUrl) {
+        // Open Cashfree in the main window (not a popup)
+        window.location.href = checkoutUrl;
+        return true;
       }
 
-      console.log('Loading Razorpay SDK...');
-      await loadRazorpayScript();
-      console.log('Razorpay SDK loaded successfully');
+      console.log('Loading Cashfree SDK...');
+      await loadCashfreeScript();
+      console.log('Cashfree SDK loaded successfully');
 
-      return new Promise((resolve, reject) => {
-        const options = {
-          key,
-          amount: rOrder.amount,
-          currency: rOrder.currency,
-          name: 'JalSaathi',
-          description: `Order #${orderData?.orderNumber || orderId.slice(-6)}`,
-          order_id: rOrder.id,
-          handler: async function(paymentResult) {
-            try {
-              console.log('Payment successful, verifying...', paymentResult);
-              const verifyRes = await orderApi.verifyPayment(orderId, paymentResult);
-              console.log('Payment verified:', verifyRes);
-              toast.success('Payment successful! Order confirmed.');
-              queryClient.invalidateQueries('customer-orders');
-              resolve(true);
-            } catch (err) {
-              console.error('Payment verification failed:', err);
-              const errorMsg = err?.response?.data?.message || 'Payment verification failed';
-              toast.error(errorMsg);
-              reject(err);
-            }
-          },
-          modal: {
-            ondismiss: function() {
-              console.log('Payment modal dismissed');
-              toast('Payment cancelled. You can pay later from Order Details.', { icon: '⚠️' });
-              resolve(false);
-            }
-          },
-          prefill: {
-            name: orderData?.customerId?.name || '',
-            email: orderData?.customerId?.email || '',
-            contact: orderData?.customerId?.phone || ''
-          },
-          theme: { color: '#3399cc' }
-        };
+      // Try generic SDK init if available
+      if (window.cashfree && typeof window.cashfree.init === 'function') {
+        try {
+          await window.cashfree.init({
+            orderToken: rOrder?.order_token || rOrder?.token || rOrder?.data?.order_token,
+            orderId: rOrder?.order_id || rOrder?.orderId || rOrder?.id,
+            appId: responseData?.appId || process.env.REACT_APP_CASHFREE_APP_ID
+          });
+          if (typeof window.cashfree.open === 'function') {
+            // Open SDK and then poll backend similarly to popup flow
+            window.cashfree.open();
 
-        console.log('Opening Razorpay checkout...');
-        const rzp = new window.Razorpay(options);
-        
-        rzp.on('payment.failed', function (response){
-          console.error('Payment failed:', response.error);
-          toast.error(`Payment failed: ${response.error.description || 'Unknown error'}`);
-          reject(new Error(response.error.description));
-        });
-        
-        rzp.open();
-      });
+            // Polling fallback in case SDK doesn't provide callbacks
+            const pollInterval = 3000;
+            const maxAttempts = 40;
+            let attempts = 0;
+            return await new Promise((resolve) => {
+              const timer = setInterval(async () => {
+                attempts += 1;
+                try {
+                  const resp = await orderApi.getOrderById(orderId);
+                  const data = resp?.data || resp;
+                  const order = data?.data || data;
+                  const paymentStatus = (order?.paymentStatus || '').toString().toLowerCase();
+                  if (paymentStatus === 'paid') {
+                    clearInterval(timer);
+                    toast.success('Payment successful!');
+                    queryClient.invalidateQueries('customer-orders');
+                    navigate('/dashboard/my-orders');
+                    resolve(true);
+                  } else if (paymentStatus === 'failed') {
+                    clearInterval(timer);
+                    toast.error('Payment failed. You can retry from Order Details.');
+                    queryClient.invalidateQueries('customer-orders');
+                    resolve(false);
+                  } else if (attempts >= maxAttempts) {
+                    clearInterval(timer);
+                    toast.error('Payment timeout. Check Order Details to retry.');
+                    resolve(false);
+                  }
+                } catch (err) {
+                  console.error('Polling order status error:', err);
+                }
+              }, pollInterval);
+            });
+          }
+        } catch (e) {
+          console.warn('Cashfree SDK init failed:', e);
+        }
+      }
+
+      toast.error('Unable to open Cashfree checkout. Contact support.');
+      return false;
     } catch (error) {
-      console.error('Razorpay checkout error:', error);
+      console.error('Cashfree checkout error:', error);
       const errorMsg = error?.response?.data?.message || error.message || 'Failed to initialize payment';
       toast.error(errorMsg);
       throw error;
@@ -573,7 +665,7 @@ const CustomerDashboard = () => {
                   setOrderForm({ 
                     providerId: provider._id,
                     quantity: 1,
-                    paymentMethod: 'cash_on_delivery',
+                    paymentMethod: 'online',
                     specialInstructions: '',
                     deliveryAddress: defaultAddress || null,
                     deliveryTime: 'immediate'
@@ -674,7 +766,7 @@ const CustomerDashboard = () => {
                         setOrderForm({ 
                           providerId: provider._id,
                           quantity: 1,
-                          paymentMethod: 'cash_on_delivery',
+                          paymentMethod: 'online',
                           specialInstructions: '',
                           deliveryAddress: defaultAddress || null,
                           deliveryTime: 'immediate'
@@ -796,7 +888,37 @@ const CustomerDashboard = () => {
                 </div>
                 <div>
                   <p className="text-xs text-gray-600">Payment</p>
-                  <p className="font-medium text-gray-900">{order.paymentStatus || 'Pending'}</p>
+                  <p className="font-medium text-gray-900 flex items-center gap-2">
+                    {order.paymentStatus || 'Pending'}
+                    {order.paymentMethod === 'online' && (order.paymentStatus === 'pending' || !order.paymentStatus) && (
+                      <button
+                        className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors border border-blue-200"
+                          onClick={async () => {
+                            try {
+                              const resp = await orderApi.checkPayment(order._id);
+                              console.debug('checkPayment resp:', resp);
+                              const payload = resp?.data || resp;
+                              const updated = payload?.data || payload;
+                              const paymentStatus = (updated?.paymentStatus || '').toString().toLowerCase();
+                              // Force refetch and wait for results
+                              await queryClient.invalidateQueries('customer-orders', { refetchActive: true });
+                              if (paymentStatus === 'paid') {
+                                toast.success('Payment successful!');
+                              } else if (paymentStatus === 'failed') {
+                                toast.error('Payment failed.');
+                              } else {
+                                toast('Still pending. Try again later.', { icon: '⏳' });
+                              }
+                            } catch (e) {
+                              console.error('Refresh payment error:', e);
+                              toast.error('Error checking payment status');
+                            }
+                          }}
+                      >
+                        Refresh
+                      </button>
+                    )}
+                  </p>
                 </div>
                 {order.deliveryBoyId && (
                   <div>
@@ -1117,8 +1239,8 @@ const CustomerDashboard = () => {
                     onChange={(e) => setOrderForm({ ...orderForm, paymentMethod: e.target.value })}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   >
-                    <option value="cash_on_delivery">💵 Cash on Delivery</option>
                     <option value="online">💳 Pay Online (UPI/Card)</option>
+                    <option value="cash_on_delivery">💵 Cash on Delivery</option>
                   </select>
                 </div>
               </form>

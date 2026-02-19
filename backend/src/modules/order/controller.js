@@ -19,12 +19,14 @@ const createOrder = asyncHandler(async (req, res) => {
 
 // Get customer's orders
 const getMyOrders = asyncHandler(async (req, res) => {
-  const { status, limit = 20, page = 1 } = req.query;
+  const { status, limit = 20, page = 1, showAll = 'false' } = req.query;
+  const includeAll = String(showAll).toLowerCase() === 'true';
   const { response, statusCode } = await OrderService.getMyOrders(
     req.user._id,
     status,
     parseInt(limit),
-    parseInt(page)
+    parseInt(page),
+    includeAll
   );
   res.status(statusCode).json(response);
 });
@@ -59,17 +61,31 @@ const cancelOrder = asyncHandler(async (req, res) => {
   res.status(statusCode).json(response);
 });
 
-// Create payment order (Razorpay) for an existing order
+// Create payment order (Cashfree) for an existing order
 const createPaymentOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
-  const { response, statusCode } = await OrderService.createRazorpayOrder(req.user._id, orderId);
+  const { response, statusCode } = await OrderService.createCashfreeOrder(req.user._id, orderId);
   res.status(statusCode).json(response);
 });
 
 // Verify payment after client checkout
 const verifyPayment = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
-  const { response, statusCode } = await OrderService.verifyRazorpayPayment(req.user._id, orderId, req.body);
+  const { response, statusCode } = await OrderService.verifyCashfreePayment(req.user._id, orderId, req.body);
+  res.status(statusCode).json(response);
+});
+
+// Check payment status by querying provider (useful if webhook not reachable)
+const checkPaymentStatus = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { response, statusCode } = await OrderService.checkPaymentStatus(req.user._id, orderId);
+  res.status(statusCode).json(response);
+});
+
+// Mark payment as failed (timeout / user closed popup)
+const failPayment = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { response, statusCode } = await OrderService.failPayment(req.user._id, orderId);
   res.status(statusCode).json(response);
 });
 
@@ -108,6 +124,8 @@ module.exports = {
   cancelOrder,
   createPaymentOrder,
   verifyPayment,
+  checkPaymentStatus,
+  failPayment,
   getAllOrders,
   adminCancelOrder
 };
