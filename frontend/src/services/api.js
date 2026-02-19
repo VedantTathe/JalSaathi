@@ -102,12 +102,14 @@ export const orderApi = {
   createOrder: (orderData) => apiClient.post('/order/create', orderData),
   getMyOrders: (params) => apiClient.get('/order/my-orders', { params }),
   getOrderById: (orderId) => apiClient.get(`/order/${orderId}`),
+  checkPayment: (orderId) => apiClient.get(`/order/${orderId}/payment/check`),
   trackOrder: (orderId) => apiClient.get(`/order/${orderId}/track`),
   cancelOrder: (orderId, reason) => apiClient.patch(`/order/${orderId}/cancel`, { reason }),
   getAllOrders: (params) => apiClient.get('/order', { params }),
   adminCancelOrder: (orderId, reason) => apiClient.patch(`/order/${orderId}/admin-cancel`, { reason }),
   createPayment: (orderId) => apiClient.post(`/order/${orderId}/payment/create`),
   verifyPayment: (orderId, payload) => apiClient.post(`/order/${orderId}/payment/verify`, payload),
+  failPayment: (orderId) => apiClient.post(`/order/${orderId}/payment/fail`),
 };
 
 // Delivery API

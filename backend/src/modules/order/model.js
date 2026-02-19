@@ -126,11 +126,11 @@ const orderSchema = new mongoose.Schema({
     type: String,
     maxlength: [300, 'Delivery notes cannot exceed 300 characters']
   },
-  // Payment gateway info (Razorpay etc)
+  // Payment gateway info (payment provider details)
   paymentInfo: {
-    provider: { type: String },       // 'razorpay'
-    orderId: { type: String },         // razorpay order id
-    paymentId: { type: String },       // razorpay payment id
+    provider: { type: String },       // e.g. 'cashfree'
+    orderId: { type: String },         // provider order id
+    paymentId: { type: String },       // provider payment id
     signature: { type: String },       // signature for verification
     capturedAt: { type: Date },
     failedReason: { type: String },
