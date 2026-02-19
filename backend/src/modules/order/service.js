@@ -42,10 +42,13 @@ class OrderService {
       }
       
       // Create order
-      // If payment method is online, create order in pending payment state
-      const isOnline = (paymentMethod || '').toString().toLowerCase() === 'online';
-      const initialStatus = isOnline ? 'pending' : 'accepted';
-      const initialPaymentStatus = isOnline ? 'pending' : (paymentMethod === 'cash_on_delivery' ? 'unpaid' : 'pending');
+      // Normalize payment method and determine initial statuses
+      const paymentMethodNormalized = (paymentMethod || 'cash_on_delivery').toString().toLowerCase();
+      const isOnline = paymentMethodNormalized === 'online';
+      const isCOD = paymentMethodNormalized === 'cash_on_delivery';
+      // For COD we place the order but keep it pending (provider needs to accept)
+      const initialStatus = isOnline ? 'pending' : (isCOD ? 'pending' : 'accepted');
+      const initialPaymentStatus = isOnline ? 'pending' : (isCOD ? 'unpaid' : 'pending');
 
       const order = await Order.create({
         customerId,
@@ -67,8 +70,8 @@ class OrderService {
         .populate('customerId', 'name phone email')
         .populate('providerId');
       
-      // Update provider statistics only for auto-accepted (non-online) orders
-      if (!isOnline) {
+      // Update provider statistics only for auto-accepted orders
+      if (initialStatus === 'accepted') {
         try {
           provider.totalOrders = (provider.totalOrders || 0) + 1;
           await provider.save();
@@ -78,7 +81,8 @@ class OrderService {
         }
       }
 
-      return formatResponse(true, isOnline ? 'Order created, awaiting payment' : 'Order created and auto-accepted', populatedOrder, 201);
+      const message = isOnline ? 'Order created, awaiting payment' : (initialStatus === 'accepted' ? 'Order created and auto-accepted' : 'Order created and pending acceptance');
+      return formatResponse(true, message, populatedOrder, 201);
     } catch (error) {
       console.error('Create order error:', error);
       return formatResponse(false, 'Failed to create order', null, 500);

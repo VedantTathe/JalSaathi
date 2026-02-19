@@ -52,14 +52,25 @@ const checkProviderOnline = async (req, res, next) => {
   try {
     const Provider = require('../modules/provider/model');
     const provider = await Provider.findById(req.body.providerId);
-    
+
+    // Treat missing paymentMethod as COD by default (frontend defaults to COD)
+    const paymentMethod = (req.body.paymentMethod || 'cash_on_delivery').toString().toLowerCase();
+
+    // Allow Cash on Delivery orders regardless of provider's online flag
+    if (paymentMethod === 'cash_on_delivery') {
+      if (!provider) {
+        return res.status(400).json({ success: false, message: 'Provider not found' });
+      }
+      return next();
+    }
+
     if (!provider || !provider.isOnline) {
       return res.status(400).json({
         success: false,
         message: 'Provider is currently offline and not accepting orders'
       });
     }
-    
+
     next();
   } catch (error) {
     return res.status(500).json({
