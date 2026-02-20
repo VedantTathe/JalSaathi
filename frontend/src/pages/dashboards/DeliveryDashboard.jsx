@@ -323,12 +323,108 @@ const DeliveryDashboard = () => {
     );
   };
 
-  // 🗺️ 3. DELIVERY NAVIGATION - Simple Google Maps Integration
+  // 🗺️ 3. DELIVERY NAVIGATION - Single Map View
   const DeliveryTracking = () => {
-    // Get all orders that need delivery (assigned or out_for_delivery)
+    const [currentLocation, setCurrentLocation] = useState(null);
+    const [locationError, setLocationError] = useState(null);
+    const [optimizedRoute, setOptimizedRoute] = useState([]);
+    const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+
+    // Get all orders that need delivery
     const allPendingOrders = orders.filter(o => 
       ['assigned', 'out_for_delivery'].includes(o.status)
     );
+
+    // Calculate distance between two coordinates (Haversine formula)
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371; // Earth's radius in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    // Optimize route using nearest neighbor algorithm
+    const optimizeRoute = (startLat, startLon, ordersList) => {
+      if (ordersList.length === 0) return [];
+      if (ordersList.length === 1) return ordersList;
+
+      const unvisited = [...ordersList];
+      const route = [];
+      let currentLat = startLat;
+      let currentLon = startLon;
+
+      while (unvisited.length > 0) {
+        let nearestIndex = 0;
+        let nearestDistance = Infinity;
+
+        unvisited.forEach((order, index) => {
+          const coords = order.deliveryAddress?.coordinates;
+          if (coords?.latitude && coords?.longitude) {
+            const distance = calculateDistance(
+              currentLat, currentLon,
+              coords.latitude, coords.longitude
+            );
+            if (distance < nearestDistance) {
+              nearestDistance = distance;
+              nearestIndex = index;
+            }
+          }
+        });
+
+        const nearest = unvisited.splice(nearestIndex, 1)[0];
+        route.push(nearest);
+        
+        const coords = nearest.deliveryAddress?.coordinates;
+        if (coords?.latitude && coords?.longitude) {
+          currentLat = coords.latitude;
+          currentLon = coords.longitude;
+        }
+      }
+
+      return route;
+    };
+
+    // Get current location
+    const getCurrentLocation = () => {
+      setIsLoadingLocation(true);
+      setLocationError(null);
+
+      if (!navigator.geolocation) {
+        setLocationError('Geolocation is not supported by your browser');
+        setIsLoadingLocation(false);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          };
+          setCurrentLocation(location);
+          
+          // Optimize route from current location
+          const route = optimizeRoute(
+            location.latitude,
+            location.longitude,
+            allPendingOrders
+          );
+          setOptimizedRoute(route);
+          setIsLoadingLocation(false);
+          toast.success('Route optimized!');
+        },
+        (error) => {
+          setLocationError('Unable to get your location. Please enable location services.');
+          setIsLoadingLocation(false);
+          toast.error('Location access denied');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    };
 
     // Get address text for an order
     const getAddressText = (order) => {
@@ -336,71 +432,93 @@ const DeliveryDashboard = () => {
       return `${addr?.street || ''}, ${addr?.area || ''}, ${addr?.city || ''}, ${addr?.pincode || ''}`;
     };
 
-    // Navigate to single order
-    const navigateToOrder = (order) => {
-      const addressText = getAddressText(order);
-      const url = `https://www.google.com/maps/dir/?api=1&origin=My+Location&destination=${encodeURIComponent(addressText)}&travelmode=driving`;
-      window.open(url, '_blank');
-    };
+    // Build Google Maps URL with all markers
+    const getMapUrl = () => {
+      if (!currentLocation) return null;
 
-    // Open Google Maps: My Location -> All Stops (sorted) -> Last as Destination
-    const openGoogleMapsFromMyLocation = () => {
-      if (allPendingOrders.length === 0) {
-        toast.error('No pending orders to navigate');
-        return;
+      // Start with base URL
+      let url = 'https://www.google.com/maps/dir/?api=1';
+      
+      // Add delivery boy's current location as origin
+      url += `&origin=${currentLocation.latitude},${currentLocation.longitude}`;
+      
+      // If we have optimized route, show the route
+      if (optimizedRoute.length > 0) {
+        // Last stop is destination
+        const lastStop = optimizedRoute[optimizedRoute.length - 1];
+        const lastCoords = lastStop.deliveryAddress?.coordinates;
+        if (lastCoords?.latitude && lastCoords?.longitude) {
+          url += `&destination=${lastCoords.latitude},${lastCoords.longitude}`;
+        } else {
+          url += `&destination=${encodeURIComponent(getAddressText(lastStop))}`;
+        }
+
+        // All other stops are waypoints
+        if (optimizedRoute.length > 1) {
+          const waypoints = optimizedRoute.slice(0, -1)
+            .map(order => {
+              const coords = order.deliveryAddress?.coordinates;
+              if (coords?.latitude && coords?.longitude) {
+                return `${coords.latitude},${coords.longitude}`;
+              }
+              return encodeURIComponent(getAddressText(order));
+            })
+            .join('|');
+          url += `&waypoints=${waypoints}`;
+        }
+      } else if (allPendingOrders.length > 0) {
+        // If no optimization yet, show first order as destination
+        const firstOrder = allPendingOrders[0];
+        const coords = firstOrder.deliveryAddress?.coordinates;
+        if (coords?.latitude && coords?.longitude) {
+          url += `&destination=${coords.latitude},${coords.longitude}`;
+        } else {
+          url += `&destination=${encodeURIComponent(getAddressText(firstOrder))}`;
+        }
       }
 
-      // Single order - direct navigation
-      if (allPendingOrders.length === 1) {
-        const addressText = getAddressText(allPendingOrders[0]);
-        const url = `https://www.google.com/maps/dir/?api=1&origin=My+Location&destination=${encodeURIComponent(addressText)}&travelmode=driving`;
-        window.open(url, '_blank');
-        return;
-      }
-
-      // Multiple orders - last order is destination, rest are waypoints
-      const lastOrder = allPendingOrders[allPendingOrders.length - 1];
-      const destination = getAddressText(lastOrder);
-
-      // All orders except last become waypoints
-      const waypoints = allPendingOrders.slice(0, -1).map(order => getAddressText(order)).join('|');
-
-      let url = `https://www.google.com/maps/dir/?api=1`;
-      url += `&origin=My+Location`;
-      url += `&destination=${encodeURIComponent(destination)}`;
-      if (waypoints) {
-        url += `&waypoints=${encodeURIComponent(waypoints)}`;
-      }
       url += `&travelmode=driving`;
-
-      window.open(url, '_blank');
+      return url;
     };
+
+    // Open full map in Google Maps
+    const openFullMap = () => {
+      const url = getMapUrl();
+      if (url) {
+        window.open(url, '_blank');
+      }
+    };
+
+    // Mark order as delivered
+    const handleMarkDelivered = (order) => {
+      if (order.paymentMethod === 'cash_on_delivery' && order.paymentStatus !== 'paid') {
+        toast.error('Please collect payment first');
+        return;
+      }
+
+      markDeliveredMutation.mutate(order._id, {
+        onSuccess: () => {
+          toast.success('Order delivered! Route updated.');
+          // Refresh location and route
+          getCurrentLocation();
+        }
+      });
+    };
+
+    // Initial route optimization on component mount
+    useEffect(() => {
+      if (allPendingOrders.length > 0 && !currentLocation) {
+        getCurrentLocation();
+      }
+    }, [allPendingOrders.length]);
+
+    // Get nearest stop (first in optimized route)
+    const nearestStop = optimizedRoute.length > 0 ? optimizedRoute[0] : null;
 
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Delivery Navigation</h1>
-        <p className="text-gray-600 mb-4">Tap to open Google Maps with your route</p>
-
-        {/* Total Orders Card */}
-        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 text-center mb-6">
-          <p className="text-3xl font-bold text-blue-800">{allPendingOrders.length}</p>
-          <p className="text-sm text-blue-600">Orders in this Journey</p>
-        </div>
-
-        {/* Main Navigation Button */}
-        {allPendingOrders.length > 0 && (
-          <button
-            onClick={openGoogleMapsFromMyLocation}
-            className="w-full bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-xl p-5 mb-6 shadow-lg hover:shadow-xl transition-all flex items-center justify-center space-x-3"
-          >
-            <Navigation className="h-8 w-8" />
-            <div className="text-left">
-              <p className="text-lg font-bold">🗺️ Start Navigation ({allPendingOrders.length} stops)</p>
-              <p className="text-sm text-green-100">My Location → All Stops → Destination</p>
-            </div>
-            <ExternalLink className="h-5 w-5" />
-          </button>
-        )}
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Delivery Route Map</h1>
+        <p className="text-gray-600 mb-4">View all delivery locations on one map</p>
 
         {/* No orders message */}
         {allPendingOrders.length === 0 && (
@@ -411,59 +529,289 @@ const DeliveryDashboard = () => {
           </div>
         )}
 
-        {/* Orders List */}
         {allPendingOrders.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">Delivery Stops</h3>
+          <>
+            {/* Location Button */}
+            <div className="mb-4">
+              <button
+                onClick={getCurrentLocation}
+                disabled={isLoadingLocation}
+                className="w-full bg-primary-600 text-white rounded-lg p-4 font-semibold hover:bg-primary-700 disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
+              >
+                <MapPin className="h-5 w-5" />
+                <span>{isLoadingLocation ? 'Getting Location...' : currentLocation ? 'Refresh My Location' : 'Get My Location & Optimize Route'}</span>
+              </button>
+              {locationError && (
+                <p className="text-sm text-error-600 mt-2 text-center">{locationError}</p>
+              )}
             </div>
-            <div className="divide-y divide-gray-100">
-              {allPendingOrders.map((order, index) => (
-                <div key={order._id} className="p-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                        index === allPendingOrders.length - 1 ? 'bg-red-500' : 'bg-blue-500'
-                      }`}>
-                        {index + 1}
+
+            {/* Map Container */}
+            {currentLocation && (
+              <div className="bg-white rounded-lg shadow-lg border-2 border-gray-200 overflow-hidden mb-4">
+                {/* Map Display with Customer Labels */}
+                <div className="relative" style={{ height: '500px' }}>
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    style={{ border: 0 }}
+                    src={`https://www.google.com/maps/embed/v1/directions?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&origin=${currentLocation.latitude},${currentLocation.longitude}&destination=${
+                      nearestStop?.deliveryAddress?.coordinates?.latitude && nearestStop?.deliveryAddress?.coordinates?.longitude
+                        ? `${nearestStop.deliveryAddress.coordinates.latitude},${nearestStop.deliveryAddress.coordinates.longitude}`
+                        : encodeURIComponent(getAddressText(nearestStop || allPendingOrders[0]))
+                    }${optimizedRoute.length > 1 ? `&waypoints=${optimizedRoute.slice(1).map(o => {
+                      const coords = o.deliveryAddress?.coordinates;
+                      return coords?.latitude && coords?.longitude ? `${coords.latitude},${coords.longitude}` : encodeURIComponent(getAddressText(o));
+                    }).join('|')}` : ''}&mode=driving`}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Delivery Route Map"
+                  />
+                  {/* Overlay Open in Google Maps Button */}
+                  <button
+                    onClick={openFullMap}
+                    className="absolute top-3 right-3 bg-white shadow-lg rounded-lg px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-primary-50 transition-colors flex items-center space-x-1 border border-gray-200 z-10"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    <span>Open in Maps</span>
+                  </button>
+
+                  {/* Prominent Customer Labels Overlay - Left Side */}
+                  <div className="absolute left-3 top-3 bottom-3 w-64 bg-white shadow-2xl rounded-lg border-2 border-primary-300 overflow-hidden flex flex-col">
+                    <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-3 py-2 flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4 text-white" />
+                        <h4 className="text-sm font-bold text-white">Customer Stops</h4>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{order.customerId?.name || 'Customer'}</p>
-                        <p className="text-xs text-gray-500">
-                          {order.deliveryAddress?.street}, {order.deliveryAddress?.area}
-                        </p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <span className="text-xs text-gray-600">{order.items?.quantity} cans • Rs. {order.items?.totalPrice}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${
-                            order.paymentMethod === 'cash_on_delivery' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
-                          }`}>
-                            {order.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Paid'}
-                          </span>
-                          {index === allPendingOrders.length - 1 && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">Destination</span>
-                          )}
+                      <span className="text-xs bg-white text-primary-700 font-bold px-2 py-0.5 rounded-full">{optimizedRoute.length}</span>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-gray-50">
+                      {optimizedRoute.map((order, index) => (
+                        <div 
+                          key={order._id} 
+                          className={`rounded-lg p-2 shadow-sm border-2 ${
+                            index === 0 
+                              ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-400' 
+                              : 'bg-white border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-start space-x-2">
+                            <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-md ${
+                              index === 0 ? 'bg-green-500' : 'bg-red-500'
+                            }`}>
+                              {index + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-gray-900 truncate">
+                                {order.customerId?.name || 'Customer'}
+                              </p>
+                              <p className="text-xs text-gray-600 truncate">
+                                {order.deliveryAddress?.area || order.deliveryAddress?.street}
+                              </p>
+                              {index === 0 && (
+                                <span className="inline-block mt-1 text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-semibold">
+                                  NEAREST
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="bg-gradient-to-r from-gray-100 to-gray-50 px-3 py-2 border-t border-gray-200">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-2">
+                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                          <span className="text-gray-700 font-medium">Nearest</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="h-2 w-2 bg-red-500 rounded-full"></div>
+                          <span className="text-gray-700 font-medium">Other Stops</span>
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Your Location Indicator - Top Left */}
+                  <div className="absolute top-3 left-[270px] bg-blue-600 shadow-xl rounded-lg px-3 py-2 border-2 border-blue-400">
                     <div className="flex items-center space-x-2">
-                      {order.customerId?.phone && (
-                        <a href={`tel:${order.customerId.phone}`} className="p-2 bg-blue-100 rounded-full text-blue-600 hover:bg-blue-200">
-                          <Phone className="h-4 w-4" />
-                        </a>
-                      )}
-                      <button
-                        onClick={() => navigateToOrder(order)}
-                        className="p-2 bg-green-100 rounded-full text-green-600 hover:bg-green-200"
-                        title="Navigate to this address"
-                      >
-                        <Navigation className="h-4 w-4" />
-                      </button>
+                      <div className="h-3 w-3 bg-white rounded-full animate-pulse"></div>
+                      <span className="text-xs font-bold text-white">Your Location</span>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+
+                {/* Map Info Bar */}
+                <div className="bg-gradient-to-r from-primary-50 to-blue-50 px-4 py-3 border-t-2 border-primary-200">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <div className="h-4 w-4 bg-blue-600 rounded-full border-2 border-white shadow-md"></div>
+                        <span className="text-gray-700 font-bold">You</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="h-4 w-4 bg-green-600 rounded-full border-2 border-white shadow-md"></div>
+                        <span className="text-gray-700 font-bold">Stop #1 (Nearest)</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="h-4 w-4 bg-red-600 rounded-full border-2 border-white shadow-md"></div>
+                        <span className="text-gray-700 font-bold">Other Stops</span>
+                      </div>
+                    </div>
+                    <span className="text-primary-700 font-extrabold text-lg">{optimizedRoute.length} Stops</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Nearest Customer Highlight */}
+            {nearestStop && currentLocation && (
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-300 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="h-10 w-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
+                      1
+                    </div>
+                    <div>
+                      <p className="text-xs text-green-700 font-semibold">NEAREST STOP</p>
+                      <p className="font-bold text-gray-900">{nearestStop.customerId?.name || 'Customer'}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-600">Distance</p>
+                    <p className="text-lg font-bold text-green-600">
+                      {calculateDistance(
+                        currentLocation.latitude,
+                        currentLocation.longitude,
+                        nearestStop.deliveryAddress?.coordinates?.latitude || 0,
+                        nearestStop.deliveryAddress?.coordinates?.longitude || 0
+                      ).toFixed(1)} km
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-lg p-3 mb-3">
+                  <p className="text-sm text-gray-900 mb-1">
+                    <MapPin className="h-4 w-4 inline-block text-gray-500 mr-1" />
+                    {getAddressText(nearestStop)}
+                  </p>
+                  <div className="flex items-center space-x-3 text-sm">
+                    <span className="text-gray-600">
+                      {nearestStop.items?.quantity} cans • Rs. {nearestStop.items?.totalPrice}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-xs ${
+                      nearestStop.paymentMethod === 'cash_on_delivery' 
+                        ? 'bg-orange-100 text-orange-700' 
+                        : 'bg-green-100 text-green-700'
+                    }`}>
+                      {nearestStop.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Paid'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {nearestStop.customerId?.phone && (
+                    <a
+                      href={`tel:${nearestStop.customerId.phone}`}
+                      className="bg-white border-2 border-blue-500 text-blue-600 py-2 px-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors flex items-center justify-center space-x-1"
+                    >
+                      <Phone className="h-4 w-4" />
+                      <span className="text-sm">Call</span>
+                    </a>
+                  )}
+                  <button
+                    onClick={openFullMap}
+                    className="bg-blue-600 text-white py-2 px-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-1"
+                  >
+                    <Navigation className="h-4 w-4" />
+                    <span className="text-sm">Navigate</span>
+                  </button>
+                  <button
+                    onClick={() => handleMarkDelivered(nearestStop)}
+                    disabled={markDeliveredMutation.isLoading}
+                    className="bg-green-600 text-white py-2 px-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center space-x-1"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="text-sm">Done</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* All Stops List */}
+            {optimizedRoute.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                  <h3 className="font-semibold text-gray-900">All Delivery Stops (Optimized by Distance)</h3>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {optimizedRoute.map((order, index) => {
+                    const distance = currentLocation ? calculateDistance(
+                      currentLocation.latitude,
+                      currentLocation.longitude,
+                      order.deliveryAddress?.coordinates?.latitude || 0,
+                      order.deliveryAddress?.coordinates?.longitude || 0
+                    ) : 0;
+
+                    return (
+                      <div 
+                        key={order._id} 
+                        className={`p-4 ${index === 0 ? 'bg-green-50' : 'hover:bg-gray-50'}`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-3 flex-1">
+                            <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${
+                              index === 0 ? 'bg-green-500' : 'bg-blue-500'
+                            }`}>
+                              {index + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <p className="font-medium text-gray-900">{order.customerId?.name || 'Customer'}</p>
+                                {index === 0 && (
+                                  <span className="text-xs px-2 py-0.5 rounded bg-green-500 text-white font-semibold">Nearest</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 break-words mb-1">
+                                {order.deliveryAddress?.street}, {order.deliveryAddress?.area}
+                              </p>
+                              <div className="flex items-center flex-wrap gap-2">
+                                <span className="text-xs text-gray-600">{order.items?.quantity} cans • Rs. {order.items?.totalPrice}</span>
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                  order.paymentMethod === 'cash_on_delivery' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                                }`}>
+                                  {order.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Paid'}
+                                </span>
+                                {distance > 0 && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                    {distance.toFixed(1)} km away
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                            {order.customerId?.phone && (
+                              <a 
+                                href={`tel:${order.customerId.phone}`} 
+                                className="p-2 bg-blue-100 rounded-full text-blue-600 hover:bg-blue-200"
+                              >
+                                <Phone className="h-4 w-4" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     );

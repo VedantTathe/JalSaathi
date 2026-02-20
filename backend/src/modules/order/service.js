@@ -48,7 +48,7 @@ class OrderService {
       const isCOD = paymentMethodNormalized === 'cash_on_delivery';
       // For COD we place the order but keep it pending (provider needs to accept)
       const initialStatus = isOnline ? 'pending' : (isCOD ? 'pending' : 'accepted');
-      const initialPaymentStatus = isOnline ? 'pending' : (isCOD ? 'unpaid' : 'pending');
+      const initialPaymentStatus = isOnline ? 'pending' : (isCOD ? 'pending' : 'pending');
 
       const order = await Order.create({
         customerId,

@@ -617,7 +617,7 @@ const ProviderDashboard = () => {
         ) : (
           <div className="space-y-4">
             {filteredOrders.map((order) => {
-              const isAssignable = ['accepted', 'assigned', 'out_for_delivery'].includes(order.status);
+              const isAssignable = ['pending', 'accepted', 'assigned', 'out_for_delivery'].includes(order.status);
               return (
               <div key={order._id} className={`bg-white rounded-lg shadow-sm border p-6 ${order.status === 'delivered' ? 'border-success-300 bg-success-50' : order.status === 'cancelled' ? 'border-error-300 bg-error-50' : 'border-gray-200'}`}>
                 <div className="flex items-start justify-between mb-4">
@@ -690,7 +690,7 @@ const ProviderDashboard = () => {
                       Cancel Order
                     </button>
 
-                    {!order.deliveryBoyId && order.status === 'accepted' && (
+                    {!order.deliveryBoyId && (order.status === 'accepted' || order.status === 'pending') && (
                       <button
                         onClick={() => {
                           setSelectedOrders(new Set([order._id]));
@@ -716,7 +716,7 @@ const ProviderDashboard = () => {
               <h3 className="text-lg font-semibold mb-4">Assign Delivery Partner</h3>
               <select value={selectedDeliveryBoy} onChange={e => setSelectedDeliveryBoy(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4">
                 <option value="">Select partner</option>
-                {deliveryBoysData?.data?.map(db => (
+                {(deliveryBoysData?.data || []).map(db => (
                   <option key={db._id} value={db._id}>{db.name} - {db.phone}</option>
                 ))}
               </select>
