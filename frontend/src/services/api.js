@@ -56,6 +56,16 @@ export const authApi = {
   updateProfile: (profileData) => apiClient.put('/auth/profile', profileData),
   changePassword: (currentPassword, newPassword) => 
     apiClient.post('/auth/change-password', { currentPassword, newPassword }),
+  // OTP-related endpoints
+  sendRegistrationOTP: (userData) => apiClient.post('/auth/send-otp', userData),
+  verifyRegistrationOTP: (email, otp) => apiClient.post('/auth/verify-otp', { email, otp }),
+  resendOTP: (email) => apiClient.post('/auth/resend-otp', { email }),
+  sendLoginOTP: (email) => apiClient.post('/auth/login/send-otp', { email }),
+  verifyLoginOTP: (email, otp) => apiClient.post('/auth/login/verify-otp', { email, otp }),
+  // Forgot password endpoints
+  sendPasswordResetOTP: (email) => apiClient.post('/auth/forgot-password/send-otp', { email }),
+  verifyPasswordResetOTP: (email, otp) => apiClient.post('/auth/forgot-password/verify-otp', { email, otp }),
+  resetPassword: (email, otp, newPassword) => apiClient.post('/auth/forgot-password/reset', { email, otp, newPassword }),
 };
 
 // User API

@@ -64,7 +64,10 @@ const ProviderDashboard = () => {
         queryClient.invalidateQueries('provider-orders');
         toast.success('Order cancelled');
       },
-      onError: () => toast.error('Failed to cancel order')
+      onError: (error) => {
+        const message = error?.response?.data?.message || 'Failed to cancel order';
+        toast.error(message);
+      }
     }
   );
 
@@ -76,7 +79,10 @@ const ProviderDashboard = () => {
         queryClient.invalidateQueries('provider-orders');
         toast.success('Assigned delivery partner');
       },
-      onError: () => toast.error('Failed to assign delivery partner')
+      onError: (error) => {
+        const message = error?.response?.data?.message || 'Failed to assign delivery partner';
+        toast.error(message);
+      }
     }
   );
 
@@ -87,10 +93,13 @@ const ProviderDashboard = () => {
       onSuccess: (res) => {
         queryClient.invalidateQueries('provider-delivery-boys');
         const generated = res?.data?.generatedPassword || res?.generatedPassword;
-        if (generated) toast.success(`Delivery boy added password: ${generated}`);
-        else toast.success('Delivery boy added');
+        if (generated) toast.success(`Delivery boy added! Password: ${generated}`);
+        else toast.success('Delivery boy added successfully!');
       },
-      onError: () => toast.error('Failed to add delivery boy')
+      onError: (error) => {
+        const message = error?.response?.data?.message || 'Failed to add delivery boy';
+        toast.error(message);
+      }
     }
   );
 
@@ -101,7 +110,10 @@ const ProviderDashboard = () => {
         queryClient.invalidateQueries('provider-delivery-boys');
         toast.success('Delivery boy removed');
       },
-      onError: () => toast.error('Failed to remove delivery boy')
+      onError: (error) => {
+        const message = error?.response?.data?.message || 'Failed to remove delivery boy';
+        toast.error(message);
+      }
     }
   );
 
@@ -113,7 +125,10 @@ const ProviderDashboard = () => {
       queryClient.invalidateQueries('provider-analytics');
       toast.success('Provider status updated');
     },
-    onError: () => toast.error('Failed to update status')
+    onError: (error) => {
+      const message = error?.response?.data?.message || 'Failed to update status';
+      toast.error(message);
+    }
   });
 
   const navigation = [
@@ -727,16 +742,37 @@ const ProviderDashboard = () => {
     const boys = deliveryBoysData?.data || [];
 
     const handleAdd = () => {
-      if (!newBoy.name || !newBoy.phone || !newBoy.password) return toast.error('Name, phone and password are required');
+      if (!newBoy.name || !newBoy.phone) {
+        return toast.error('Name and phone are required');
+      }
+      
+      if (!newBoy.email || !newBoy.email.trim()) {
+        return toast.error('Email is required - credentials will be sent to this address');
+      }
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newBoy.email)) {
+        return toast.error('Please enter a valid email address');
+      }
 
-      // Send provided fields including password
-      const payload = { name: newBoy.name, phone: newBoy.phone, password: newBoy.password };
-      if (newBoy.email && newBoy.email.trim() !== '') payload.email = newBoy.email;
+      // Send provided fields - password is optional, will be auto-generated if not provided
+      const payload = { 
+        name: newBoy.name, 
+        phone: newBoy.phone, 
+        email: newBoy.email.trim()
+      };
+      
+      // Only include password if provided
+      if (newBoy.password && newBoy.password.trim() !== '') {
+        payload.password = newBoy.password;
+      }
 
       addDeliveryBoyMutation.mutate(payload, {
-        onSuccess: () => {
+        onSuccess: (response) => {
           setShowAddModal(false);
           setNewBoy({ name: '', phone: '', email: '', password: '' });
+          toast.success(response.message || 'Delivery boy added! Credentials sent to email.');
         }
       });
     };
@@ -788,10 +824,11 @@ const ProviderDashboard = () => {
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <h3 className="text-lg font-semibold mb-4">Add Delivery Boy</h3>
                 <div className="space-y-3">
-                <input value={newBoy.name} onChange={e => setNewBoy({...newBoy, name: e.target.value})} placeholder="Name" className="w-full border px-3 py-2 rounded-lg" />
-                <input value={newBoy.phone} onChange={e => setNewBoy({...newBoy, phone: e.target.value})} placeholder="Phone" className="w-full border px-3 py-2 rounded-lg" />
-                <input value={newBoy.email} onChange={e => setNewBoy({...newBoy, email: e.target.value})} placeholder="Email (optional)" className="w-full border px-3 py-2 rounded-lg" />
-                <input type="password" value={newBoy.password} onChange={e => setNewBoy({...newBoy, password: e.target.value})} placeholder="Password" className="w-full border px-3 py-2 rounded-lg" />
+                <input value={newBoy.name} onChange={e => setNewBoy({...newBoy, name: e.target.value})} placeholder="Name" className="w-full border px-3 py-2 rounded-lg" required />
+                <input value={newBoy.phone} onChange={e => setNewBoy({...newBoy, phone: e.target.value})} placeholder="Phone" className="w-full border px-3 py-2 rounded-lg" required />
+                <input type="email" value={newBoy.email} onChange={e => setNewBoy({...newBoy, email: e.target.value})} placeholder="Email (Required - credentials will be sent)" className="w-full border px-3 py-2 rounded-lg" required />
+                <input type="password" value={newBoy.password} onChange={e => setNewBoy({...newBoy, password: e.target.value})} placeholder="Password (leave empty to auto-generate)" className="w-full border px-3 py-2 rounded-lg" />
+                <p className="text-sm text-gray-500">Login credentials will be sent to the delivery boy's email.</p>
               </div>
               <div className="flex justify-end space-x-3 mt-4">
                 <button onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg border">Cancel</button>

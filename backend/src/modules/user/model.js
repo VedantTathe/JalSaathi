@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [function() { return this.role !== 'delivery'; }, 'Email is required'],
+    required: [true, 'Email is required'],
     lowercase: true,
     match: [
       /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
@@ -80,6 +80,19 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Provider',
     default: null
+  },
+  // Email verification fields
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationOTP: {
+    type: String,
+    select: false // Don't include OTP in queries by default
+  },
+  otpExpiry: {
+    type: Date,
+    select: false // Don't include OTP expiry in queries by default
   }
 }, {
   timestamps: true
@@ -104,6 +117,25 @@ userSchema.pre('save', async function(next) {
 // Instance method to check password
 userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Instance method to generate and set OTP
+userSchema.methods.generateOTP = function() {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  this.emailVerificationOTP = otp;
+  this.otpExpiry = Date.now() + 10 * 60 * 1000; // OTP valid for 10 minutes
+  return otp;
+};
+
+// Instance method to verify OTP
+userSchema.methods.verifyOTP = function(enteredOTP) {
+  if (!this.emailVerificationOTP || !this.otpExpiry) {
+    return false;
+  }
+  if (Date.now() > this.otpExpiry) {
+    return false; // OTP expired
+  }
+  return this.emailVerificationOTP === enteredOTP;
 };
 
 // Static method to find users by role

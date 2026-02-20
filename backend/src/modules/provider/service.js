@@ -2,6 +2,7 @@ const Provider = require('./model');
 const User = require('../user/model');
 const Order = require('../order/model');
 const { formatResponse } = require('../../utils/helpers');
+const { sendDeliveryBoyCredentialsEmail } = require('../../utils/mailer');
 
 class ProviderService {
   // Toggle provider online/offline status
@@ -248,43 +249,97 @@ class ProviderService {
   // Add delivery boy
   static async addDeliveryBoy(userId, deliveryBoyData) {
     try {
-      const provider = await Provider.findOne({ userId });
+      console.log('[Service] addDeliveryBoy called for userId:', userId);
+      console.log('[Service] Delivery boy data:', { name: deliveryBoyData.name, email: deliveryBoyData.email });
+      
+      const provider = await Provider.findOne({ userId }).populate('userId', 'name');
       if (!provider) {
+        console.log('[Service] Provider not found');
         return formatResponse(false, 'Provider not found', null, 404);
       }
+      
+      console.log('[Service] Provider found:', provider.businessName);
+      
+      // Validate email is provided
+      if (!deliveryBoyData.email) {
+        console.log('[Service] Email not provided');
+        return formatResponse(false, 'Email is required for delivery boy', null, 400);
+      }
+      
+      // Check if email already exists
+      console.log('[Service] Checking if email exists:', deliveryBoyData.email);
+      const existingUser = await User.findOne({ email: deliveryBoyData.email });
+      if (existingUser) {
+        console.log('[Service] Email already registered for user:', existingUser.name, 'with role:', existingUser.role);
+        return formatResponse(
+          false, 
+          `This email is already registered in the system${existingUser.role ? ` as a ${existingUser.role}` : ''}. Please use a different email address.`, 
+          null, 
+          400
+        );
+      }
+      
+      console.log('[Service] Email is available');
+      
       // Create delivery boy user
       // If password not provided, generate one and return it to the caller so provider can note it
       let generatedPassword = null;
       if (!deliveryBoyData.password) {
         generatedPassword = Math.random().toString(36).slice(-8);
         deliveryBoyData.password = generatedPassword;
+        console.log('[Service] Auto-generated password');
       }
 
       const toCreate = {
         ...deliveryBoyData,
         role: 'delivery',
-        providerId: provider._id
+        providerId: provider._id,
+        isEmailVerified: true, // Auto-verify for delivery boys
+        isActive: true
       };
 
+      console.log('[Service] Creating delivery boy user...');
       const deliveryBoy = await User.create(toCreate);
+      console.log('[Service] Delivery boy user created:', deliveryBoy._id);
 
       // Add to provider's delivery boys list
       provider.deliveryBoys.push(deliveryBoy._id);
       await provider.save();
+      console.log('[Service] Added to provider delivery boys list');
+      
+      // Send credentials email to delivery boy
+      const passwordToSend = generatedPassword || deliveryBoyData.password;
+      const providerName = provider.userId?.name || provider.businessName || 'Your Provider';
+      
+      console.log(`[Service] Sending credentials email to ${deliveryBoy.email}`);
+      const emailResult = await sendDeliveryBoyCredentialsEmail(
+        deliveryBoy.email,
+        deliveryBoy.name,
+        passwordToSend,
+        providerName
+      );
+      
+      if (!emailResult.success) {
+        console.warn(`[Service] Failed to send credentials email to ${deliveryBoy.email}`);
+      } else {
+        console.log(`[Service] Credentials email sent successfully`);
+      }
 
       const responsePayload = {
         id: deliveryBoy._id,
         name: deliveryBoy.name,
         email: deliveryBoy.email,
-        phone: deliveryBoy.phone
+        phone: deliveryBoy.phone,
+        credentialsSent: emailResult.success
       };
 
       if (generatedPassword) responsePayload.generatedPassword = generatedPassword;
 
-      return formatResponse(true, 'Delivery boy added successfully', responsePayload, 201);
+      console.log('[Service] Delivery boy added successfully');
+      return formatResponse(true, 'Delivery boy added successfully. Credentials sent to email.', responsePayload, 201);
       
     } catch (error) {
-      console.error('Add delivery boy error:', error);
+      console.error('[Service] Add delivery boy error:', error);
       return formatResponse(false, 'Failed to add delivery boy', null, 500);
     }
   }

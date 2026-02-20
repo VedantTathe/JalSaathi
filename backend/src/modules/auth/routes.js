@@ -11,6 +11,22 @@ const {
 } = require('./validation');
 
 // Public routes
+// New OTP-based registration flow
+router.post('/send-otp', 
+  registerValidation,
+  checkValidationErrors,
+  authController.sendRegistrationOTP
+);
+
+router.post('/verify-otp',
+  authController.verifyEmailAndRegister
+);
+
+router.post('/resend-otp',
+  authController.resendOTP
+);
+
+// Legacy registration routes (kept for backward compatibility)
 router.post('/register', 
   registerValidation,
   checkValidationErrors,
@@ -27,6 +43,28 @@ router.post('/login',
   loginValidation,
   checkValidationErrors,
   authController.login
+);
+
+// Login with OTP (passwordless login)
+router.post('/login/send-otp',
+  authController.sendLoginOTP
+);
+
+router.post('/login/verify-otp',
+  authController.verifyLoginOTP
+);
+
+// Forgot password routes
+router.post('/forgot-password/send-otp',
+  authController.sendPasswordResetOTP
+);
+
+router.post('/forgot-password/verify-otp',
+  authController.verifyPasswordResetOTP
+);
+
+router.post('/forgot-password/reset',
+  authController.resetPassword
 );
 
 // Protected routes
