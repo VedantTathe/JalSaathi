@@ -203,11 +203,11 @@ class ProviderService {
         return formatResponse(false, 'Delivery boy not associated with this provider', null, 400);
       }
       
-      // Allow assigning to orders in accepted, assigned, or out_for_delivery status
+      // Allow assigning to orders in pending, accepted, assigned, or out_for_delivery status
       const order = await Order.findOne({
         _id: orderId,
         providerId: provider._id,
-        status: { $in: ['accepted', 'assigned', 'out_for_delivery'] }
+        status: { $in: ['pending', 'accepted', 'assigned', 'out_for_delivery'] }
       });
       
       if (!order) {
@@ -229,19 +229,26 @@ class ProviderService {
   // Get delivery boys
   static async getDeliveryBoys(userId) {
     try {
+      console.log('[Service] getDeliveryBoys called for userId:', userId);
+      
       const provider = await Provider.findOne({ userId }).populate(
         'deliveryBoys', 
         'name email phone isActive'
       );
       
       if (!provider) {
+        console.log('[Service] Provider not found');
         return formatResponse(false, 'Provider not found', null, 404);
       }
+      
+      console.log('[Service] Provider found:', provider.businessName);
+      console.log('[Service] Delivery boys count:', provider.deliveryBoys?.length || 0);
+      console.log('[Service] Delivery boys:', JSON.stringify(provider.deliveryBoys, null, 2));
       
       return formatResponse(true, 'Delivery boys retrieved successfully', provider.deliveryBoys, 200);
       
     } catch (error) {
-      console.error('Get delivery boys error:', error);
+      console.error('[Service] Get delivery boys error:', error);
       return formatResponse(false, 'Failed to retrieve delivery boys', null, 500);
     }
   }
