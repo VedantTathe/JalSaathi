@@ -15,6 +15,7 @@ const updateProviderProfile = asyncHandler(async (req, res) => {
 
 // Get provider orders
 const getProviderOrders = asyncHandler(async (req, res) => {
+  console.log('[Controller] getProviderOrders reached, user:', req.user._id);
   const { status, limit = 20, page = 1 } = req.query;
   const { response, statusCode } = await ProviderService.getProviderOrders(
     req.user._id,
@@ -22,6 +23,7 @@ const getProviderOrders = asyncHandler(async (req, res) => {
     parseInt(limit),
     parseInt(page)
   );
+  console.log('[Controller] getProviderOrders returning status:', statusCode);
   res.status(statusCode).json(response);
 });
 
@@ -64,16 +66,23 @@ const assignDeliveryBoy = asyncHandler(async (req, res) => {
 
 // Get delivery boys
 const getDeliveryBoys = asyncHandler(async (req, res) => {
+  console.log('[Controller] getDeliveryBoys reached, user:', req.user._id);
   const { response, statusCode } = await ProviderService.getDeliveryBoys(req.user._id);
+  console.log('[Controller] getDeliveryBoys returning status:', statusCode);
   res.status(statusCode).json(response);
 });
 
 // Add delivery boy
 const addDeliveryBoy = asyncHandler(async (req, res) => {
-  const requiredFields = ['name', 'email', 'password', 'phone'];
+  console.log('[Controller] addDeliveryBoy reached, user:', req.user._id);
+  console.log('[Controller] Delivery boy data:', { name: req.body.name, email: req.body.email, phone: req.body.phone });
+  
+  // Only name, email, and phone are required (password is auto-generated if not provided)
+  const requiredFields = ['name', 'email', 'phone'];
   const missingFields = requiredFields.filter(field => !req.body[field]);
   
   if (missingFields.length > 0) {
+    console.log('[Controller] Missing fields:', missingFields);
     return res.status(400).json({
       success: false,
       message: `Missing required fields: ${missingFields.join(', ')}`
@@ -81,6 +90,7 @@ const addDeliveryBoy = asyncHandler(async (req, res) => {
   }
   
   const { response, statusCode } = await ProviderService.addDeliveryBoy(req.user._id, req.body);
+  console.log('[Controller] addDeliveryBoy returning status:', statusCode);
   res.status(statusCode).json(response);
 });
 
@@ -93,19 +103,25 @@ const removeDeliveryBoy = asyncHandler(async (req, res) => {
 
 // Get analytics
 const getAnalytics = asyncHandler(async (req, res) => {
+  console.log('[Controller] getAnalytics reached, user:', req.user._id);
   const { response, statusCode } = await ProviderService.getAnalytics(req.user._id);
+  console.log('[Controller] getAnalytics returning status:', statusCode);
   res.status(statusCode).json(response);
 });
 
 // Get order history grouped by day
 const getOrderHistory = asyncHandler(async (req, res) => {
+  console.log('[Controller] getOrderHistory reached, user:', req.user._id);
   const { response, statusCode } = await ProviderService.getOrderHistory(req.user._id, req.query);
+  console.log('[Controller] getOrderHistory returning status:', statusCode);
   res.status(statusCode).json(response);
 });
 
 // Get customers who ordered from this provider
 const getCustomers = asyncHandler(async (req, res) => {
+  console.log('[Controller] getCustomers reached, user:', req.user._id);
   const { response, statusCode } = await ProviderService.getCustomers(req.user._id, req.query);
+  console.log('[Controller] getCustomers returning status:', statusCode);
   res.status(statusCode).json(response);
 });
 
