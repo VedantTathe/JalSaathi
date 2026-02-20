@@ -23,8 +23,16 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState(role || 'customer');
   const [loading, setLoading] = useState(false);
-  const { register: registerUser, user } = useAuth();
+  const { register: registerUser, user, checkAuthStatus } = useAuth();
   const navigate = useNavigate();
+  
+  // OTP verification states
+  const [otpSent, setOtpSent] = useState(false);
+  const [registrationData, setRegistrationData] = useState(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [otpSuccess, setOtpSuccess] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
   
   // Map state for provider location
   const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // India center
@@ -194,60 +202,147 @@ const Register = () => {
     setLoading(true);
     
     try {
-      const { confirmPassword, ...registrationData } = data;
-      registrationData.role = selectedRole;
+      const { confirmPassword, ...regData } = data;
+      regData.role = selectedRole;
       
       // For customers, remove address data since it's not collected during registration
       if (selectedRole === 'customer') {
-        delete registrationData.address;
+        delete regData.address;
       }
       
       // Add coordinates and format data for providers
       if (selectedRole === 'provider') {
         // Make coordinates optional but recommended
         if (coordinates.latitude && coordinates.longitude) {
-          registrationData.coordinates = coordinates;
+          regData.coordinates = coordinates;
         }
-        registrationData.serviceRadius = parseFloat(serviceRadius);
+        regData.serviceRadius = parseFloat(serviceRadius);
         
         // Format minimumOrder as number
-        if (registrationData.minimumOrder) {
-          registrationData.minimumOrder = parseInt(registrationData.minimumOrder);
+        if (regData.minimumOrder) {
+          regData.minimumOrder = parseInt(regData.minimumOrder);
         }
         
         // Ensure operatingHours has default values if not provided
-        if (!registrationData.operatingHours) {
-          registrationData.operatingHours = { open: '08:00', close: '20:00' };
+        if (!regData.operatingHours) {
+          regData.operatingHours = { open: '08:00', close: '20:00' };
         }
         
         // Clean up empty payment details
-        if (registrationData.bankDetails) {
-          const hasAnyBankDetail = Object.values(registrationData.bankDetails).some(val => val);
+        if (regData.bankDetails) {
+          const hasAnyBankDetail = Object.values(regData.bankDetails).some(val => val);
           if (!hasAnyBankDetail) {
-            delete registrationData.bankDetails;
+            delete regData.bankDetails;
           }
         }
         
         // Remove empty UPI fields
-        if (!registrationData.upiId) delete registrationData.upiId;
-        if (!registrationData.upiNumber) delete registrationData.upiNumber;
+        if (!regData.upiId) delete regData.upiId;
+        if (!regData.upiNumber) delete regData.upiNumber;
       }
       
-      const result = await registerUser(registrationData);
+      // Store registration data and send OTP
+      setRegistrationData(regData);
       
-      if (!result.success) {
+      // Import api from services
+      const { authApi } = await import('../services/api');
+      const response = await authApi.sendRegistrationOTP(regData);
+      
+      if (response.success) {
+        setOtpSent(true);
+        toast.success('OTP sent to your email!');
+      } else {
         setError('root', {
-          message: result.message || 'Registration failed. Please try again.',
+          message: response.message || 'Failed to send OTP. Please try again.',
         });
       }
-      // Navigation will happen automatically via useEffect when user state updates
     } catch (error) {
+      const message = error.response?.data?.message || 'Failed to send OTP. Please try again.';
       setError('root', {
-        message: 'An unexpected error occurred. Please try again.',
+        message,
       });
+      toast.error(message);
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    
+    if (!otpCode || otpCode.length !== 6) {
+      setOtpError('Please enter a valid 6-digit OTP');
+      return;
+    }
+    
+    setOtpLoading(true);
+    setOtpError('');
+    
+    try {
+      const { authApi } = await import('../services/api');
+      const response = await authApi.verifyRegistrationOTP(
+        registrationData.email,
+        otpCode
+      );
+      
+      if (response.success && response.data) {
+        // Store token and update auth context
+        localStorage.setItem('jalsaathi_token', response.data.token);
+        setOtpSuccess('Registration successful! Redirecting...');
+        toast.success('Registration successful!');
+        
+        // Refresh auth status
+        await checkAuthStatus();
+        
+        // Navigate to dashboard
+        setTimeout(() => {
+          navigate('/dashboard', { replace: true });
+        }, 1000);
+      } else {
+        setOtpError(response.message || 'Invalid OTP. Please try again.');
+        toast.error(response.message || 'Invalid OTP');
+      }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to verify OTP. Please try again.';
+      setOtpError(message);
+      toast.error(message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+  
+  const handleResendOTP = async () => {
+    setOtpLoading(true);
+    setOtpError('');
+    setOtpSuccess('');
+    
+    try {
+      const { authApi } = await import('../services/api');
+      const response = await authApi.resendOTP(registrationData.email);
+      
+      if (response.success) {
+        setOtpSuccess('OTP resent successfully!');
+        toast.success('OTP resent to your email!');
+        setOtpCode('');
+      } else {
+        setOtpError(response.message || 'Failed to resend OTP');
+        toast.error(response.message || 'Failed to resend OTP');
+      }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to resend OTP';
+      setOtpError(message);
+      toast.error(message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+  
+  const handleChangeEmail = () => {
+    setOtpSent(false);
+    setOtpCode('');
+    setOtpError('');
+    setOtpSuccess('');
+    setRegistrationData(null);
   };
 
   return (
@@ -286,7 +381,90 @@ const Register = () => {
         </div>
 
         <div className="card">
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          {/* OTP Verification Screen */}
+          {otpSent ? (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-primary-100 mb-4">
+                  <Shield className="h-6 w-6 text-primary-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Verify Your Email</h3>
+                <p className="text-sm text-gray-600">
+                  We've sent a 6-digit OTP to <span className="font-semibold">{registrationData?.email}</span>
+                </p>
+              </div>
+
+              <form onSubmit={handleVerifyOTP} className="space-y-6">
+                <div className="form-group">
+                  <label htmlFor="otp-code" className="form-label">
+                    Enter OTP
+                  </label>
+                  <input
+                    id="otp-code"
+                    type="text"
+                    maxLength={6}
+                    className="input-field text-center text-2xl font-bold tracking-widest"
+                    placeholder="000000"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    required
+                  />
+                  <p className="mt-2 text-sm text-gray-500">
+                    OTP is valid for 10 minutes
+                  </p>
+                </div>
+
+                {otpSuccess && (
+                  <div className="rounded-md bg-success-50 p-4">
+                    <p className="text-sm text-success-700">{otpSuccess}</p>
+                  </div>
+                )}
+
+                {otpError && (
+                  <div className="rounded-md bg-error-50 p-4">
+                    <p className="text-sm text-error-700">{otpError}</p>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <button
+                    type="submit"
+                    disabled={otpLoading || otpCode.length !== 6}
+                    className="btn-primary w-full"
+                  >
+                    {otpLoading ? (
+                      <>
+                        <LoadingSpinner size="small" />
+                        Verifying...
+                      </>
+                    ) : (
+                      'Verify & Complete Registration'
+                    )}
+                  </button>
+
+                  <div className="flex justify-center space-x-4 text-sm">
+                    <button
+                      type="button"
+                      onClick={handleResendOTP}
+                      disabled={otpLoading}
+                      className="text-primary-600 hover:text-primary-500 font-medium"
+                    >
+                      Resend OTP
+                    </button>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      type="button"
+                      onClick={handleChangeEmail}
+                      className="text-gray-600 hover:text-gray-900"
+                    >
+                      Change Email
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {/* Role Selection - only show if no role specified in URL */}
             {!role && (
               <div className="form-group">
@@ -854,6 +1032,7 @@ const Register = () => {
               </button>
             </div>
           </form>
+          )}
         </div>
       </div>
     </div>

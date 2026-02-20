@@ -1,7 +1,73 @@
 const AuthService = require('./service');
 const { asyncHandler } = require('../../middlewares/errorHandler');
 
-// Register a new user
+// Send registration OTP
+const sendRegistrationOTP = asyncHandler(async (req, res) => {
+  const { response, statusCode } = await AuthService.sendRegistrationOTP(req.body);
+  res.status(statusCode).json(response);
+});
+
+// Verify OTP and complete registration
+const verifyEmailAndRegister = asyncHandler(async (req, res) => {
+  const { email, otp, registrationData } = req.body;
+  
+  if (!email || !otp) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email and OTP are required'
+    });
+  }
+  
+  const { response, statusCode } = await AuthService.verifyEmailAndRegister(email, otp, registrationData);
+  res.status(statusCode).json(response);
+});
+
+// Resend OTP
+const resendOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email is required'
+    });
+  }
+  
+  const { response, statusCode } = await AuthService.resendOTP(email);
+  res.status(statusCode).json(response);
+});
+
+// Send login OTP
+const sendLoginOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email is required'
+    });
+  }
+  
+  const { response, statusCode } = await AuthService.sendLoginOTP(email);
+  res.status(statusCode).json(response);
+});
+
+// Verify login OTP
+const verifyLoginOTP = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+  
+  if (!email || !otp) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email and OTP are required'
+    });
+  }
+  
+  const { response, statusCode } = await AuthService.verifyLoginOTP(email, otp);
+  res.status(statusCode).json(response);
+});
+
+// Register a new user (DEPRECATED - kept for backward compatibility)
 const register = asyncHandler(async (req, res) => {
   const { response, statusCode } = await AuthService.register(req.body);
   res.status(statusCode).json(response);
@@ -78,12 +144,72 @@ const verifyToken = asyncHandler(async (req, res) => {
   });
 });
 
+// Send password reset OTP
+const sendPasswordResetOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email is required'
+    });
+  }
+  
+  const { response, statusCode } = await AuthService.sendPasswordResetOTP(email);
+  res.status(statusCode).json(response);
+});
+
+// Verify password reset OTP
+const verifyPasswordResetOTP = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+  
+  if (!email || !otp) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email and OTP are required'
+    });
+  }
+  
+  const { response, statusCode } = await AuthService.verifyPasswordResetOTP(email, otp);
+  res.status(statusCode).json(response);
+});
+
+// Reset password
+const resetPassword = asyncHandler(async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email, OTP, and new password are required'
+    });
+  }
+  
+  if (newPassword.length < 6) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password must be at least 6 characters'
+    });
+  }
+  
+  const { response, statusCode } = await AuthService.resetPassword(email, otp, newPassword);
+  res.status(statusCode).json(response);
+});
+
 module.exports = {
+  sendRegistrationOTP,
+  verifyEmailAndRegister,
+  resendOTP,
+  sendLoginOTP,
+  verifyLoginOTP,
   register,
   login,
   getProfile,
   updateProfile,
   changePassword,
   logout,
-  verifyToken
+  verifyToken,
+  sendPasswordResetOTP,
+  verifyPasswordResetOTP,
+  resetPassword
 };
