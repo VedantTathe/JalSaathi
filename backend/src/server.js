@@ -27,6 +27,9 @@ const paymentWebhook = require('./modules/payment/webhook');
 const { errorHandler } = require('./middlewares/errorHandler');
 const { authenticateToken } = require('./middlewares/auth');
 
+// Import utilities
+const { initializeCronJobs } = require('./utils/cronJobs');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -36,7 +39,7 @@ app.use(helmet());
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
   'http://localhost:3000',
-  'http://localhost:5173',
+  'http://localhost:5174',
   'https://jalsaathived.vercel.app'
 ];
 
@@ -74,7 +77,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Database connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jalsaathi')
-.then(() => console.log('✅ MongoDB connected successfully'))
+.then(() => {
+  console.log('✅ MongoDB connected successfully');
+  
+  // Initialize cron jobs after successful database connection
+  initializeCronJobs();
+})
 .catch(err => console.error('❌ MongoDB connection error:', err));
 
 // Health check endpoint

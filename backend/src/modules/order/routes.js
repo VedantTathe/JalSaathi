@@ -6,6 +6,10 @@ const { authorizeRoles, checkProviderOnline } = require('../../middlewares/auth'
 
 // Customer routes
 router.post('/create',
+  (req, res, next) => {
+    console.log('🚀 [ROUTE] POST /order/create hit - User:', req.user?._id, 'Provider:', req.body?.providerId);
+    next();
+  },
   authorizeRoles('customer'),
   checkProviderOnline,
   orderController.createOrder

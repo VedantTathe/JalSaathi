@@ -206,7 +206,7 @@ const DashboardOverview = ({
         </div>
 
         {/* Revenue Statistics - Prominent Display */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           {/* Today's Revenue */}
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-8">
             <div className="flex items-center justify-between">
@@ -282,7 +282,7 @@ const DashboardOverview = ({
         </div>
 
         {/* Other Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
@@ -583,7 +583,7 @@ const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails 
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-xs text-gray-600 mb-1">Contact Person</p>
                 <p className="font-semibold text-gray-900">{provider.userId?.name || 'N/A'}</p>
@@ -747,9 +747,8 @@ const ProviderCard = ({ provider, onViewDetails }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-600 mb-1">Contact Person</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+            <div className="bg-gray-50 rounded-lg p-3">\n              <p className="text-xs text-gray-600 mb-1">Contact Person</p>
               <p className="font-semibold text-gray-900">{provider.userId?.name || 'N/A'}</p>
               <p className="text-xs text-gray-600">{provider.userId?.phone || 'N/A'}</p>
             </div>
@@ -828,7 +827,7 @@ const ProviderOrdersModal = ({ provider, onClose }) => {
 
         {/* Statistics */}
         <div className="p-6 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="bg-white rounded-lg p-4 border border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -1020,7 +1019,7 @@ const SettlementsManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
@@ -1311,7 +1310,7 @@ const ProviderDetailsModal = ({ provider, onClose, onApprove, onReject }) => {
         </div>
 
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <h4 className="font-medium text-gray-900 mb-2">Business Information</h4>
               <div className="space-y-2 text-sm">
@@ -1343,7 +1342,7 @@ const ProviderDetailsModal = ({ provider, onClose, onApprove, onReject }) => {
 
           <div>
             <h4 className="font-medium text-gray-900 mb-2">Business Hours</h4>
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               <p>Opens: {provider.businessHours?.open || 'Not specified'}</p>
               <p>Closes: {provider.businessHours?.close || 'Not specified'}</p>
             </div>

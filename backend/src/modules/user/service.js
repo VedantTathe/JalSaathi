@@ -244,7 +244,9 @@ class UserService {
   static async getCustomerOrders(userId, status = null, limit = 20, page = 1) {
     try {
       const query = { customerId: userId };
-      if (status) query.status = status;
+      if (status) {
+        query.status = status;
+      }
       
       const skip = (page - 1) * limit;
       

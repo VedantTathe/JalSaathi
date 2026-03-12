@@ -74,6 +74,54 @@ const authorizeRoles = (...roles) => {
 // Check if provider is online (for customers placing orders)
 const checkProviderOnline = async (req, res, next) => {
   try {
+    console.log('🔒 [MIDDLEWARE] checkProviderOnline - User:', req.user?._id, 'Provider:', req.body.providerId);
+    
+    // Check for recent pending/failed online orders (1-minute cooldown)
+    const Order = require('../modules/order/model');
+    const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+    
+    // Find the most recent pending or failed online payment order
+    const recentPendingOrder = await Order.findOne({
+      customerId: req.user._id,
+      paymentMethod: 'online',
+      $or: [
+        { paymentStatus: 'pending', status: 'pending' },
+        { paymentStatus: 'failed', status: 'failed' }
+      ],
+      createdAt: { $gte: oneMinuteAgo }
+    }).sort({ createdAt: -1 });
+
+    console.log('📅 Current time:', new Date().toISOString());
+    console.log('📅 One minute ago:', oneMinuteAgo.toISOString());
+
+    if (recentPendingOrder) {
+      const orderTime = new Date(recentPendingOrder.createdAt);
+      const timeSinceOrder = Date.now() - orderTime.getTime();
+      
+      console.log('⏱️ [MIDDLEWARE] Found recent pending/failed order:', {
+        orderId: recentPendingOrder._id,
+        paymentStatus: recentPendingOrder.paymentStatus,
+        status: recentPendingOrder.status,
+        createdAt: recentPendingOrder.createdAt.toISOString(),
+        timeSinceOrderMs: timeSinceOrder,
+        timeSinceOrderSec: Math.floor(timeSinceOrder / 1000)
+      });
+      
+      if (timeSinceOrder < 60000) {
+        const timeLeft = Math.ceil((60000 - timeSinceOrder) / 1000);
+        console.log('⛔ [MIDDLEWARE] BLOCKING ORDER - cooldown:', timeLeft, 'seconds remaining');
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${timeLeft} seconds before placing a new order. Your previous payment is still pending.`,
+          data: { waitTime: timeLeft, orderId: recentPendingOrder._id }
+        });
+      } else {
+        console.log('✅ [MIDDLEWARE] Cooldown expired (' + Math.floor(timeSinceOrder/1000) + 's ago), allowing order');
+      }
+    } else {
+      console.log('✅ [MIDDLEWARE] No recent pending/failed orders found, allowing order');
+    }
+    
     const Provider = require('../modules/provider/model');
     const provider = await Provider.findById(req.body.providerId);
 
@@ -83,20 +131,25 @@ const checkProviderOnline = async (req, res, next) => {
     // Allow Cash on Delivery orders regardless of provider's online flag
     if (paymentMethod === 'cash_on_delivery') {
       if (!provider) {
+        console.log('❌ [MIDDLEWARE] Provider not found');
         return res.status(400).json({ success: false, message: 'Provider not found' });
       }
+      console.log('✅ [MIDDLEWARE] COD order - passing through');
       return next();
     }
 
     if (!provider || !provider.isOnline) {
+      console.log('❌ [MIDDLEWARE] Provider offline or not found');
       return res.status(400).json({
         success: false,
         message: 'Provider is currently offline and not accepting orders'
       });
     }
 
+    console.log('✅ [MIDDLEWARE] Provider online - passing to controller');
     next();
   } catch (error) {
+    console.error('❌ [MIDDLEWARE] Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Error checking provider status'

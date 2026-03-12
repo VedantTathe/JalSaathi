@@ -18,6 +18,8 @@ class OrderService {
 
   // Create new order
   static async createOrder(customerId, orderData) {
+    console.log('🆕 [CREATE ORDER] Called for customer:', customerId, 'Payment method:', orderData.paymentMethod);
+    
     try {
       // Check if website is accepting orders
       if (!this.isWebsiteAcceptingOrders()) {
@@ -369,6 +371,7 @@ OrderService.createCashfreeOrder = async function(customerId, orderId) {
         _rawPhone: rawPhone // debug only
       };
 
+      console.log('🆕 Creating NEW Cashfree payment session for order:', order._id.toString());
       const data = await cashfreeService.createOrder({ orderId: order._id, amount, customer: customerPayload });
 
       // Persist cashfree order id (if returned)
@@ -443,20 +446,26 @@ OrderService.verifyCashfreePayment = async function(customerId, orderId, payment
     if (expected !== signature) {
       console.error('Cashfree payment signature mismatch', { expected, received: signature });
       order.paymentStatus = 'failed';
+      order.status = 'failed'; // Always mark as failed
       order.paymentInfo = order.paymentInfo || {};
+      order.paymentInfo.failedAt = new Date();
       order.paymentInfo.failedReason = 'Signature verification failed';
       await order.save();
+      console.log('❌ Payment verification failed - order marked as failed:', orderId);
       return formatResponse(false, 'Payment verification failed', null, 400);
     }
 
     if (txStatus.toUpperCase() !== 'SUCCESS') {
       order.paymentStatus = 'failed';
+      order.status = 'failed'; // Always mark as failed
       order.paymentInfo = order.paymentInfo || {};
       order.paymentInfo.provider = 'cashfree';
       order.paymentInfo.paymentId = referenceId;
       order.paymentInfo.orderId = orderIdFromPayload;
+      order.paymentInfo.failedAt = new Date();
       order.paymentInfo.failedReason = 'Transaction not successful';
       await order.save();
+      console.log('❌ Payment not successful - order marked as failed:', orderId);
       return formatResponse(false, 'Payment not successful', null, 400);
     }
 
@@ -565,13 +574,17 @@ OrderService.failPayment = async function(customerId, orderId, reason = 'Payment
       return formatResponse(false, 'Order payment already completed', null, 400);
     }
 
+    console.log(`❌ Failing order ${orderId}: current status="${order.status}", paymentStatus="${order.paymentStatus}"`);
+    
     order.paymentStatus = 'failed';
-    order.status = order.status === 'pending' ? 'failed' : order.status;
+    order.status = 'failed'; // Always set to failed, not just when pending
     order.paymentInfo = order.paymentInfo || {};
     order.paymentInfo.failedAt = new Date();
     order.paymentInfo.failedReason = reason;
 
     await order.save();
+    
+    console.log(`✅ Order ${orderId} marked as failed: status="${order.status}", paymentStatus="${order.paymentStatus}"`);
 
     const populated = await Order.findById(orderId).populate('providerId');
     return formatResponse(true, 'Order marked as payment failed', populated, 200);

@@ -9,11 +9,13 @@ import {
   CheckCircle,
   MapPin,
   Phone,
-  Mail
+  Mail,
+  ArrowLeft
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const About = () => {
+  const navigate = useNavigate();
   const features = [
     {
       icon: Droplets,
@@ -44,32 +46,19 @@ const About = () => {
     { number: '99.9%', label: 'Delivery Success' }
   ];
 
-  const team = [
-    {
-      name: 'Rajesh Kumar',
-      role: 'Founder & CEO',
-      description: 'Passionate about solving water accessibility challenges in Indian cities.',
-      image: '👨‍💼'
-    },
-    {
-      name: 'Priya Sharma',
-      role: 'Head of Operations',
-      description: 'Ensuring seamless operations and quality service delivery across all regions.',
-      image: '👩‍💼'
-    },
-    {
-      name: 'Amit Patel',
-      role: 'Technology Lead',
-      description: 'Building innovative solutions to make water delivery more efficient and accessible.',
-      image: '👨‍💻'
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary-600 to-water-600 text-white">
         <div className="max-w-6xl mx-auto px-4 py-16">
+          <button
+            onClick={() => navigate(-1)}
+            className="mb-6 flex items-center space-x-2 text-white hover:text-primary-100 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span className="font-medium">Back</span>
+          </button>
+          
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               About JalSaathi
@@ -236,35 +225,6 @@ const About = () => {
                 <span className="text-sm">Doorstep Delivery</span>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Team Section */}
-      <div className="py-16 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Meet Our Team</h2>
-            <p className="text-lg text-gray-600">
-              The passionate individuals working to revolutionize water delivery in India
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {team.map((member, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
-                <div className="text-6xl mb-4">{member.image}</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {member.name}
-                </h3>
-                <p className="text-primary-600 font-medium mb-4">
-                  {member.role}
-                </p>
-                <p className="text-gray-600 text-sm">
-                  {member.description}
-                </p>
-              </div>
-            ))}
           </div>
         </div>
       </div>

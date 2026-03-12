@@ -1,0 +1,19 @@
+{
+  "name": "JalSaathi - Har Pyaas Ka Saathi",
+  "short_name": "JalSaathi",
+  "description": "Area-Based Water Can Delivery Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities", "business"]
+}

@@ -132,13 +132,13 @@ const ProviderDashboard = () => {
   });
 
   const navigation = [
-    { key: 'dashboard', name: 'Dashboard Home', icon: HomeIcon },
-    { key: 'active-orders', name: 'View Orders', icon: Clock },
-    { key: 'delivery-management', name: 'Delivery Boys', icon: Truck },
-    { key: 'history', name: 'History', icon: History },
-    { key: 'earnings', name: 'Earnings', icon: DollarSign },
-    { key: 'customers', name: 'Customer List', icon: Users },
-    { key: 'settings', name: 'Provider Settings', icon: Settings },
+    { key: 'dashboard', name: 'Dashboard Home', mobileName: 'Home', icon: HomeIcon },
+    { key: 'active-orders', name: 'View Orders', mobileName: 'Orders', icon: Clock },
+    { key: 'delivery-management', name: 'Delivery Boys', mobileName: 'Delivery', icon: Truck },
+    { key: 'history', name: 'History', mobileName: 'History', icon: History },
+    { key: 'earnings', name: 'Earnings', mobileName: 'Earnings', icon: DollarSign },
+    { key: 'customers', name: 'Customer List', mobileName: 'Customers', icon: Users },
+    { key: 'settings', name: 'Provider Settings', mobileName: 'Settings', icon: Settings },
   ].map(item => ({
     ...item,
     href: '#',
@@ -151,20 +151,25 @@ const ProviderDashboard = () => {
     const todayOrders = orders.filter(o => new Date(o.timeline?.ordered || o.createdAt).toDateString() === new Date().toDateString());
     const activeOrders = orders.filter(o => ['accepted', 'assigned', 'out_for_delivery'].includes(o.status)).length;
     const completedToday = todayOrders.filter(o => o.status === 'delivered').length;
-    const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
+    // Only count revenue from paid orders (online paid + COD delivered)
+    const paidTodayOrders = todayOrders.filter(o => 
+      o.paymentStatus === 'paid' || 
+      (o.paymentMethod === 'cash_on_delivery' && o.status === 'delivered')
+    );
+    const todayRevenue = paidTodayOrders.reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
     const todayOnlineCollected = todayOrders.filter(o => o.paymentStatus === 'paid').reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
     const totalRevenue = analyticsData?.data?.monthlyRevenue ?? 0;
 
     return (
       <div>
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard Overview</h1>
           
           {/* IMPORTANT: Online/Offline Toggle */}
           <button
             onClick={() => toggleOnlineMutation.mutate()}
             disabled={toggleOnlineMutation.isLoading}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-semibold transition-all ${
+            className={`w-full sm:w-auto min-h-[48px] flex items-center justify-center space-x-2 px-5 py-3 rounded-xl font-semibold transition-all ${
               isOnline 
                 ? 'bg-success-100 text-success-700 hover:bg-success-200' 
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -176,44 +181,44 @@ const ProviderDashboard = () => {
         </div>
 
         {/* Analytics Widgets */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-5">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
+          <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-xl p-4 sm:p-5">
             <Clock className="h-7 w-7 text-warning-600 mb-2" />
-            <p className="text-2xl font-bold text-warning-900">{activeOrders}</p>
-            <p className="text-sm text-warning-700">Active Orders</p>
+            <p className="text-xl sm:text-2xl font-bold text-warning-900">{activeOrders}</p>
+            <p className="text-xs sm:text-sm text-warning-700">Active Orders</p>
           </div>
 
-          <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-lg p-5">
+          <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-xl p-4 sm:p-5">
             <CheckCircle className="h-7 w-7 text-success-600 mb-2" />
-            <p className="text-2xl font-bold text-success-900">{completedToday}</p>
-            <p className="text-sm text-success-700">Completed Today</p>
+            <p className="text-xl sm:text-2xl font-bold text-success-900">{completedToday}</p>
+            <p className="text-xs sm:text-sm text-success-700">Completed Today</p>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-5">
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 sm:p-5">
             <IndianRupee className="h-7 w-7 text-purple-600 mb-2" />
-            <p className="text-2xl font-bold text-purple-900">Rs. {todayRevenue.toLocaleString('en-IN')}</p>
-            <p className="text-sm text-purple-700">Today's Revenue</p>
+            <p className="text-lg sm:text-2xl font-bold text-purple-900 break-words">Rs. {todayRevenue.toLocaleString('en-IN')}</p>
+            <p className="text-xs sm:text-sm text-purple-700">Today's Revenue</p>
           </div>
 
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-5">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 sm:p-5">
             <CheckCircle className="h-7 w-7 text-blue-600 mb-2" />
-            <p className="text-2xl font-bold text-blue-900">Rs. {todayOnlineCollected.toLocaleString('en-IN')}</p>
-            <p className="text-sm text-blue-700">Online Collected</p>
+            <p className="text-lg sm:text-2xl font-bold text-blue-900 break-words">Rs. {todayOnlineCollected.toLocaleString('en-IN')}</p>
+            <p className="text-xs sm:text-sm text-blue-700">Online Collected</p>
           </div>
 
-          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-5">
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 sm:p-5 col-span-2 lg:col-span-1">
             <DollarSign className="h-7 w-7 text-gray-500 mb-2" />
-            <p className="text-2xl font-bold text-gray-600">—</p>
-            <p className="text-sm text-gray-500">Settled to Bank</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-600">—</p>
+            <p className="text-xs sm:text-sm text-gray-500">Settled to Bank</p>
             <p className="text-xs text-gray-400 mt-1">Admin pending</p>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <button
             onClick={() => setActivePage('active-orders')}
-            className="bg-white border-2 border-primary-200 hover:border-primary-400 rounded-lg p-6 text-left transition-all"
+            className="bg-white border-2 border-primary-200 hover:border-primary-400 rounded-xl p-5 sm:p-6 text-left transition-all min-h-[150px]"
           >
             <Package className="h-8 w-8 text-primary-600 mb-3" />
             <h3 className="font-semibold text-gray-900 mb-1">View Orders</h3>
@@ -222,7 +227,7 @@ const ProviderDashboard = () => {
 
           <button
             onClick={() => setActivePage('history')}
-            className="bg-white border-2 border-purple-200 hover:border-purple-400 rounded-lg p-6 text-left transition-all"
+            className="bg-white border-2 border-purple-200 hover:border-purple-400 rounded-xl p-5 sm:p-6 text-left transition-all min-h-[150px]"
           >
             <History className="h-8 w-8 text-purple-600 mb-3" />
             <h3 className="font-semibold text-gray-900 mb-1">Order History</h3>
@@ -231,7 +236,7 @@ const ProviderDashboard = () => {
 
           <button
             onClick={() => setActivePage('earnings')}
-            className="bg-white border-2 border-success-200 hover:border-success-400 rounded-lg p-6 text-left transition-all"
+            className="bg-white border-2 border-success-200 hover:border-success-400 rounded-xl p-5 sm:p-6 text-left transition-all min-h-[150px]"
           >
             <TrendingUp className="h-8 w-8 text-success-600 mb-3" />
             <h3 className="font-semibold text-gray-900 mb-1">Earnings</h3>
@@ -263,7 +268,12 @@ const ProviderDashboard = () => {
                       const orderDate = new Date(o.timeline?.ordered || o.createdAt);
                       return orderDate.toDateString() === date.toDateString();
                     });
-                    const revenue = dayOrders.reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
+                    // Only count revenue from paid orders
+                    const paidDayOrders = dayOrders.filter(o => 
+                      o.paymentStatus === 'paid' || 
+                      (o.paymentMethod === 'cash_on_delivery' && o.status === 'delivered')
+                    );
+                    const revenue = paidDayOrders.reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
                     const delivered = dayOrders.filter(o => o.status === 'delivered').length;
                     const cans = dayOrders.reduce((sum, o) => sum + (o.items?.quantity || o.quantity || 0), 0);
                     last7Days.push({
@@ -288,11 +298,16 @@ const ProviderDashboard = () => {
                 </BarChart>
               </ResponsiveContainer>
               {/* Summary Stats */}
-              <div className="mt-4 grid grid-cols-4 gap-3 text-center">
+              <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3 text-center">
                 {(() => {
                   const totalOrders = orders.length;
                   const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
-                  const totalRevenue = orders.reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
+                  // Only count revenue from paid orders
+                  const paidOrders = orders.filter(o => 
+                    o.paymentStatus === 'paid' || 
+                    (o.paymentMethod === 'cash_on_delivery' && o.status === 'delivered')
+                  );
+                  const totalRevenue = paidOrders.reduce((sum, o) => sum + (o.items?.totalPrice || o.totalPrice || 0), 0);
                   const totalCans = orders.reduce((sum, o) => sum + (o.items?.quantity || o.quantity || 0), 0);
                   return (
                     <>
@@ -427,7 +442,10 @@ const ProviderDashboard = () => {
                   dbPerformance[dbId].assigned++;
                   if (o.status === 'delivered') {
                     dbPerformance[dbId].delivered++;
-                    dbPerformance[dbId].revenue += (o.items?.totalPrice || o.totalPrice || 0);
+                    // Only count revenue from paid orders
+                    if (o.paymentStatus === 'paid' || o.paymentMethod === 'cash_on_delivery') {
+                      dbPerformance[dbId].revenue += (o.items?.totalPrice || o.totalPrice || 0);
+                    }
                   }
                 });
                 const performanceData = Object.values(dbPerformance).sort((a, b) => b.delivered - a.delivered).slice(0, 5);
@@ -471,7 +489,10 @@ const ProviderDashboard = () => {
                     customerStats[customerId] = { name: customerName, orders: 0, revenue: 0, cans: 0 };
                   }
                   customerStats[customerId].orders++;
-                  customerStats[customerId].revenue += (o.items?.totalPrice || o.totalPrice || 0);
+                  // Only count revenue from paid orders
+                  if (o.paymentStatus === 'paid' || (o.paymentMethod === 'cash_on_delivery' && o.status === 'delivered')) {
+                    customerStats[customerId].revenue += (o.items?.totalPrice || o.totalPrice || 0);
+                  }
                   customerStats[customerId].cans += (o.items?.quantity || o.quantity || 0);
                 });
                 const topCustomers = Object.values(customerStats)
@@ -575,17 +596,17 @@ const ProviderDashboard = () => {
 
     return (
       <div>
-        <div className="flex items-center justify-between mb-6">
-          <div>
+        <div className="mb-6">
+          <div className="mb-4">
             <h1 className="text-2xl font-bold text-gray-900">View Orders</h1>
             <p className="text-sm text-gray-500">Showing orders from last 16 hours</p>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Status Filter */}
             <select 
               value={statusFilter} 
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              className="border border-gray-300 rounded-lg px-4 py-3 text-base sm:text-sm flex-1 sm:flex-initial"
             >
               <option value="all">All Status ({allOrders.length})</option>
               <option value="pending">Pending ({allOrders.filter(o => o.status === 'pending').length})</option>
@@ -595,14 +616,14 @@ const ProviderDashboard = () => {
               <option value="delivered">Delivered ({allOrders.filter(o => o.status === 'delivered').length})</option>
               <option value="cancelled">Cancelled ({allOrders.filter(o => o.status === 'cancelled').length})</option>
             </select>
-            <label className="inline-flex items-center">
-              <input type="checkbox" checked={selectAll} onChange={handleSelectAll} className="mr-2" />
+            <label className="inline-flex items-center px-4 py-3 bg-gray-50 rounded-lg min-h-[48px]">
+              <input type="checkbox" checked={selectAll} onChange={handleSelectAll} className="mr-2 h-4 w-4" />
               <span className="text-sm text-gray-600">Select All</span>
             </label>
             <button
               onClick={() => setAssignModalOpen(true)}
               disabled={selectedOrders.size === 0}
-              className="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50"
+              className="w-full sm:w-auto bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center min-h-[48px]"
             >
               Assign Partner
             </button>
@@ -619,47 +640,47 @@ const ProviderDashboard = () => {
             {filteredOrders.map((order) => {
               const isAssignable = ['pending', 'accepted', 'assigned', 'out_for_delivery'].includes(order.status);
               return (
-              <div key={order._id} className={`bg-white rounded-lg shadow-sm border p-6 ${order.status === 'delivered' ? 'border-success-300 bg-success-50' : order.status === 'cancelled' ? 'border-error-300 bg-error-50' : 'border-gray-200'}`}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
+              <div key={order._id} className={`bg-white rounded-lg shadow-sm border p-4 sm:p-6 ${order.status === 'delivered' ? 'border-success-300 bg-success-50' : order.status === 'cancelled' ? 'border-error-300 bg-error-50' : 'border-gray-200'}`}>
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 gap-3">
+                  <div className="flex items-start space-x-3">
                     {isAssignable && (
-                      <input type="checkbox" checked={selectedOrders.has(order._id)} onChange={() => toggleSelect(order._id)} className="h-4 w-4" />
+                      <input type="checkbox" checked={selectedOrders.has(order._id)} onChange={() => toggleSelect(order._id)} className="h-5 w-5 mt-1" />
                     )}
-                    <div>
-                      <div className="flex items-center space-x-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <Package className="h-5 w-5 text-gray-400" />
-                        <span className="font-mono text-sm text-gray-600">#{order.orderNumber || order._id.slice(-8)}</span>
+                        <span className="font-mono text-sm text-gray-600 truncate">#{order.orderNumber || order._id.slice(-8)}</span>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                           {getStatusText(order.status)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">{formatDateTime(order.timeline?.ordered || order.createdAt)}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 break-words">{formatDateTime(order.timeline?.ordered || order.createdAt)}</p>
                     </div>
                   </div>
-                  <p className="text-xl font-semibold text-primary-600">Rs. {order.items?.totalPrice || 0}</p>
+                  <p className="text-lg sm:text-xl font-semibold text-primary-600">Rs. {order.items?.totalPrice || 0}</p>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
                   <div>
-                    <p className="text-xs text-gray-600">Customer</p>
-                    <p className="font-medium text-gray-900">{order.customerId?.name || order.customer?.name || 'N/A'}</p>
+                    <p className="text-xs text-gray-500 mb-0.5">Customer</p>
+                    <p className="font-semibold text-sm text-gray-900 break-words">{order.customerId?.name || order.customer?.name || 'N/A'}</p>
                     <p className="text-xs text-gray-600">{order.customerId?.phone || order.customer?.phone || ''}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-600">Quantity</p>
-                    <p className="font-medium text-gray-900">{order.items?.quantity || 0} cans</p>
+                    <p className="text-xs text-gray-500 mb-0.5">Quantity</p>
+                    <p className="font-semibold text-sm text-gray-900">{order.items?.quantity || 0} cans</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-600">Delivery Partner</p>
+                    <p className="text-xs text-gray-500 mb-0.5">Delivery Partner</p>
                     {order.deliveryBoyId ? (
-                      <p className="font-medium text-success-600">{order.deliveryBoyId?.name || order.deliveryBoy?.name || 'Assigned'}</p>
+                      <p className="font-semibold text-sm text-success-600 break-words">{order.deliveryBoyId?.name || order.deliveryBoy?.name || 'Assigned'}</p>
                     ) : (
                       <p className="text-sm text-warning-600">Not assigned</p>
                     )}
                   </div>
                   <div>
-                    <p className="text-xs text-gray-600">Payment</p>
-                    <p className={`font-medium ${order.paymentStatus === 'paid' ? 'text-success-600' : 'text-warning-600'}`}>
+                    <p className="text-xs text-gray-500 mb-0.5">Payment</p>
+                    <p className={`font-semibold text-sm ${order.paymentStatus === 'paid' ? 'text-success-600' : 'text-warning-600'}`}>
                       {order.paymentStatus === 'paid' ? 'œ“ Paid' : 'Pending'}
                     </p>
                   </div>
@@ -678,14 +699,14 @@ const ProviderDashboard = () => {
                 </div>
 
                 {isAssignable && (
-                  <div className="flex space-x-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <button
                       onClick={() => {
                         if (!window.confirm('Are you sure you want to cancel this order?')) return;
                         cancelOrderMutation.mutate(order._id);
                       }}
                       disabled={cancelOrderMutation.isLoading}
-                      className="bg-error-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-error-700 disabled:opacity-50"
+                      className="w-full sm:w-auto bg-error-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-error-700 disabled:opacity-50 flex items-center justify-center min-h-[48px]"
                     >
                       Cancel Order
                     </button>
@@ -696,7 +717,7 @@ const ProviderDashboard = () => {
                           setSelectedOrders(new Set([order._id]));
                           setAssignModalOpen(true);
                         }}
-                        className="bg-primary-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-700"
+                        className="w-full sm:w-auto bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 flex items-center justify-center min-h-[48px]"
                       >
                         Assign Partner
                       </button>
@@ -711,19 +732,19 @@ const ProviderDashboard = () => {
 
         {/* Assign Modal */}
         {assignModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md">
               <h3 className="text-lg font-semibold mb-4">Assign Delivery Partner</h3>
-              <select value={selectedDeliveryBoy} onChange={e => setSelectedDeliveryBoy(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4">
+              <select value={selectedDeliveryBoy} onChange={e => setSelectedDeliveryBoy(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base mb-4">
                 <option value="">Select partner</option>
                 {(deliveryBoysData?.data || []).map(db => (
                   <option key={db._id} value={db._id}>{db.name} - {db.phone}</option>
                 ))}
               </select>
 
-              <div className="flex justify-end space-x-3">
-                <button onClick={() => setAssignModalOpen(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
-                <button onClick={handleAssign} className="px-4 py-2 rounded-lg bg-primary-600 text-white">Assign</button>
+              <div className="flex flex-col sm:flex-row justify-end gap-3">
+                <button onClick={() => setAssignModalOpen(false)} className="w-full sm:w-auto px-6 py-3 rounded-lg border font-medium min-h-[48px]">Cancel</button>
+                <button onClick={handleAssign} className="w-full sm:w-auto px-6 py-3 rounded-lg bg-primary-600 text-white font-medium min-h-[48px]">Assign</button>
               </div>
             </div>
           </div>
@@ -784,9 +805,9 @@ const ProviderDashboard = () => {
 
     return (
       <div>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
           <h1 className="text-2xl font-bold text-gray-900">Delivery Boys</h1>
-          <button onClick={() => setShowAddModal(true)} className="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 flex items-center space-x-2">
+          <button onClick={() => setShowAddModal(true)} className="bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 flex items-center justify-center space-x-2">
             <Plus className="h-5 w-5" />
             <span>Add Delivery Boy</span>
           </button>
@@ -795,21 +816,21 @@ const ProviderDashboard = () => {
         {boys.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg">No delivery boys assigned</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {boys.map((d) => (
-              <div key={d._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-start justify-between mb-4">
+              <div key={d._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-center space-x-3">
                     <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
                       <Truck className="h-6 w-6 text-primary-600" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{d.name}</h3>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-gray-900 break-words">{d.name}</h3>
                       <p className="text-sm text-gray-600">{d.phone}</p>
-                      {d.email && <p className="text-xs text-gray-500">{d.email}</p>}
+                      {d.email && <p className="text-xs text-gray-500 break-all">{d.email}</p>}
                     </div>
                   </div>
-                  <button onClick={() => handleRemove(d._id)} className="text-gray-400 hover:text-error-600 px-3">
+                  <button onClick={() => handleRemove(d._id)} className="text-gray-400 hover:text-error-600 p-3 rounded-lg hover:bg-red-50 transition-colors">
                     <Trash2 className="h-5 w-5" />
                   </button>
                 </div>
@@ -820,19 +841,19 @@ const ProviderDashboard = () => {
 
         {/* Add Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold mb-4">Add Delivery Boy</h3>
                 <div className="space-y-3">
-                <input value={newBoy.name} onChange={e => setNewBoy({...newBoy, name: e.target.value})} placeholder="Name" className="w-full border px-3 py-2 rounded-lg" required />
-                <input value={newBoy.phone} onChange={e => setNewBoy({...newBoy, phone: e.target.value})} placeholder="Phone" className="w-full border px-3 py-2 rounded-lg" required />
-                <input type="email" value={newBoy.email} onChange={e => setNewBoy({...newBoy, email: e.target.value})} placeholder="Email (Required - credentials will be sent)" className="w-full border px-3 py-2 rounded-lg" required />
-                <input type="password" value={newBoy.password} onChange={e => setNewBoy({...newBoy, password: e.target.value})} placeholder="Password (leave empty to auto-generate)" className="w-full border px-3 py-2 rounded-lg" />
+                <input value={newBoy.name} onChange={e => setNewBoy({...newBoy, name: e.target.value})} placeholder="Name" className="w-full border px-4 py-3 rounded-lg text-base" required />
+                <input value={newBoy.phone} onChange={e => setNewBoy({...newBoy, phone: e.target.value})} placeholder="Phone" className="w-full border px-4 py-3 rounded-lg text-base" required />
+                <input type="email" value={newBoy.email} onChange={e => setNewBoy({...newBoy, email: e.target.value})} placeholder="Email (Required - credentials will be sent)" className="w-full border px-4 py-3 rounded-lg text-base" required />
+                <input type="password" value={newBoy.password} onChange={e => setNewBoy({...newBoy, password: e.target.value})} placeholder="Password (leave empty to auto-generate)" className="w-full border px-4 py-3 rounded-lg text-base" />
                 <p className="text-sm text-gray-500">Login credentials will be sent to the delivery boy's email.</p>
               </div>
-              <div className="flex justify-end space-x-3 mt-4">
-                <button onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
-                <button onClick={handleAdd} className="px-4 py-2 rounded-lg bg-primary-600 text-white">Add</button>
+              <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
+                <button onClick={() => setShowAddModal(false)} className="w-full sm:w-auto px-6 py-3 rounded-lg border font-medium min-h-[48px]">Cancel</button>
+                <button onClick={handleAdd} className="w-full sm:w-auto px-6 py-3 rounded-lg bg-primary-600 text-white font-medium min-h-[48px]">Add</button>
               </div>
             </div>
           </div>
@@ -874,7 +895,7 @@ const ProviderDashboard = () => {
         <p className="text-sm text-gray-500 mb-6">Track all orders and payment status</p>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {/* Total Orders */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">
@@ -1062,7 +1083,7 @@ const ProviderDashboard = () => {
         <p className="text-sm text-gray-500 mb-6">Track money settled to your bank account by admin</p>
 
         {/* Settlement Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {/* Total Earnings (Online Received) */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">
