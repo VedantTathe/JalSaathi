@@ -402,7 +402,9 @@ class AuthService {
         address: user.address,
         specialNotes: user.specialNotes,
         isActive: user.isActive,
-        createdAt: user.createdAt
+        addedToHomeScreen: user.addedToHomeScreen,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
       };
       
       // If user is a provider, include provider details
@@ -613,6 +615,26 @@ class AuthService {
     } catch (error) {
       console.error('Reset password error:', error);
       return formatResponse(false, 'Failed to reset password', null, 500);
+    }
+  }
+
+  // Update add to home screen status
+  static async updateAddToHomeScreenStatus(userId) {
+    try {
+      const user = await User.findByIdAndUpdate(
+        userId,
+        { addedToHomeScreen: true },
+        { new: true, runValidators: true }
+      );
+
+      if (!user) {
+        return formatResponse(false, 'User not found', null, 404);
+      }
+
+      return formatResponse(true, 'Add to home screen status updated', { addedToHomeScreen: true }, 200);
+    } catch (error) {
+      console.error('Update add to home screen status error:', error);
+      return formatResponse(false, 'Failed to update status', null, 500);
     }
   }
 }

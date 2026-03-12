@@ -346,8 +346,8 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-2xl">
+    <div className="min-h-screen bg-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-2xl w-full">
         {/* Back to home link */}
         <Link 
           to="/" 
@@ -366,7 +366,7 @@ const Register = () => {
               <p className="text-sm text-gray-500">Har Pyaas Ka Saathi</p>
             </div>
           </div>
-          <h2 className="text-center text-3xl font-bold text-gray-900">
+          <h2 className="text-center text-2xl sm:text-3xl font-bold text-gray-900 px-2">
             {role === 'provider' ? 'Become a Provider' : role === 'customer' ? 'Create Customer Account' : 'Create your account'}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
@@ -403,7 +403,7 @@ const Register = () => {
                     id="otp-code"
                     type="text"
                     maxLength={6}
-                    className="input-field text-center text-2xl font-bold tracking-widest"
+                    className="input-field text-center text-xl sm:text-2xl font-bold tracking-[0.3em] sm:tracking-widest"
                     placeholder="000000"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
@@ -442,7 +442,7 @@ const Register = () => {
                     )}
                   </button>
 
-                  <div className="flex justify-center space-x-4 text-sm">
+                  <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 text-sm">
                     <button
                       type="button"
                       onClick={handleResendOTP}
@@ -451,7 +451,7 @@ const Register = () => {
                     >
                       Resend OTP
                     </button>
-                    <span className="text-gray-300">|</span>
+                    <span className="hidden sm:inline text-gray-300">|</span>
                     <button
                       type="button"
                       onClick={handleChangeEmail}
@@ -469,7 +469,7 @@ const Register = () => {
             {!role && (
               <div className="form-group">
                 <label className="form-label">I want to join as a</label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {userRoles.map((roleOption) => {
                     const Icon = roleOption.icon;
                     return (
@@ -477,7 +477,7 @@ const Register = () => {
                         key={roleOption.id}
                         type="button"
                         onClick={() => setSelectedRole(roleOption.id)}
-                        className={`p-4 border rounded-lg text-left transition-all ${
+                        className={`p-4 sm:p-5 border rounded-xl text-left transition-all min-h-[140px] ${
                           selectedRole === roleOption.id
                             ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500'
                             : 'border-gray-300 hover:border-gray-400'
@@ -581,7 +581,7 @@ const Register = () => {
               <>
                 {/* Business Location Map - SHOW FIRST */}
                 <div className="form-group">
-                  <label className="form-label flex items-center justify-between">
+                  <label className="form-label flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <span className="flex items-center">
                       <MapPin className="h-4 w-4 mr-2" />
                       Business Location (Optional)
@@ -590,14 +590,14 @@ const Register = () => {
                       type="button"
                       onClick={getCurrentLocation}
                       disabled={gettingLocation}
-                      className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
+                      className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center justify-center sm:justify-start min-h-[44px]"
                     >
                       <Navigation className="h-4 w-4 mr-1" />
                       {gettingLocation ? 'Getting location...' : 'Use GPS Location'}
                     </button>
                   </label>
                   
-                  <div className="relative rounded-lg overflow-hidden border-2 border-gray-300" style={{ height: '320px' }}>
+                  <div className="relative rounded-lg overflow-hidden border-2 border-gray-300 h-56 sm:h-80">
                     <MapContainer
                       key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
                       center={mapCenter}
@@ -790,7 +790,7 @@ const Register = () => {
                 {/* Operating Hours */}
                 <div className="form-group">
                   <label className="form-label">Operating Hours</label>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="openTime" className="text-sm text-gray-600">Opening Time</label>
                       <input
@@ -832,7 +832,7 @@ const Register = () => {
                 </div>
 
                 {/* Payment Details - Optional */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-5">
                   <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                     <Shield className="h-5 w-5 mr-2 text-blue-600" />
                     Payment Details (Optional - Can be added later)
@@ -982,17 +982,17 @@ const Register = () => {
             </div>
 
             {/* Terms and conditions */}
-            <div className="flex items-center">
+            <div className="flex items-start">
               <input
                 id="terms"
                 name="terms"
                 type="checkbox"
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-1 flex-shrink-0"
                 {...register('terms', {
                   required: 'You must accept the terms and conditions',
                 })}
               />
-              <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
+              <label htmlFor="terms" className="ml-3 block text-sm leading-6 text-gray-900">
                 I agree to the{' '}
                 <a href="#" className="text-primary-600 hover:text-primary-500">
                   Terms and Conditions

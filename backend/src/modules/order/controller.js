@@ -3,17 +3,24 @@ const { asyncHandler } = require('../../middlewares/errorHandler');
 
 // Create new order
 const createOrder = asyncHandler(async (req, res) => {
+  console.log('🎯 [ORDER CONTROLLER] Create order request received');
+  console.log('  User ID:', req.user?._id);
+  console.log('  Body:', JSON.stringify(req.body, null, 2));
+  
   const requiredFields = ['providerId', 'quantity', 'deliveryAddress'];
   const missingFields = requiredFields.filter(field => !req.body[field]);
   
   if (missingFields.length > 0) {
+    console.log('❌ [ORDER CONTROLLER] Missing fields:', missingFields);
     return res.status(400).json({
       success: false,
       message: `Missing required fields: ${missingFields.join(', ')}`
     });
   }
   
+  console.log('✅ [ORDER CONTROLLER] Validation passed, calling service...');
   const { response, statusCode } = await OrderService.createOrder(req.user._id, req.body);
+  console.log('📤 [ORDER CONTROLLER] Response:', statusCode, response.success ? 'SUCCESS' : 'FAILED');
   res.status(statusCode).json(response);
 });
 

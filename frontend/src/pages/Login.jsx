@@ -129,8 +129,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md w-full">
         {/* Back to home link */}
         <Link 
           to="/" 
@@ -149,7 +149,7 @@ const Login = () => {
               <p className="text-sm text-gray-500">Har Pyaas Ka Saathi</p>
             </div>
           </div>
-          <h2 className="text-center text-3xl font-bold text-gray-900">
+          <h2 className="text-center text-2xl sm:text-3xl font-bold text-gray-900">
             Sign in to your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
@@ -164,15 +164,15 @@ const Login = () => {
         </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md w-full">
         <div className="card">
           {/* Login Method Toggle */}
           <div className="mb-6">
-            <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-100 p-1 rounded-lg">
               <button
                 type="button"
                 onClick={() => handleLoginMethodChange('password')}
-                className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center justify-center py-3 px-4 rounded-md text-sm font-medium transition-colors min-h-[48px] ${
                   loginMethod === 'password'
                     ? 'bg-white text-primary-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -184,7 +184,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => handleLoginMethodChange('otp')}
-                className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center justify-center py-3 px-4 rounded-md text-sm font-medium transition-colors min-h-[48px] ${
                   loginMethod === 'otp'
                     ? 'bg-white text-primary-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -261,7 +261,7 @@ const Login = () => {
               </div>
 
               {/* Remember me and Forgot password */}
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center">
                   <input
                     id="remember-me"
@@ -274,7 +274,7 @@ const Login = () => {
                   </label>
                 </div>
                 
-                <div className="text-sm">
+                <div className="text-sm sm:text-right">
                   <Link
                     to="/forgot-password"
                     className="font-medium text-primary-600 hover:text-primary-500"
@@ -366,7 +366,7 @@ const Login = () => {
                       id="otp-code"
                       type="text"
                       maxLength={6}
-                      className="input-field text-center text-2xl font-bold tracking-widest"
+                      className="input-field text-center text-xl sm:text-2xl font-bold tracking-[0.3em] sm:tracking-widest"
                       placeholder="000000"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
@@ -409,7 +409,7 @@ const Login = () => {
                       type="button"
                       onClick={handleSendOTP}
                       disabled={otpLoading}
-                      className="w-full text-sm text-primary-600 hover:text-primary-500 font-medium"
+                      className="w-full text-sm text-primary-600 hover:text-primary-500 font-medium py-2"
                     >
                       Resend OTP
                     </button>
@@ -422,7 +422,7 @@ const Login = () => {
                         setOtpError('');
                         setOtpSuccess('');
                       }}
-                      className="w-full text-sm text-gray-600 hover:text-gray-900"
+                      className="w-full text-sm text-gray-600 hover:text-gray-900 py-2"
                     >
                       Change email
                     </button>

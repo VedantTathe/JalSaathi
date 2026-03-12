@@ -75,5 +75,6 @@ router.put('/profile', authController.updateProfile);
 router.post('/change-password', authController.changePassword);
 router.post('/logout', authController.logout);
 router.get('/verify-token', authController.verifyToken);
+router.post('/add-to-home-screen', authController.updateAddToHomeScreenStatus);
 
 module.exports = router;

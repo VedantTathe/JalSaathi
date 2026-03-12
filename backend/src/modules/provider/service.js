@@ -483,7 +483,11 @@ class ProviderService {
         }
         groupedByDay[dateKey].orders.push(order);
         groupedByDay[dateKey].totalOrders++;
-        groupedByDay[dateKey].totalRevenue += order.items?.totalPrice || 0;
+        
+        // Exclude failed payment orders from revenue calculation
+        if (order.paymentStatus !== 'failed') {
+          groupedByDay[dateKey].totalRevenue += order.items?.totalPrice || 0;
+        }
         
         if (order.status === 'delivered') groupedByDay[dateKey].deliveredOrders++;
         else if (order.status === 'cancelled') groupedByDay[dateKey].cancelledOrders++;
@@ -495,8 +499,10 @@ class ProviderService {
         new Date(b.date) - new Date(a.date)
       );
 
-      // Calculate overall stats
-      const totalRevenue = orders.reduce((sum, o) => sum + (o.items?.totalPrice || 0), 0);
+      // Calculate overall stats (exclude failed payment orders from revenue)
+      const totalRevenue = orders
+        .filter(o => o.paymentStatus !== 'failed')
+        .reduce((sum, o) => sum + (o.items?.totalPrice || 0), 0);
       const totalOrders = orders.length;
       const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
       const paidOrders = orders.filter(o => o.paymentStatus === 'paid').length;

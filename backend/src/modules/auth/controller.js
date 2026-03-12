@@ -139,7 +139,8 @@ const verifyToken = asyncHandler(async (req, res) => {
       id: req.user._id,
       name: req.user.name,
       email: req.user.email,
-      role: req.user.role
+      role: req.user.role,
+      addedToHomeScreen: req.user.addedToHomeScreen
     }
   });
 });
@@ -196,6 +197,12 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.status(statusCode).json(response);
 });
 
+// Update add to home screen status
+const updateAddToHomeScreenStatus = asyncHandler(async (req, res) => {
+  const { response, statusCode } = await AuthService.updateAddToHomeScreenStatus(req.user._id);
+  res.status(statusCode).json(response);
+});
+
 module.exports = {
   sendRegistrationOTP,
   verifyEmailAndRegister,
@@ -211,5 +218,6 @@ module.exports = {
   verifyToken,
   sendPasswordResetOTP,
   verifyPasswordResetOTP,
-  resetPassword
+  resetPassword,
+  updateAddToHomeScreenStatus
 };

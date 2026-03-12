@@ -66,6 +66,7 @@ export const authApi = {
   sendPasswordResetOTP: (email) => apiClient.post('/auth/forgot-password/send-otp', { email }),
   verifyPasswordResetOTP: (email, otp) => apiClient.post('/auth/forgot-password/verify-otp', { email, otp }),
   resetPassword: (email, otp, newPassword) => apiClient.post('/auth/forgot-password/reset', { email, otp, newPassword }),
+  updateAddToHomeScreenStatus: () => apiClient.post('/auth/add-to-home-screen'),
 };
 
 // User API

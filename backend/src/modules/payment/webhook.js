@@ -68,13 +68,16 @@ router.post('/cashfree', async (req, res) => {
 
     // treat others as failed
     order.paymentStatus = 'failed';
+    order.status = 'failed'; // Always mark as failed
     order.paymentInfo = order.paymentInfo || {};
     order.paymentInfo.provider = 'cashfree';
     order.paymentInfo.paymentId = cfReference;
     order.paymentInfo.orderId = cfOrderId;
+    order.paymentInfo.failedAt = new Date();
     order.paymentInfo.failedReason = payload.failureReason || payload.reason || 'failed';
 
     await order.save();
+    console.log('Webhook: marked order as failed', order._id.toString(), 'status:', order.status);
     console.log('Webhook: marked payment failed for order', order._id.toString());
     return res.status(200).send('ok');
   } catch (err) {
