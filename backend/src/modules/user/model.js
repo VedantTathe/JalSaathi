@@ -93,6 +93,11 @@ const userSchema = new mongoose.Schema({
   otpExpiry: {
     type: Date,
     select: false // Don't include OTP expiry in queries by default
+  },
+  // Add to home screen tracking
+  addedToHomeScreen: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

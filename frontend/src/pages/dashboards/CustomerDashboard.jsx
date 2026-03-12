@@ -43,7 +43,6 @@ const CustomerDashboard = () => {
   
   // Dashboard Home filters state
   const [searchQuery, setSearchQuery] = useState('');
-  const [priceFilter, setPriceFilter] = useState('all');
   const [sortBy, setSortBy] = useState('rating');
   
   // My Orders filter state
@@ -78,13 +77,12 @@ const CustomerDashboard = () => {
   useEffect(() => {
     if (activePage === 'dashboard') {
       setSearchQuery('');
-      setPriceFilter('all');
       setSortBy('rating');
     }
   }, [activePage]);
 
   // Fetch data with proper cache settings to prevent stale data
-  const { data: providersData, isLoading: providersLoading } = useQuery(
+  const { data: providersData, isLoading: providersLoading, isRefetching: providersRefetching } = useQuery(
     'nearby-providers', 
     () => userApi.getNearbyProviders(),
     {
@@ -148,23 +146,12 @@ const CustomerDashboard = () => {
                 return;
               }
 
-              // If still pending, wait briefly and then mark failed if still pending
-              setTimeout(async () => {
-                const r2 = await orderApi.checkPayment(matched._id);
-                const u2 = r2?.data || r2;
-                const p2 = (u2?.data || u2)?.paymentStatus || '';
-                if (String(p2).toLowerCase() !== 'paid') {
-                  try {
-                    await orderApi.failPayment(matched._id);
-                    toast.error('Payment not completed. Order marked failed.');
-                    queryClient.invalidateQueries('customer-orders');
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    navigate('/dashboard/my-orders');
-                  } catch (e) {
-                    console.error('Fail payment call error:', e);
-                  }
-                }
-              }, 4000);
+              // If payment not completed, just show the pending order
+              // Cron job will auto-fail it after 1 minute
+              toast.warning('Payment not completed. Order will be cancelled in 1 minute if not paid.');
+              queryClient.invalidateQueries('customer-orders');
+              window.history.replaceState({}, document.title, window.location.pathname);
+              navigate('/dashboard/my-orders');
             } catch (e) {
               console.error('Return URL handling error:', e);
             }
@@ -244,7 +231,17 @@ const CustomerDashboard = () => {
       setShowOrderModal(false);
       setOrderForm({ providerId: '', quantity: 1, paymentMethod: 'online', specialInstructions: '', deliveryAddress: null, deliveryTime: 'immediate' });
     },
-    onError: (error) => toast.error(error.response?.data?.message || 'Failed to place order')
+    onError: (error) => {
+      const errorMsg = error.response?.data?.message || 'Failed to place order';
+      const statusCode = error.response?.status;
+      
+      // Special handling for rate limit (failed payment cooldown)
+      if (statusCode === 429) {
+        toast.error(errorMsg, { duration: 5000 });
+      } else {
+        toast.error(errorMsg);
+      }
+    }
   });
 
   // Handle Cashfree checkout after order is placed
@@ -359,16 +356,18 @@ const CustomerDashboard = () => {
   const deleteAddressMutation = useMutation((addressId) => addressApi.deleteAddress(addressId), {
     onSuccess: () => {
       queryClient.invalidateQueries('customer-addresses');
-      toast.success('Address deleted successfully!');
+      queryClient.invalidateQueries('nearby-providers'); // Refetch providers to recalculate distances
+      toast.success('Address deleted successfully! Distances updated.');
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to delete address')
   });
 
   const setDefaultAddressMutation = useMutation((addressId) => addressApi.setDefaultAddress(addressId), {
     onSuccess: () => {
+      queryClient.invalidateQueries('customer-addresses');
       queryClient.invalidateQueries('nearby-providers'); // Refetch providers to recalculate distances
-      toast.success('Default address updated! Distances recalculated.-addresses');
-      toast.success('Default address updated!');
+      // Navigate back to dashboard to show updated distances
+      setTimeout(() => setActivePage('dashboard'), 1000);
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to set default address')
   });
@@ -495,9 +494,9 @@ const CustomerDashboard = () => {
   };
 
   const navigation = [
-    { key: 'dashboard', name: 'Dashboard Home', icon: HomeIcon },
-    { key: 'my-orders', name: 'My Orders', icon: Package },
-    { key: 'addresses', name: 'Address Management', icon: MapPin },
+    { key: 'dashboard', name: 'Dashboard Home', mobileName: 'Home', icon: HomeIcon },
+    { key: 'my-orders', name: 'My Orders', mobileName: 'Orders', icon: Package },
+    { key: 'addresses', name: 'Address Management', mobileName: 'Address', icon: MapPin },
   ].map(item => ({
     ...item,
     href: item.href || '#',
@@ -528,11 +527,7 @@ const CustomerDashboard = () => {
     let filteredProviders = providers.filter(provider => {
       const matchesSearch = provider.businessName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            provider.area?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesPrice = priceFilter === 'all' || 
-                          (priceFilter === 'low' && provider.pricePerCan <= 35) ||
-                          (priceFilter === 'medium' && provider.pricePerCan > 35 && provider.pricePerCan <= 45) ||
-                          (priceFilter === 'high' && provider.pricePerCan > 45);
-      return matchesSearch && matchesPrice;
+      return matchesSearch;
     });
 
     // Sort providers
@@ -548,16 +543,79 @@ const CustomerDashboard = () => {
 
     return (
       <div>
+        {/* Selected Address Section - Compact */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-4">
+          <div className="flex items-center justify-between">
+            {normalizedAddresses.length > 0 ? (
+              (() => {
+                const defaultAddress = normalizedAddresses.find(addr => addr.isDefault);
+                const displayAddress = defaultAddress || normalizedAddresses[0];
+                return (
+                  <>
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                      <MapPin className="h-4 w-4 text-primary-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-0.5">
+                          <span className="text-xs font-semibold text-gray-900">Delivery to:</span>
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800">
+                            {displayAddress.label || 'Home'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 truncate">
+                          {displayAddress.street}, {displayAddress.area}, {displayAddress.city} - {displayAddress.pincode}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActivePage('addresses')}
+                      className="text-primary-600 hover:text-primary-700 text-xs font-medium flex items-center space-x-1 flex-shrink-0 ml-2"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                      <span>Change</span>
+                    </button>
+                  </>
+                );
+              })()
+            ) : (
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center space-x-2 flex-1">
+                  <MapPinned className="h-4 w-4 text-warning-600" />
+                  <span className="text-xs text-warning-700 font-medium">No delivery address added</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowAddressModal(true);
+                    setEditingAddress(null);
+                    setAddressForm({ label: 'home', street: '', area: '', city: '', pincode: '', coordinates: { latitude: null, longitude: null } });
+                  }}
+                  className="inline-flex items-center space-x-1 px-3 py-1.5 bg-warning-600 hover:bg-warning-700 text-white text-xs font-medium rounded-md transition-colors flex-shrink-0"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Address</span>
+                </button>
+              </div>
+            )}
+          </div>
+          {providersRefetching && normalizedAddresses.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <div className="flex items-center space-x-2 text-xs text-primary-600">
+                <div className="animate-spin h-3 w-3 border-2 border-primary-600 border-t-transparent rounded-full"></div>
+                <span>Updating distances from new address...</span>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Hero Banner with Greeting */}
-        <div className="bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 rounded-2xl p-8 mb-6 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 rounded-2xl p-5 sm:p-8 mb-6 text-white relative overflow-hidden">
           <div className="relative z-10">
-            <h1 className="text-3xl font-bold mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
               Hello, {JSON.parse(localStorage.getItem('user') || '{}')?.name?.split(' ')[0] || 'Customer'}! 👋
             </h1>
-            <p className="text-primary-100 text-lg mb-4">What would you like to order today?</p>
+            <p className="text-primary-100 text-base sm:text-lg mb-3 sm:mb-4">What would you like to order today?</p>
             
             {/* Quick Stats Row */}
-            <div className="flex items-center space-x-6 mt-4">
+            <div className="flex items-center space-x-3 sm:space-x-6 mt-3 sm:mt-4">
               <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
                 <Droplets className="h-5 w-5" />
                 <span className="font-medium">{providers.length} Providers</span>
@@ -571,17 +629,17 @@ const CustomerDashboard = () => {
         </div>
 
         {/* Search and Filters - Swiggy Style */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Search Bar */}
-            <div className="md:col-span-2">
+            <div className="sm:col-span-2">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Search for water providers..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full border-2 border-gray-300 rounded-lg pl-11 pr-4 py-3 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                  className="w-full border-2 border-gray-300 rounded-lg pl-11 pr-4 py-3 text-base focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
                 />
                 <Filter className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
               </div>
@@ -601,51 +659,6 @@ const CustomerDashboard = () => {
             </div>
           </div>
 
-          {/* Filter Chips */}
-          <div className="flex items-center space-x-3 mt-4">
-            <span className="text-sm font-medium text-gray-700">Filter by Price:</span>
-            <button
-              onClick={() => setPriceFilter('all')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                priceFilter === 'all'
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setPriceFilter('low')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                priceFilter === 'low'
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Budget Rs.35 or less
-            </button>
-            <button
-              onClick={() => setPriceFilter('medium')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                priceFilter === 'medium'
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Rs.36-45
-            </button>
-            <button
-              onClick={() => setPriceFilter('high')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                priceFilter === 'high'
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Premium
-            </button>
-          </div>
-
           {/* Results Count */}
           <div className="mt-4 text-sm text-gray-600">
             <strong>{filteredProviders.length}</strong> water provider{filteredProviders.length !== 1 ? 's' : ''} available near you
@@ -653,7 +666,7 @@ const CustomerDashboard = () => {
         </div>
 
         {/* Providers Grid - Swiggy Style Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredProviders.map((provider) => (
             <div 
               key={provider._id} 
@@ -720,14 +733,21 @@ const CustomerDashboard = () => {
 
                 {/* Service Info */}
                 <div className="mb-3 space-y-1">
-                  {provider.distance !== undefined && provider.distance !== null ? (
-                    <div className="text-sm text-white bg-primary-600 px-3 py-1.5 rounded-md font-bold flex items-center w-fit">
-                      📍 {provider.distance} km away
-                    </div>
+                  {normalizedAddresses.length > 0 ? (
+                    provider.distance !== undefined && provider.distance !== null ? (
+                      <div className="text-sm text-white bg-primary-600 px-3 py-1.5 rounded-md font-bold flex items-center w-fit">
+                        📍 {provider.distance} km away
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-500 italic flex items-center">
+                        <div className="h-1.5 w-1.5 rounded-full bg-gray-300 mr-2"></div>
+                        Distance not available
+                      </div>
+                    )
                   ) : (
-                    <div className="text-xs text-gray-500 italic flex items-center">
-                      <div className="h-1.5 w-1.5 rounded-full bg-gray-300 mr-2"></div>
-                      Distance not available
+                    <div className="text-xs text-warning-600 italic flex items-center bg-warning-50 px-2 py-1 rounded">
+                      <MapPinned className="h-3.5 w-3.5 mr-1.5" />
+                      Add address to see distance
                     </div>
                   )}
                   {provider.serviceRadius && (
@@ -749,12 +769,12 @@ const CustomerDashboard = () => {
                 </div>
 
                 {/* Price and Order Button */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <div className="text-2xl font-bold text-primary-600">
                       Rs. {provider.pricePerCan}
                     </div>
-                    <div className="text-xs text-gray-500">per can</div>
+                    <div className="text-sm text-gray-500">per can</div>
                   </div>
                   
                   <button
@@ -775,9 +795,9 @@ const CustomerDashboard = () => {
                       }
                     }}
                     disabled={!provider.isOnline}
-                    className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${
+                    className={`w-full sm:w-auto py-3 px-5 rounded-xl font-semibold text-base transition-all min-h-[48px] ${
                       provider.isOnline
-                        ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-md hover:shadow-lg' 
+                        ? 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-md hover:shadow-lg' 
                         : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     }`}
                   >
@@ -801,15 +821,14 @@ const CustomerDashboard = () => {
                 ? "We couldn't find any water providers in your area yet." 
                 : 'Try adjusting your search or filters.'}
             </p>
-            {searchQuery || priceFilter !== 'all' ? (
+            {searchQuery ? (
               <button
                 onClick={() => {
                   setSearchQuery('');
-                  setPriceFilter('all');
                 }}
                 className="bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
               >
-                Clear Filters
+                Clear Search
               </button>
             ) : null}
           </div>
@@ -827,7 +846,7 @@ const CustomerDashboard = () => {
     const filteredOrders = orders.filter(order => {
       if (orderFilter === 'active') return ['pending', 'accepted', 'assigned', 'out_for_delivery'].includes(order.status);
       if (orderFilter === 'past') return order.status === 'delivered';
-      if (orderFilter === 'cancelled') return order.status === 'cancelled';
+      if (orderFilter === 'cancelled') return ['cancelled', 'failed'].includes(order.status);
       return true;
     });
 
@@ -838,13 +857,13 @@ const CustomerDashboard = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-6">My Orders</h1>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-6">
+        <div className="border-b border-gray-200 mb-6 overflow-x-auto -mx-1 sm:mx-0">
+          <nav className="-mb-px flex px-1 sm:px-0" style={{WebkitOverflowScrolling: 'touch'}}>
             {['all', 'active', 'past', 'cancelled'].map(filter => (
               <button
                 key={filter}
                 onClick={() => setOrderFilter(filter)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`py-4 px-4 sm:px-3 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${
                   orderFilter === filter
                     ? 'border-primary-500 text-primary-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -859,35 +878,35 @@ const CustomerDashboard = () => {
         {/* Orders List */}
         <div className="space-y-4">
           {filteredOrders.map((order) => (
-            <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex items-center space-x-3 mb-2">
+            <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center flex-wrap gap-2 mb-2">
                     <Package className="h-5 w-5 text-gray-400" />
-                    <span className="font-mono text-sm text-gray-600">#{order.orderNumber || order._id.slice(-8)}</span>
+                    <span className="font-mono text-sm text-gray-600 truncate">#{order.orderNumber || order._id.slice(-8)}</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {getStatusText(order.status)}
+                      {order.status === 'pending' && order.paymentMethod === 'online' ? 'Online Pending' : getStatusText(order.status)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600">{formatDateTime(order.timeline?.ordered)}</p>
+                  <p className="text-xs sm:text-sm text-gray-500">{formatDateTime(order.timeline?.ordered)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Total</p>
-                  <p className="text-xl font-semibold text-primary-600">Rs. {order.items?.totalPrice || 0}</p>
+                  <p className="text-xs text-gray-500">Total</p>
+                  <p className="text-lg sm:text-xl font-bold text-primary-600">Rs. {order.items?.totalPrice || 0}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div>
-                  <p className="text-xs text-gray-600">Provider</p>
-                  <p className="font-medium text-gray-900">{order.providerId?.businessName || 'N/A'}</p>
+                  <p className="text-xs text-gray-500 mb-0.5">Provider</p>
+                  <p className="font-semibold text-gray-900 text-sm">{order.providerId?.businessName || 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600">Quantity</p>
-                  <p className="font-medium text-gray-900">{order.items?.quantity || 0} cans</p>
+                  <p className="text-xs text-gray-500 mb-0.5">Quantity</p>
+                  <p className="font-semibold text-gray-900 text-sm">{order.items?.quantity || 0} cans</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600">Payment</p>
+                  <p className="text-xs text-gray-500 mb-0.5">Payment</p>
                   <p className="font-medium text-gray-900 flex items-center gap-2">
                     {order.paymentStatus || 'Pending'}
                     {order.paymentMethod === 'online' && (order.paymentStatus === 'pending' || !order.paymentStatus) && (
@@ -900,14 +919,17 @@ const CustomerDashboard = () => {
                               const payload = resp?.data || resp;
                               const updated = payload?.data || payload;
                               const paymentStatus = (updated?.paymentStatus || '').toString().toLowerCase();
-                              // Force refetch and wait for results
-                              await queryClient.invalidateQueries('customer-orders', { refetchActive: true });
+                              
                               if (paymentStatus === 'paid') {
+                                await queryClient.invalidateQueries('customer-orders', { refetchActive: true });
                                 toast.success('Payment successful!');
                               } else if (paymentStatus === 'failed') {
+                                await queryClient.invalidateQueries('customer-orders', { refetchActive: true });
                                 toast.error('Payment failed.');
                               } else {
-                                toast('Still pending. Try again later.', { icon: '⏳' });
+                                // Still pending - just refresh, let cron job handle auto-fail after 1 minute
+                                await queryClient.invalidateQueries('customer-orders', { refetchActive: true });
+                                toast.info('Payment still pending. Will auto-cancel in 1 minute if not completed.');
                               }
                             } catch (e) {
                               console.error('Refresh payment error:', e);
@@ -1017,11 +1039,11 @@ const CustomerDashboard = () => {
 
     return (
       <div>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
           <h1 className="text-2xl font-bold text-gray-900">Address Management</h1>
           <button 
             onClick={handleAddAddress}
-            className="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 flex items-center space-x-2"
+            className="bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 flex items-center justify-center space-x-2"
           >
             <Plus className="h-5 w-5" />
             <span>Add New Address</span>
@@ -1040,7 +1062,7 @@ const CustomerDashboard = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             {addresses.map((address) => (
               <div key={address._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="flex items-start justify-between mb-4">
@@ -1055,19 +1077,19 @@ const CustomerDashboard = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex gap-2">
                     <button 
                       onClick={() => handleEditAddress(address)}
-                      className="text-gray-400 hover:text-primary-600"
+                      className="text-gray-400 hover:text-primary-600 p-3 rounded-lg hover:bg-gray-100 transition-colors"
                     >
-                      <Edit2 className="h-4 w-4" />
+                      <Edit2 className="h-5 w-5" />
                     </button>
                     <button 
                       onClick={() => handleDeleteAddress(address._id)}
-                      className="text-gray-400 hover:text-error-600"
+                      className="text-gray-400 hover:text-red-600 p-3 rounded-lg hover:bg-red-50 transition-colors"
                       disabled={deleteAddressMutation.isLoading}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
                 </div>
@@ -1097,7 +1119,7 @@ const CustomerDashboard = () => {
                   <button
                     onClick={() => handleSetDefault(address._id)}
                     disabled={setDefaultAddressMutation.isLoading}
-                    className="text-sm text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50"
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50 py-2"
                   >
                     Set as Default
                   </button>
@@ -1128,8 +1150,8 @@ const CustomerDashboard = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Place Water Order</h2>
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Place Water Order</h2>
               <button 
                 type="button"
                 onClick={() => setShowOrderModal(false)} 
@@ -1140,8 +1162,8 @@ const CustomerDashboard = () => {
             </div>
 
             {/* Scrollable Content */}
-            <div className="overflow-y-auto p-6">
-              <form onSubmit={(e) => { e.preventDefault(); }} className="space-y-5">
+            <div className="overflow-y-auto p-4 sm:p-6">
+              <form onSubmit={(e) => { e.preventDefault(); }} className="space-y-4 sm:space-y-5">
                 
                 {/* Provider Info */}
                 <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
@@ -1164,20 +1186,20 @@ const CustomerDashboard = () => {
                     <button
                       type="button"
                       onClick={() => setOrderForm({ ...orderForm, quantity: Math.max(1, orderForm.quantity - 1) })}
-                      className="w-10 h-10 border border-gray-300 rounded-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+                      className="w-12 h-12 border-2 border-gray-300 rounded-xl flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors flex-shrink-0"
                     >
-                      <span className="text-xl font-bold text-gray-600">−</span>
+                      <span className="text-2xl font-bold text-gray-600 leading-none">−</span>
                     </button>
                     <div className="flex-1 text-center">
-                      <div className="text-3xl font-bold text-gray-900">{orderForm.quantity}</div>
-                      <div className="text-sm text-gray-600">cans</div>
+                      <div className="text-4xl font-bold text-gray-900">{orderForm.quantity}</div>
+                      <div className="text-sm text-gray-500">cans</div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setOrderForm({ ...orderForm, quantity: orderForm.quantity + 1 })}
-                      className="w-10 h-10 border border-gray-300 rounded-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+                      className="w-12 h-12 border-2 border-gray-300 rounded-xl flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors flex-shrink-0"
                     >
-                      <span className="text-xl font-bold text-gray-600">+</span>
+                      <span className="text-2xl font-bold text-gray-600 leading-none">+</span>
                     </button>
                   </div>
                 </div>
@@ -1247,7 +1269,7 @@ const CustomerDashboard = () => {
             </div>
 
             {/* Fixed Footer with Total and Submit */}
-            <div className="border-t border-gray-200 p-6">
+            <div className="border-t border-gray-200 p-4 sm:p-6">
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-600">Quantity:</span>
@@ -1330,8 +1352,8 @@ const CustomerDashboard = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
             {/* Fixed Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">{editingAddress ? 'Edit Address' : 'Add New Address'}</h2>
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">{editingAddress ? 'Edit Address' : 'Add New Address'}</h2>
               <button 
                 type="button"
                 onClick={() => {
@@ -1357,8 +1379,8 @@ const CustomerDashboard = () => {
             </div>
             
             {/* Scrollable Content */}
-            <div className="overflow-y-auto p-6">
-            <form onSubmit={(e) => { 
+            <div className="overflow-y-auto p-4 sm:p-6">
+            <form onSubmit={(e) => {
               e.preventDefault(); 
               if (editingAddress) {
                 updateAddressMutation.mutate({ addressId: editingAddress._id, data: addressForm });
@@ -1370,7 +1392,7 @@ const CustomerDashboard = () => {
               <div className="mb-4">
                 <p className="text-sm font-medium text-gray-700 mb-2">📍 Select Your Delivery Location</p>
                 <p className="text-xs text-gray-600 mb-3">Click on the map, use your current location, or manually enter coordinates below</p>
-                <div className="relative border border-gray-300 rounded-lg overflow-hidden" style={{ height: '320px' }}>
+                <div className="relative border border-gray-300 rounded-lg overflow-hidden h-52 sm:h-80">
                   <MapContainer
                     center={mapCenter}
                     zoom={mapZoom}
@@ -1426,7 +1448,7 @@ const CustomerDashboard = () => {
                 <select
                   value={addressForm.label}
                   onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base"
                 >
                   <option value="home">Home</option>
                   <option value="work">Work</option>
@@ -1440,7 +1462,7 @@ const CustomerDashboard = () => {
                   type="text"
                   value={addressForm.street}
                   onChange={(e) => setAddressForm({ ...addressForm, street: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base"
                   placeholder="House/Flat No., Building Name, Street"
                   required
                 />
@@ -1452,20 +1474,20 @@ const CustomerDashboard = () => {
                   type="text"
                   value={addressForm.area}
                   onChange={(e) => setAddressForm({ ...addressForm, area: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base"
                   placeholder="Area, Locality"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
                   <input
                     type="text"
                     value={addressForm.city}
                     onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base"
                     placeholder="City"
                     required
                   />
@@ -1476,7 +1498,7 @@ const CustomerDashboard = () => {
                     type="text"
                     value={addressForm.pincode}
                     onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base"
                     placeholder="123456"
                     pattern="[0-9]{6}"
                     maxLength="6"
@@ -1486,7 +1508,7 @@ const CustomerDashboard = () => {
               </div>
 
               {/* Manual Coordinates Input */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Latitude
@@ -1509,7 +1531,7 @@ const CustomerDashboard = () => {
                         setMapZoom(15);
                       }
                     }}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base"
                     placeholder="e.g., 19.0760"
                   />
                 </div>
@@ -1535,7 +1557,7 @@ const CustomerDashboard = () => {
                         setMapZoom(15);
                       }
                     }}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base"
                     placeholder="e.g., 72.8777"
                   />
                 </div>
@@ -1552,7 +1574,7 @@ const CustomerDashboard = () => {
             </div>
             
             {/* Fixed Footer with Submit Button */}
-            <div className="border-t border-gray-200 p-6">
+            <div className="border-t border-gray-200 p-4 sm:p-6">
               <button
                 type="submit"
                 onClick={(e) => {

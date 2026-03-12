@@ -65,43 +65,54 @@ const Landing = () => {
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-2">
-              <Droplets className="h-8 w-8 text-water-500" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">JalSaathi</h1>
-                <p className="text-xs text-gray-500">Har Pyaas Ka Saathi</p>
+          <div className="py-3 sm:py-4">
+            <div className="flex items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center space-x-2 min-w-0">
+                <Droplets className="h-8 w-8 text-water-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <h1 className="text-xl font-bold text-gray-900 leading-tight">JalSaathi</h1>
+                  <p className="text-xs text-gray-500">Har Pyaas Ka Saathi</p>
+                </div>
               </div>
+
+              <div className="hidden sm:flex items-center space-x-4">
+                <Link to="/about" className="text-gray-600 hover:text-gray-900">About</Link>
+                <Link to="/contact" className="text-gray-600 hover:text-gray-900">Contact</Link>
+                <Link to="/login" className="btn-outline">Sign In</Link>
+              </div>
+
+              <Link to="/login" className="sm:hidden inline-flex items-center justify-center border border-primary-500 text-primary-600 font-semibold rounded-xl px-4 py-2.5 whitespace-nowrap shadow-sm">
+                Sign In
+              </Link>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link to="/about" className="text-gray-600 hover:text-gray-900">About</Link>
-              <Link to="/contact" className="text-gray-600 hover:text-gray-900">Contact</Link>
-              <Link to="/login" className="btn-outline">Sign In</Link>
+
+            <div className="sm:hidden mt-3 flex items-center gap-3">
+              <Link to="/about" className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">About</Link>
+              <Link to="/contact" className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">Contact</Link>
             </div>
           </div>
         </nav>
       </header>
 
       {/* Hero Section */}
-      <section className="gradient-water text-white py-20">
+      <section className="gradient-water text-white py-14 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold font-display mb-6 animate-fade-in-up">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold font-display mb-4 sm:mb-6 animate-fade-in-up">
               JalSaathi
             </h1>
-            <h2 className="text-xl md:text-2xl mb-4 animate-fade-in-up animation-delay-100">
+            <h2 className="text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 animate-fade-in-up animation-delay-100">
               Har Pyaas Ka Saathi
             </h2>
-            <p className="text-lg md:text-xl mb-8 max-w-3xl mx-auto animate-fade-in-up animation-delay-200">
+            <p className="text-base sm:text-lg md:text-xl mb-8 max-w-3xl mx-auto animate-fade-in-up animation-delay-200">
               Your trusted partner for area-based water can delivery. Connect with local suppliers, 
               track deliveries, and never run out of fresh drinking water again.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-300">
-              <Link to="/register/customer" className="btn-primary bg-white text-water-600 hover:bg-gray-100 text-lg px-8 py-3">
+              <Link to="/register/customer" className="btn-primary bg-white text-water-600 hover:bg-gray-100 text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto">
                 Order Water Now <ArrowRight className="h-5 w-5" />
               </Link>
-              <Link to="/register/provider" className="btn-outline border-white text-white hover:bg-white hover:text-water-600 text-lg px-8 py-3">
+              <Link to="/register/provider" className="btn-outline border-white text-white hover:bg-white hover:text-water-600 text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto">
                 Become a Provider
               </Link>
             </div>
@@ -110,20 +121,20 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-white">
+      <section className="py-14 sm:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold font-display text-gray-900 mb-4">
+          <div className="text-center mb-10 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-gray-900 mb-4">
               Why Choose JalSaathi?
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
               We make water delivery simple, reliable, and transparent for everyone in your area.
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-8">
             {features.map((feature, index) => (
-              <div key={index} className="text-center animate-fade-in-up" style={{animationDelay: `${index * 100}ms`}}>
+              <div key={index} className="text-center animate-fade-in-up bg-gray-50 rounded-2xl p-5 sm:p-0 sm:bg-transparent" style={{animationDelay: `${index * 100}ms`}}>
                 <div className="w-16 h-16 mx-auto mb-4 bg-water-100 rounded-full flex items-center justify-center">
                   <feature.icon className="h-8 w-8 text-water-600" />
                 </div>
@@ -136,20 +147,20 @@ const Landing = () => {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-14 sm:py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold font-display text-gray-900 mb-4">
+          <div className="text-center mb-10 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-gray-900 mb-4">
               How It Works
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
               Getting fresh water delivered is as easy as 1-2-3-4
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-8">
             {howItWorks.map((step, index) => (
-              <div key={index} className="text-center animate-fade-in-up" style={{animationDelay: `${index * 150}ms`}}>
+              <div key={index} className="text-center animate-fade-in-up bg-white rounded-2xl p-5 sm:p-0 sm:bg-transparent" style={{animationDelay: `${index * 150}ms`}}>
                 <div className="w-12 h-12 mx-auto mb-4 bg-primary-500 text-white rounded-full flex items-center justify-center text-xl font-bold">
                   {step.step}
                 </div>
@@ -162,9 +173,9 @@ const Landing = () => {
       </section>
 
       {/* Statistics Section */}
-      <section className="py-20 bg-primary-600 text-white">
+      <section className="py-14 sm:py-20 bg-primary-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 text-center">
             <div className="animate-fade-in-up">
               <div className="text-4xl md:text-5xl font-bold mb-2">1000+</div>
               <div className="text-lg">Happy Customers</div>
@@ -182,16 +193,16 @@ const Landing = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-white">
+      <section className="py-14 sm:py-20 bg-white">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold font-display text-gray-900 mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-gray-900 mb-4">
             Ready to Never Run Out of Water Again?
           </h2>
-          <p className="text-lg text-gray-600 mb-8">
+          <p className="text-base sm:text-lg text-gray-600 mb-8">
             Join thousands of satisfied customers who trust JalSaathi for their daily water needs.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/register" className="btn-primary text-lg px-8 py-3">
+            <Link to="/register" className="btn-primary text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto">
               Start Ordering <ArrowRight className="h-5 w-5" />
             </Link>
           </div>
@@ -199,11 +210,11 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
+      <footer className="bg-gray-900 text-white py-10 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
             <div>
-              <div className="flex items-center space-x-2 mb-4">
+              <div className="flex items-center justify-center md:justify-start space-x-2 mb-4">
                 <Droplets className="h-8 w-8 text-water-400" />
                 <div>
                   <h3 className="text-xl font-bold">JalSaathi</h3>
@@ -228,15 +239,15 @@ const Landing = () => {
             <div>
               <h4 className="text-lg font-semibold mb-4">Contact Info</h4>
               <div className="space-y-2">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-center md:justify-start space-x-2">
                   <Phone className="h-4 w-4" />
                   <span className="text-gray-300">+91 12345 67890</span>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-center md:justify-start space-x-2">
                   <Mail className="h-4 w-4" />
                   <span className="text-gray-300">support@jalsaathi.com</span>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-center md:justify-start space-x-2">
                   <MapPin className="h-4 w-4" />
                   <span className="text-gray-300">Available Pan-India</span>
                 </div>

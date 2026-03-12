@@ -22,7 +22,8 @@ const generateTokenResponse = (user) => {
       email: user.email,
       role: user.role,
       address: user.address,
-      specialNotes: user.specialNotes
+      specialNotes: user.specialNotes,
+      addedToHomeScreen: user.addedToHomeScreen
     },
     token
   };

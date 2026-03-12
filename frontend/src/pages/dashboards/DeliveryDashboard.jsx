@@ -85,11 +85,11 @@ const DeliveryDashboard = () => {
   const pendingOrdersCount = orders.filter(o => ['assigned', 'out_for_delivery'].includes(o.status)).length;
 
   const navigation = [
-    { key: 'dashboard', name: 'Dashboard Home', icon: HomeIcon },
-    { key: 'assigned-orders', name: 'Assigned Orders', icon: Package, badge: pendingOrdersCount },
-    { key: 'delivery-tracking', name: 'Delivery Tracking', icon: MapPin },
-    { key: 'history', name: 'Delivery History', icon: History },
-    { key: 'stats', name: 'Stats', icon: Calendar },
+    { key: 'dashboard', name: 'Dashboard Home', mobileName: 'Home', icon: HomeIcon },
+    { key: 'assigned-orders', name: 'Assigned Orders', mobileName: 'Orders', icon: Package, badge: pendingOrdersCount },
+    { key: 'delivery-tracking', name: 'Delivery Tracking', mobileName: 'Route', icon: MapPin },
+    { key: 'history', name: 'Delivery History', mobileName: 'History', icon: History },
+    { key: 'stats', name: 'Stats', mobileName: 'Stats', icon: Calendar },
   ].map(item => ({
     ...item,
     href: item.href || '#',
@@ -124,11 +124,11 @@ const DeliveryDashboard = () => {
 
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard Overview</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Dashboard Overview</h1>
 
         {/* Today's Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+          <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-5 sm:p-6">
             <Package className="h-8 w-8 text-primary-600 mb-2" />
             <p className="text-3xl font-bold text-primary-900">{assignedToday}</p>
             <p className="text-sm text-primary-700">Assigned Today</p>
@@ -137,10 +137,10 @@ const DeliveryDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
           <button
             onClick={() => setActivePage('assigned-orders')}
-            className="bg-white border-2 border-primary-200 hover:border-primary-400 rounded-lg p-6 text-left transition-all"
+            className="bg-white border-2 border-primary-200 hover:border-primary-400 rounded-xl p-5 sm:p-6 text-left transition-all min-h-[150px]"
           >
             <div className="flex items-center justify-between mb-3">
               <Package className="h-8 w-8 text-primary-600" />
@@ -154,7 +154,7 @@ const DeliveryDashboard = () => {
 
           <button
             onClick={() => setActivePage('history')}
-            className="bg-white border-2 border-success-200 hover:border-success-400 rounded-lg p-6 text-left transition-all"
+            className="bg-white border-2 border-success-200 hover:border-success-400 rounded-xl p-5 sm:p-6 text-left transition-all min-h-[150px]"
           >
             <History className="h-8 w-8 text-success-600 mb-3" />
             <h3 className="font-semibold text-gray-900 mb-1">Delivery History</h3>
@@ -181,7 +181,7 @@ const DeliveryDashboard = () => {
 
     return (
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Assigned Orders</h1>
             <p className="text-sm text-gray-600">Clear, concise view of your active deliveries</p>
@@ -197,20 +197,20 @@ const DeliveryDashboard = () => {
         ) : (
           <div className="space-y-3">
             {assignedOrders.map((order) => (
-              <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden p-4">
-                <div className="lg:flex lg:items-center lg:justify-between">
+              <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden p-4 sm:p-5">
+                <div className="lg:flex lg:items-center lg:justify-between gap-3">
                   <div className="flex items-start gap-4 min-w-0">
                     <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center flex-shrink-0">
                       <User className="h-5 w-5 text-primary-600" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs text-gray-500">Customer</p>
-                      <h3 className="text-sm font-semibold text-gray-900 truncate">{order.customerId?.name || 'Customer'}</h3>
-                      <p className="text-xs text-gray-500 truncate">{order.deliveryAddress?.street || order.deliveryAddress?.area || ''} • {order.deliveryAddress?.city || ''} {order.deliveryAddress?.pincode || ''}</p>
+                      <h3 className="text-base sm:text-sm font-semibold text-gray-900 truncate">{order.customerId?.name || 'Customer'}</h3>
+                      <p className="text-xs text-gray-500 break-words">{order.deliveryAddress?.street || order.deliveryAddress?.area || ''} • {order.deliveryAddress?.city || ''} {order.deliveryAddress?.pincode || ''}</p>
                     </div>
                   </div>
 
-                  <div className="mt-3 lg:mt-0 flex items-center gap-4">
+                  <div className="mt-3 lg:mt-0 flex items-center gap-3 sm:gap-4 flex-wrap justify-between">
                     <div className="text-right">
                       <p className="text-xs text-gray-500">Order</p>
                       <p className="text-sm font-mono text-gray-900">#{order.orderNumber || order._id.slice(-8)}</p>
@@ -224,7 +224,7 @@ const DeliveryDashboard = () => {
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
+                <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3 items-start">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Package className="h-4 w-4 text-gray-400" />
                     <div>
@@ -271,10 +271,10 @@ const DeliveryDashboard = () => {
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-end gap-3">
+                <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
                   <button
                     onClick={() => window.open(getNavigationUrl(order.deliveryAddress, order.deliveryAddress?.coordinates), '_blank')}
-                    className="bg-white border border-primary-200 text-primary-700 py-2 px-3 rounded-lg text-sm font-medium hover:bg-primary-50 transition-colors"
+                    className="w-full sm:w-auto bg-white border border-primary-200 text-primary-700 py-3 px-4 rounded-lg text-sm font-medium hover:bg-primary-50 transition-colors min-h-[48px]"
                     aria-label={`Navigate to ${order.customerId?.name || 'customer'}`}
                   >
                     <Navigation className="h-4 w-4 inline-block mr-2" />
@@ -285,7 +285,7 @@ const DeliveryDashboard = () => {
                     <button
                       onClick={() => markPaymentReceivedMutation.mutate(order._id)}
                       disabled={markPaymentReceivedMutation.isLoading}
-                      className="bg-orange-500 text-white py-2 px-3 rounded-lg text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                      className="w-full sm:w-auto bg-orange-500 text-white py-3 px-4 rounded-lg text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors min-h-[48px]"
                       aria-label={`Mark payment received for order ${order.orderNumber || order._id.slice(-8)}`}
                     >
                       <IndianRupee className="h-4 w-4 inline-block mr-2" />
@@ -298,7 +298,7 @@ const DeliveryDashboard = () => {
                     <button
                       onClick={() => { setConfirmOrderId(order._id); setConfirmModalOpen(true); }}
                       disabled={markDeliveredMutation.isLoading}
-                      className="bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      className="w-full sm:w-auto bg-green-600 text-white py-3 px-4 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors min-h-[48px]"
                       aria-label={`Mark order ${order.orderNumber || order._id.slice(-8)} as delivered`}
                     >
                       <CheckCircle className="h-4 w-4 inline-block mr-2" />
@@ -307,7 +307,7 @@ const DeliveryDashboard = () => {
                   ) : (
                     <button
                       disabled
-                      className="bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-sm font-semibold cursor-not-allowed"
+                      className="w-full sm:w-auto bg-gray-300 text-gray-500 py-3 px-4 rounded-lg text-sm font-semibold cursor-not-allowed min-h-[48px]"
                       title="Collect payment first"
                     >
                       <CheckCircle className="h-4 w-4 inline-block mr-2" />
@@ -415,7 +415,6 @@ const DeliveryDashboard = () => {
           );
           setOptimizedRoute(route);
           setIsLoadingLocation(false);
-          toast.success('Route optimized!');
         },
         (error) => {
           setLocationError('Unable to get your location. Please enable location services.');
@@ -517,8 +516,8 @@ const DeliveryDashboard = () => {
 
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Delivery Route Map</h1>
-        <p className="text-gray-600 mb-4">View all delivery locations on one map</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Delivery Route Map</h1>
+        <p className="text-sm sm:text-base text-gray-600 mb-4">View all delivery locations on one map</p>
 
         {/* No orders message */}
         {allPendingOrders.length === 0 && (
@@ -536,10 +535,10 @@ const DeliveryDashboard = () => {
               <button
                 onClick={getCurrentLocation}
                 disabled={isLoadingLocation}
-                className="w-full bg-primary-600 text-white rounded-lg p-4 font-semibold hover:bg-primary-700 disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
+                className="w-full bg-primary-600 text-white rounded-lg p-4 sm:p-5 font-semibold hover:bg-primary-700 disabled:opacity-50 transition-all flex items-center justify-center space-x-2 shadow-md active:scale-95"
               >
-                <MapPin className="h-5 w-5" />
-                <span>{isLoadingLocation ? 'Getting Location...' : currentLocation ? 'Refresh My Location' : 'Get My Location & Optimize Route'}</span>
+                <MapPin className="h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-base sm:text-lg">{isLoadingLocation ? 'Getting Location...' : currentLocation ? 'Refresh My Location' : 'Get My Location & Optimize Route'}</span>
               </button>
               {locationError && (
                 <p className="text-sm text-error-600 mt-2 text-center">{locationError}</p>
@@ -550,7 +549,7 @@ const DeliveryDashboard = () => {
             {currentLocation && (
               <div className="bg-white rounded-lg shadow-lg border-2 border-gray-200 overflow-hidden mb-4">
                 {/* Map Display with Customer Labels */}
-                <div className="relative" style={{ height: '500px' }}>
+                <div className="relative h-[340px] sm:h-[500px] lg:h-[600px]">
                   <iframe
                     width="100%"
                     height="100%"
@@ -572,23 +571,24 @@ const DeliveryDashboard = () => {
                   {/* Overlay Open in Google Maps Button */}
                   <button
                     onClick={openFullMap}
-                    className="absolute top-3 right-3 bg-white shadow-lg rounded-lg px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-primary-50 transition-colors flex items-center space-x-1 border border-gray-200 z-10"
+                    className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white shadow-lg rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base font-semibold text-primary-600 hover:bg-primary-50 transition-colors flex items-center space-x-1.5 border-2 border-primary-200 z-10 active:scale-95"
                   >
-                    <ExternalLink className="h-4 w-4" />
-                    <span>Open in Maps</span>
+                    <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="hidden sm:inline">Open in Maps</span>
+                    <span className="sm:hidden">Maps</span>
                   </button>
 
-                  {/* Prominent Customer Labels Overlay - Left Side */}
-                  <div className="absolute left-3 top-3 bottom-3 w-64 bg-white shadow-2xl rounded-lg border-2 border-primary-300 overflow-hidden flex flex-col">
-                    <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-3 py-2 flex items-center justify-between">
+                  {/* Prominent Customer Labels Overlay - Left Side (Hidden on mobile) */}
+                  <div className="hidden lg:flex absolute left-3 top-3 bottom-3 w-64 xl:w-72 bg-white shadow-2xl rounded-lg border-2 border-primary-300 overflow-hidden flex-col">
+                    <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-3 py-2.5 flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <MapPin className="h-4 w-4 text-white" />
                         <h4 className="text-sm font-bold text-white">Customer Stops</h4>
                       </div>
-                      <span className="text-xs bg-white text-primary-700 font-bold px-2 py-0.5 rounded-full">{optimizedRoute.length}</span>
+                      <span className="text-xs bg-white text-primary-700 font-bold px-2 py-1 rounded-full">{optimizedRoute.length}</span>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-gray-50">
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1.5 bg-gray-50">
                       {optimizedRoute.map((order, index) => (
                         <div 
                           key={order._id} 
@@ -636,33 +636,34 @@ const DeliveryDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Your Location Indicator - Top Left */}
-                  <div className="absolute top-3 left-[270px] bg-blue-600 shadow-xl rounded-lg px-3 py-2 border-2 border-blue-400">
-                    <div className="flex items-center space-x-2">
-                      <div className="h-3 w-3 bg-white rounded-full animate-pulse"></div>
-                      <span className="text-xs font-bold text-white">Your Location</span>
+                  {/* Your Location Indicator - Top Left (Responsive) */}
+                  <div className="absolute top-2 left-2 lg:top-3 lg:left-[280px] xl:left-[300px] bg-blue-600 shadow-xl rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 border-2 border-blue-400">
+                    <div className="flex items-center space-x-1.5 sm:space-x-2">
+                      <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 bg-white rounded-full animate-pulse"></div>
+                      <span className="text-xs font-bold text-white">You</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Map Info Bar */}
-                <div className="bg-gradient-to-r from-primary-50 to-blue-50 px-4 py-3 border-t-2 border-primary-200">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <div className="h-4 w-4 bg-blue-600 rounded-full border-2 border-white shadow-md"></div>
+                <div className="bg-gradient-to-r from-primary-50 to-blue-50 px-3 sm:px-4 py-2.5 sm:py-3 border-t-2 border-primary-200">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
+                    <div className="flex items-center space-x-2 sm:space-x-4 flex-wrap gap-1">
+                      <div className="flex items-center space-x-1 sm:space-x-2">
+                        <div className="h-3 w-3 sm:h-4 sm:w-4 bg-blue-600 rounded-full border-2 border-white shadow-md"></div>
                         <span className="text-gray-700 font-bold">You</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="h-4 w-4 bg-green-600 rounded-full border-2 border-white shadow-md"></div>
-                        <span className="text-gray-700 font-bold">Stop #1 (Nearest)</span>
+                      <div className="flex items-center space-x-1 sm:space-x-2">
+                        <div className="h-3 w-3 sm:h-4 sm:w-4 bg-green-600 rounded-full border-2 border-white shadow-md"></div>
+                        <span className="text-gray-700 font-bold hidden sm:inline">Stop #1 (Nearest)</span>
+                        <span className="text-gray-700 font-bold sm:hidden">Nearest</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="h-4 w-4 bg-red-600 rounded-full border-2 border-white shadow-md"></div>
-                        <span className="text-gray-700 font-bold">Other Stops</span>
+                      <div className="flex items-center space-x-1 sm:space-x-2">
+                        <div className="h-3 w-3 sm:h-4 sm:w-4 bg-red-600 rounded-full border-2 border-white shadow-md"></div>
+                        <span className="text-gray-700 font-bold">Other</span>
                       </div>
                     </div>
-                    <span className="text-primary-700 font-extrabold text-lg">{optimizedRoute.length} Stops</span>
+                    <span className="text-primary-700 font-extrabold text-base sm:text-lg whitespace-nowrap">{optimizedRoute.length} Stops</span>
                   </div>
                 </div>
               </div>
@@ -670,20 +671,20 @@ const DeliveryDashboard = () => {
 
             {/* Nearest Customer Highlight */}
             {nearestStop && currentLocation && (
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-300 rounded-lg p-4 mb-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-2">
-                    <div className="h-10 w-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-300 rounded-lg p-4 sm:p-5 mb-4 shadow-md">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className="h-12 w-12 sm:h-14 sm:w-14 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg">
                       1
                     </div>
                     <div>
-                      <p className="text-xs text-green-700 font-semibold">NEAREST STOP</p>
-                      <p className="font-bold text-gray-900">{nearestStop.customerId?.name || 'Customer'}</p>
+                      <p className="text-xs sm:text-sm text-green-700 font-semibold">NEAREST STOP</p>
+                      <p className="font-bold text-gray-900 text-base sm:text-lg">{nearestStop.customerId?.name || 'Customer'}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-600">Distance</p>
-                    <p className="text-lg font-bold text-green-600">
+                    <p className="text-xs sm:text-sm text-gray-600">Distance</p>
+                    <p className="text-lg sm:text-xl font-bold text-green-600">
                       {calculateDistance(
                         currentLocation.latitude,
                         currentLocation.longitude,
@@ -694,16 +695,16 @@ const DeliveryDashboard = () => {
                   </div>
                 </div>
                 
-                <div className="bg-white rounded-lg p-3 mb-3">
-                  <p className="text-sm text-gray-900 mb-1">
-                    <MapPin className="h-4 w-4 inline-block text-gray-500 mr-1" />
+                <div className="bg-white rounded-lg p-3 sm:p-4 mb-3 sm:mb-4 shadow-sm">
+                  <p className="text-sm sm:text-base text-gray-900 mb-2">
+                    <MapPin className="h-4 w-4 sm:h-5 sm:w-5 inline-block text-gray-500 mr-1.5" />
                     {getAddressText(nearestStop)}
                   </p>
-                  <div className="flex items-center space-x-3 text-sm">
-                    <span className="text-gray-600">
+                  <div className="flex items-center space-x-2 sm:space-x-3 text-sm sm:text-base flex-wrap">
+                    <span className="text-gray-600 font-medium">
                       {nearestStop.items?.quantity} cans • Rs. {nearestStop.items?.totalPrice}
                     </span>
-                    <span className={`px-2 py-0.5 rounded text-xs ${
+                    <span className={`px-2 py-1 rounded text-xs sm:text-sm font-semibold ${
                       nearestStop.paymentMethod === 'cash_on_delivery' 
                         ? 'bg-orange-100 text-orange-700' 
                         : 'bg-green-100 text-green-700'
@@ -713,40 +714,100 @@ const DeliveryDashboard = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                   {nearestStop.customerId?.phone && (
                     <a
                       href={`tel:${nearestStop.customerId.phone}`}
-                      className="bg-white border-2 border-blue-500 text-blue-600 py-2 px-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors flex items-center justify-center space-x-1"
+                      className="bg-white border-2 border-blue-500 text-blue-600 py-3 sm:py-3.5 px-3 sm:px-4 rounded-lg font-semibold hover:bg-blue-50 active:scale-95 transition-all flex items-center justify-center space-x-1 sm:space-x-2 shadow-sm min-h-[48px]"
                     >
-                      <Phone className="h-4 w-4" />
-                      <span className="text-sm">Call</span>
+                      <Phone className="h-5 w-5 sm:h-5 sm:w-5" />
+                      <span className="text-xs sm:text-sm">Call</span>
                     </a>
                   )}
                   <button
                     onClick={openFullMap}
-                    className="bg-blue-600 text-white py-2 px-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-1"
+                    className="bg-blue-600 text-white py-3 sm:py-3.5 px-3 sm:px-4 rounded-lg font-semibold hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center space-x-1 sm:space-x-2 shadow-md min-h-[48px]"
                   >
-                    <Navigation className="h-4 w-4" />
-                    <span className="text-sm">Navigate</span>
+                    <Navigation className="h-5 w-5 sm:h-5 sm:w-5" />
+                    <span className="text-xs sm:text-sm">Navigate</span>
                   </button>
                   <button
                     onClick={() => handleMarkDelivered(nearestStop)}
                     disabled={markDeliveredMutation.isLoading}
-                    className="bg-green-600 text-white py-2 px-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center space-x-1"
+                    className="bg-green-600 text-white py-3 sm:py-3.5 px-3 sm:px-4 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center space-x-1 sm:space-x-2 shadow-md min-h-[48px]"
                   >
-                    <CheckCircle className="h-4 w-4" />
-                    <span className="text-sm">Done</span>
+                    <CheckCircle className="h-5 w-5 sm:h-5 sm:w-5" />
+                    <span className="text-xs sm:text-sm">Done</span>
                   </button>
                 </div>
               </div>
             )}
 
+            {/* Mobile Customer Stops List - Show on mobile, hide on large screens */}
+            <div className="lg:hidden mb-4">
+              <div className="bg-white rounded-lg shadow-md border-2 border-primary-300 overflow-hidden">
+                <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="h-5 w-5 text-white" />
+                    <h4 className="text-base font-bold text-white">Customer Stops</h4>
+                  </div>
+                  <span className="text-sm bg-white text-primary-700 font-bold px-3 py-1 rounded-full">{optimizedRoute.length}</span>
+                </div>
+                
+                <div className="p-3 space-y-2 bg-gray-50 max-h-96 overflow-y-auto">
+                  {optimizedRoute.map((order, index) => (
+                    <div 
+                      key={order._id} 
+                      className={`rounded-lg p-3 shadow-sm border-2 active:scale-98 transition-transform ${
+                        index === 0 
+                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-400' 
+                          : 'bg-white border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className={`h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-base flex-shrink-0 shadow-md ${
+                          index === 0 ? 'bg-green-500' : 'bg-red-500'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-base font-bold text-gray-900 truncate">
+                            {order.customerId?.name || 'Customer'}
+                          </p>
+                          <p className="text-sm text-gray-600 truncate">
+                            {order.deliveryAddress?.area || order.deliveryAddress?.street}
+                          </p>
+                          {index === 0 && (
+                            <span className="inline-block mt-1.5 text-xs bg-green-500 text-white px-2.5 py-1 rounded-full font-semibold shadow-sm">
+                              NEAREST
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-gradient-to-r from-gray-100 to-gray-50 px-4 py-3 border-t border-gray-200">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-3">
+                      <div className="h-3 w-3 bg-green-500 rounded-full"></div>
+                      <span className="text-gray-700 font-medium">Nearest</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="h-3 w-3 bg-red-500 rounded-full"></div>
+                      <span className="text-gray-700 font-medium">Other Stops</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* All Stops List */}
             {optimizedRoute.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                  <h3 className="font-semibold text-gray-900">All Delivery Stops (Optimized by Distance)</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">All Delivery Stops (Optimized by Distance)</h3>
                 </div>
                 <div className="divide-y divide-gray-100">
                   {optimizedRoute.map((order, index) => {
@@ -798,7 +859,7 @@ const DeliveryDashboard = () => {
                             {order.customerId?.phone && (
                               <a 
                                 href={`tel:${order.customerId.phone}`} 
-                                className="p-2 bg-blue-100 rounded-full text-blue-600 hover:bg-blue-200"
+                                className="p-3 bg-blue-100 rounded-full text-blue-600 hover:bg-blue-200 min-h-[48px] min-w-[48px] flex items-center justify-center"
                               >
                                 <Phone className="h-4 w-4" />
                               </a>
@@ -863,12 +924,12 @@ const DeliveryDashboard = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Delivery History</h1>
 
         {/* Date Filter */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <select 
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 font-medium"
+              className="border border-gray-300 rounded-lg px-4 py-3 text-base sm:text-sm font-medium w-full sm:w-auto"
             >
               <option value="today">Today</option>
               <option value="week">This Week</option>
@@ -879,7 +940,7 @@ const DeliveryDashboard = () => {
               <span className="font-semibold">{completedOrders.length}</span> deliveries completed
             </p>
           </div>
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg px-4 py-2 border border-green-200">
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg px-4 py-3 border border-green-200">
             <p className="text-xs text-green-700 font-medium">Total Earnings</p>
             <p className="text-lg font-bold text-green-900">Rs. {totalEarnings.toLocaleString('en-IN')}</p>
           </div>
@@ -915,7 +976,7 @@ const DeliveryDashboard = () => {
 
                 {/* Content */}
                 <div className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Left: Customer & Time Info */}
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
@@ -1012,14 +1073,14 @@ const DeliveryDashboard = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Stats</h1>
         <p className="text-gray-600 mb-6">Delivery counts (no monetary data)</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
+          <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-5 sm:p-6">
             <Calendar className="h-8 w-8 text-primary-600 mb-2" />
             <p className="text-3xl font-bold text-primary-900">{deliveredToday}</p>
             <p className="text-sm text-primary-700">Delivered Today</p>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6">
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 sm:p-6">
             <Package className="h-8 w-8 text-purple-600 mb-2" />
             <p className="text-3xl font-bold text-purple-900">{totalDelivered}</p>
             <p className="text-sm text-purple-700">Total Delivered</p>
@@ -1088,13 +1149,13 @@ const DeliveryDashboard = () => {
       {confirmModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
           <div className="fixed inset-0 bg-black opacity-40" onClick={() => setConfirmModalOpen(false)} />
-          <div className="relative bg-white rounded-lg shadow-lg max-w-md w-full p-6 z-10">
+          <div className="relative bg-white rounded-lg shadow-lg max-w-md w-full p-4 sm:p-6 z-10">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">Confirm Delivery</h2>
             <p className="text-sm text-gray-600 mb-4">Are you sure you want to mark this order as delivered? This action cannot be undone.</p>
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
               <button
                 onClick={() => setConfirmModalOpen(false)}
-                className="bg-white border border-gray-200 py-2 px-3 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                className="w-full sm:w-auto bg-white border border-gray-200 py-3 px-4 rounded-lg text-sm text-gray-700 hover:bg-gray-50 min-h-[48px]"
               >
                 Cancel
               </button>
@@ -1109,7 +1170,7 @@ const DeliveryDashboard = () => {
                     }
                   });
                 }}
-                className="bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-semibold hover:bg-green-700"
+                className="w-full sm:w-auto bg-green-600 text-white py-3 px-4 rounded-lg text-sm font-semibold hover:bg-green-700 min-h-[48px]"
               >
                 Yes, mark delivered
               </button>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { User, Mail, Phone, MapPin, Edit2, Save, X, ArrowLeft } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Edit2, Save, X, ArrowLeft, Download, Smartphone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -13,6 +13,7 @@ const Profile = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -24,6 +25,20 @@ const Profile = () => {
       pincode: ''
     }
   });
+
+  // Listen for beforeinstallprompt event
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
 
   // Fetch user profile
   const { data: profileResponse, isLoading } = useQuery(
@@ -101,6 +116,39 @@ const Profile = () => {
           pincode: profile.address?.pincode || ''
         }
       });
+    }
+  };
+
+  const handleAddToHomeScreen = async () => {
+    if (deferredPrompt) {
+      // Show the install prompt
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        toast.success('App installed successfully!');
+        // Update the status in the backend
+        try {
+          await authApi.updateAddToHomeScreenStatus();
+        } catch (error) {
+          console.error('Failed to update add to home screen status:', error);
+        }
+      }
+      
+      setDeferredPrompt(null);
+    } else {
+      // Check if it's iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      
+      if (isIOS) {
+        toast.info('Tap the Share button and select "Add to Home Screen"', {
+          duration: 5000
+        });
+      } else {
+        toast.info('Install option is not available in your browser', {
+          duration: 3000
+        });
+      }
     }
   };
 
@@ -360,6 +408,34 @@ const Profile = () => {
                   <p className="text-lg font-semibold text-gray-900">
                     {formatDateTime(profile?.updatedAt, { dateOnly: true })}
                   </p>
+                </div>
+              </div>
+            </div>
+
+            {/* App Settings */}
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Smartphone className="h-5 w-5 mr-2 text-primary-500" />
+                App Settings
+              </h3>
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <h4 className="text-base font-semibold text-gray-900 mb-1">
+                      Add to Home Screen
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      Install JalSaathi on your device for quick access and offline functionality
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleAddToHomeScreen}
+                    className="ml-4 px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center space-x-2 flex-shrink-0"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">Install App</span>
+                    <span className="sm:hidden">Install</span>
+                  </button>
                 </div>
               </div>
             </div>
