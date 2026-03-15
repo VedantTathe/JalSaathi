@@ -73,7 +73,11 @@ class AuthService {
         console.error('❌ Email sending failed, cleaning up user record');
         // If email fails, delete the temp user
         await User.findByIdAndDelete(tempUser._id);
-        return formatResponse(false, 'Failed to send verification email. Please try again.', null, 500);
+        const isConfigIssue = (emailResult.error || '').toLowerCase().includes('not configured');
+        const message = isConfigIssue
+          ? 'Email service is not configured on server. Please contact support.'
+          : `Failed to send verification email: ${emailResult.error || 'Please try again.'}`;
+        return formatResponse(false, message, null, isConfigIssue ? 503 : 500);
       }
       
       console.log('✅ Registration OTP process completed successfully');
@@ -187,7 +191,11 @@ class AuthService {
       const emailResult = await sendOTPEmail(email, otp, user.name);
       
       if (!emailResult.success) {
-        return formatResponse(false, 'Failed to send verification email', null, 500);
+        const isConfigIssue = (emailResult.error || '').toLowerCase().includes('not configured');
+        const message = isConfigIssue
+          ? 'Email service is not configured on server. Please contact support.'
+          : `Failed to send verification email: ${emailResult.error || 'Please try again.'}`;
+        return formatResponse(false, message, null, isConfigIssue ? 503 : 500);
       }
       
       return formatResponse(true, 'New OTP sent to your email', null, 200);
@@ -305,7 +313,11 @@ class AuthService {
       const emailResult = await sendLoginOTPEmail(email, otp, user.name);
       
       if (!emailResult.success) {
-        return formatResponse(false, 'Failed to send login OTP. Please try again.', null, 500);
+        const isConfigIssue = (emailResult.error || '').toLowerCase().includes('not configured');
+        const message = isConfigIssue
+          ? 'Email service is not configured on server. Please contact support.'
+          : `Failed to send login OTP: ${emailResult.error || 'Please try again.'}`;
+        return formatResponse(false, message, null, isConfigIssue ? 503 : 500);
       }
       
       return formatResponse(true, 'Login OTP sent to your email', { email }, 200);
