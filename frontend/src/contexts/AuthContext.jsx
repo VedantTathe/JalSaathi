@@ -38,7 +38,11 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      const status = error?.response?.status;
+      // 401/403 is expected when token is expired/invalid; clear session silently.
+      if (status !== 401 && status !== 403) {
+        console.error('Auth check failed:', error);
+      }
       localStorage.removeItem('jalsaathi_token');
       setUser(null);
     } finally {
