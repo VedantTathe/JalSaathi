@@ -1,19 +1,45 @@
 const nodemailer = require('nodemailer');
 
+const resolveMailConfig = () => {
+  const host = process.env.EMAIL_HOST || process.env.SMTP_HOST;
+  const portRaw = process.env.EMAIL_PORT || process.env.SMTP_PORT || '587';
+  const port = Number(portRaw);
+  const user = process.env.EMAIL_USER || process.env.SMTP_USER || process.env.GMAIL_USER;
+  const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS || process.env.GMAIL_PASS;
+  const from = process.env.EMAIL_FROM || process.env.MAIL_FROM || user;
+  const secure = (process.env.EMAIL_SECURE || process.env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465;
+
+  return {
+    host,
+    port: Number.isNaN(port) ? 587 : port,
+    user,
+    pass,
+    from,
+    secure,
+    isConfigured: Boolean(host && user && pass)
+  };
+};
+
 // Create transporter
 const createTransporter = () => {
+  const config = resolveMailConfig();
+
   console.log('📧 Creating email transporter...');
-  console.log('   Host:', process.env.EMAIL_HOST);
-  console.log('   Port:', process.env.EMAIL_PORT);
-  console.log('   User:', process.env.EMAIL_USER);
+  console.log('   Host:', config.host || 'MISSING');
+  console.log('   Port:', config.port);
+  console.log('   User:', config.user ? 'SET' : 'MISSING');
+
+  if (!config.isConfigured) {
+    throw new Error('Email service is not configured. Set EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, and EMAIL_FROM in environment variables.');
+  }
   
   return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT),
-    secure: process.env.EMAIL_SECURE === 'true',
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
+      user: config.user,
+      pass: config.pass
     },
     connectionTimeout: 10000, // 10 seconds
     greetingTimeout: 10000,
@@ -34,10 +60,11 @@ const sendOTPEmail = async (email, otp, name = 'User') => {
   
   try {
     const transporter = createTransporter();
+    const config = resolveMailConfig();
     
     console.log('   Creating mail options...');
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: config.from,
       to: email,
       subject: 'JalSaathi - Email Verification OTP',
       html: `
@@ -135,9 +162,10 @@ const sendOTPEmail = async (email, otp, name = 'User') => {
 const sendLoginOTPEmail = async (email, otp, name = 'User') => {
   try {
     const transporter = createTransporter();
+    const config = resolveMailConfig();
     
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: config.from,
       to: email,
       subject: 'JalSaathi - Login OTP',
       html: `
@@ -241,6 +269,7 @@ const sendLoginOTPEmail = async (email, otp, name = 'User') => {
 const sendWelcomeEmail = async (email, name, role) => {
   try {
     const transporter = createTransporter();
+    const config = resolveMailConfig();
     
     const roleMessages = {
       customer: 'You can now start ordering fresh drinking water from nearby providers.',
@@ -249,7 +278,7 @@ const sendWelcomeEmail = async (email, name, role) => {
     };
     
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: config.from,
       to: email,
       subject: 'Welcome to JalSaathi!',
       html: `
@@ -339,9 +368,10 @@ const sendWelcomeEmail = async (email, name, role) => {
 const sendPasswordResetOTPEmail = async (email, otp, name = 'User') => {
   try {
     const transporter = createTransporter();
+    const config = resolveMailConfig();
     
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: config.from,
       to: email,
       subject: 'JalSaathi - Password Reset OTP',
       html: `
@@ -447,9 +477,10 @@ const sendPasswordResetOTPEmail = async (email, otp, name = 'User') => {
 const sendDeliveryBoyCredentialsEmail = async (email, name, password, providerName) => {
   try {
     const transporter = createTransporter();
+    const config = resolveMailConfig();
     
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: config.from,
       to: email,
       subject: 'JalSaathi - Your Delivery Partner Account Details',
       html: `
