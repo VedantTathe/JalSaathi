@@ -9,6 +9,25 @@
       "runtime": "nodejs18.x",
       "region": "ap-south-1",
       "stage": "dev",
+      "environment": {
+        "BACKEND_URL": "http://localhost:5000",
+        "MONGODB_URI": "mongodb+srv://vedant:vedant@cluster0.3glbf3u.mongodb.net/JalSaathiDB?retryWrites=true&w=majority",
+        "JWT_SECRET": "jalsaathi-super-secret-jwt-key-2026-production-ready",
+        "JWT_EXPIRES_IN": "7d",
+        "EMAIL_HOST": "smtp.gmail.com",
+        "EMAIL_PORT": "587",
+        "EMAIL_SECURE": "false",
+        "EMAIL_USER": "withnocheatssfs@gmail.com",
+        "EMAIL_PASS": "suykoxwymvrpzskq",
+        "EMAIL_FROM": "JalSaathi <withnocheatssfs@gmail.com>",
+        "PLATFORM_COMMISSION_PERCENT": "1.5",
+        "IS_WEBSITE_ON": "true",
+        "CASHFREE_APP_ID": "1211037940d724ad17953a9787c7301121",
+        "CASHFREE_SECRET_KEY": "cfsk_ma_prod_d1a18c3f4c2cc3f41deb0caca84e7012_4e5d2d0d",
+        "CASHFREE_ENV": "production",
+        "CASHFREE_RETURN_URL": "http://localhost:5173/dashboard/",
+        "CASHFREE_WEBHOOK_URL": "http://localhost:5000/api/webhook/cashfree"
+      },
       "versionFunctions": true,
       "compiledCloudFormationTemplate": {
         "AWSTemplateFormatVersion": "2010-09-09",
@@ -174,13 +193,34 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/jalsaathi-backend/dev/1773644523819-2026-03-16T07:02:03.819Z/jalsaathi-backend.zip"
+                "S3Key": "serverless/jalsaathi-backend/dev/1773662453056-2026-03-16T12:00:53.056Z/jalsaathi-backend.zip"
               },
               "Handler": "server.handler",
               "Runtime": "nodejs18.x",
               "FunctionName": "jalsaathi-backend-dev-api",
               "MemorySize": 1024,
               "Timeout": 6,
+              "Environment": {
+                "Variables": {
+                  "BACKEND_URL": "http://localhost:5000",
+                  "MONGODB_URI": "mongodb+srv://vedant:vedant@cluster0.3glbf3u.mongodb.net/JalSaathiDB?retryWrites=true&w=majority",
+                  "JWT_SECRET": "jalsaathi-super-secret-jwt-key-2026-production-ready",
+                  "JWT_EXPIRES_IN": "7d",
+                  "EMAIL_HOST": "smtp.gmail.com",
+                  "EMAIL_PORT": "587",
+                  "EMAIL_SECURE": "false",
+                  "EMAIL_USER": "withnocheatssfs@gmail.com",
+                  "EMAIL_PASS": "suykoxwymvrpzskq",
+                  "EMAIL_FROM": "JalSaathi <withnocheatssfs@gmail.com>",
+                  "PLATFORM_COMMISSION_PERCENT": "1.5",
+                  "IS_WEBSITE_ON": "true",
+                  "CASHFREE_APP_ID": "1211037940d724ad17953a9787c7301121",
+                  "CASHFREE_SECRET_KEY": "cfsk_ma_prod_d1a18c3f4c2cc3f41deb0caca84e7012_4e5d2d0d",
+                  "CASHFREE_ENV": "production",
+                  "CASHFREE_RETURN_URL": "http://localhost:5173/dashboard/",
+                  "CASHFREE_WEBHOOK_URL": "http://localhost:5000/api/webhook/cashfree"
+                }
+              },
               "Role": {
                 "Fn::GetAtt": [
                   "IamRoleLambdaExecution",
@@ -192,14 +232,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersionAkDv0AHPxDOiAFxsEdCnRJpQ4yq6R8L4WCz3HEfMjo": {
+          "ApiLambdaVersione09loH3sT99IHylcVbQjjSQDMHjNIFAxcAYOXAbNcoQ": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "yUZXQSYkkWfSrWrIsYbbtEfkd/pFeHbwdcB7s8kJvMc="
+              "CodeSha256": "QzNYdUmOsEp+KCLN08dxbvbSwR08JS0Q+yCf+aLQiKE="
             }
           },
           "HttpApi": {
@@ -307,7 +347,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersionAkDv0AHPxDOiAFxsEdCnRJpQ4yq6R8L4WCz3HEfMjo"
+              "Ref": "ApiLambdaVersione09loH3sT99IHylcVbQjjSQDMHjNIFAxcAYOXAbNcoQ"
             },
             "Export": {
               "Name": "sls-jalsaathi-backend-dev-ApiLambdaFunctionQualifiedArn"
@@ -453,7 +493,7 @@
         "timeout": 6,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "ApiLambdaVersionAkDv0AHPxDOiAFxsEdCnRJpQ4yq6R8L4WCz3HEfMjo"
+        "versionLogicalId": "ApiLambdaVersione09loH3sT99IHylcVbQjjSQDMHjNIFAxcAYOXAbNcoQ"
       }
     },
     "configValidationMode": "warn",
@@ -461,6 +501,7 @@
     "initialServerlessConfig": {
       "service": "jalsaathi-backend",
       "frameworkVersion": "3",
+      "useDotenv": true,
       "provider": {
         "$ref": "$[\"service\"][\"provider\"]"
       },
@@ -473,7 +514,7 @@
     "artifact": "E:\\2. Projects\\1. Important Projects\\JalSaathi\\JalSaathi\\backend\\.serverless\\jalsaathi-backend.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/jalsaathi-backend/dev/1773644523819-2026-03-16T07:02:03.819Z",
+    "artifactDirectoryName": "serverless/jalsaathi-backend/dev/1773662453056-2026-03-16T12:00:53.056Z",
     "artifact": "jalsaathi-backend.zip"
   }
 }

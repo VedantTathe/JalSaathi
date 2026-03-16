@@ -1,11 +1,30 @@
 service: jalsaathi-backend
 frameworkVersion: '3'
+useDotenv: true
 
 provider:
   name: aws
   runtime: nodejs18.x
   region: ap-south-1
   stage: ${opt:stage, 'dev'}
+  environment:
+    BACKEND_URL: ${env:BACKEND_URL}
+    MONGODB_URI: ${env:MONGODB_URI}
+    JWT_SECRET: ${env:JWT_SECRET}
+    JWT_EXPIRES_IN: ${env:JWT_EXPIRES_IN}
+    EMAIL_HOST: ${env:EMAIL_HOST}
+    EMAIL_PORT: ${env:EMAIL_PORT}
+    EMAIL_SECURE: ${env:EMAIL_SECURE}
+    EMAIL_USER: ${env:EMAIL_USER}
+    EMAIL_PASS: ${env:EMAIL_PASS}
+    EMAIL_FROM: ${env:EMAIL_FROM}
+    PLATFORM_COMMISSION_PERCENT: ${env:PLATFORM_COMMISSION_PERCENT}
+    IS_WEBSITE_ON: ${env:IS_WEBSITE_ON}
+    CASHFREE_APP_ID: ${env:CASHFREE_APP_ID}
+    CASHFREE_SECRET_KEY: ${env:CASHFREE_SECRET_KEY}
+    CASHFREE_ENV: ${env:CASHFREE_ENV}
+    CASHFREE_RETURN_URL: ${env:CASHFREE_RETURN_URL}
+    CASHFREE_WEBHOOK_URL: ${env:CASHFREE_WEBHOOK_URL}
 
 functions:
   api:
