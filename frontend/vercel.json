@@ -1,6 +1,6 @@
 {
     "rewrites": [
-        {"source": "/(.*)", "destination": "/"}
+        {"source": "/(.*)", "destination": "https://d1wl5h07d7rj0z.cloudfront.net/"}
     ]
 }
 
