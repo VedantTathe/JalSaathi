@@ -1,5 +1,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
+const serverless = require("serverless-http");
+
 // Debug: Log environment variables
 console.log('🔍 Environment check:');
 console.log('JWT_SECRET:', process.env.JWT_SECRET ? '✅ Loaded' : '❌ Missing');
@@ -118,11 +120,15 @@ app.use('*', (req, res) => {
 // Error handling middleware
 app.use(errorHandler);
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 JalSaathi Backend Server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health Check: http://localhost:${PORT}/health`);
-});
+// Start server (local development only - uncomment to run locally)
+// NOTE: Keep this commented when deploying to AWS Lambda / API Gateway.
+// app.listen(PORT, () => {
+//   console.log(`🚀 JalSaathi Backend Server running on port ${PORT}`);
+//   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+//   console.log(`🔗 Health Check: http://localhost:${PORT}/health`);
+// });
 
-module.exports = app;
+// module.exports = app;
+
+
+module.exports.handler = serverless(app);
