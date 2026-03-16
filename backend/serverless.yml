@@ -1,0 +1,20 @@
+service: jalsaathi-backend
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-south-1
+  stage: ${opt:stage, 'dev'}
+
+functions:
+  api:
+    handler: server.handler
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+
+# Notes:
+# - This uses the handler defined in `backend/server.js` (server.handler).
+# - All HTTP routes are proxied to the Lambda via API Gateway HTTP API.
