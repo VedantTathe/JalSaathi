@@ -8,6 +8,14 @@ console.log('JWT_SECRET:', process.env.JWT_SECRET ? '✅ Loaded' : '❌ Missing'
 console.log('MONGODB_URI:', process.env.MONGODB_URI ? '✅ Loaded' : '❌ Missing');
 console.log('PORT:', process.env.PORT);
 
+// Global process-level error handlers to prevent silent function crashes
+process.on('unhandledRejection', (reason, p) => {
+  console.error('Unhandled Rejection at:', p, 'reason:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err);
+});
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -42,8 +50,23 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
   'http://localhost:3000',
   'http://localhost:5174',
-  'https://jalsaathived.vercel.app'
+  'https://jalsaathived.vercel.app',
+  'https://d1wl5h07d7rj0z.cloudfront.net'
 ];
+
+// Respond to CORS preflight requests early with correct headers
+app.options('*', (req, res) => {
+  const origin = req.headers.origin || process.env.FRONTEND_URL || allowedOrigins[0];
+  if (process.env.NODE_ENV === 'production' && allowedOrigins.indexOf(origin) === -1) {
+    // Do not allow unknown origins in production
+    return res.status(403).send('Origin not allowed');
+  }
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
+  return res.sendStatus(200);
+});
 
 if (process.env.NODE_ENV !== 'production') {
   // In development allow all origins to avoid CORS issues with local ports
@@ -64,6 +87,39 @@ if (process.env.NODE_ENV !== 'production') {
     allowedHeaders: ['Content-Type','Authorization','X-Requested-With','Accept']
   }));
 }
+
+  // Optional debug logging for requests (enable by setting DEBUG_API=true in env)
+  if (process.env.DEBUG_API === 'true') {
+    app.use((req, res, next) => {
+      try {
+        console.log('== Incoming Request ==');
+        console.log('Method:', req.method, 'URL:', req.originalUrl);
+        console.log('Origin:', req.headers.origin);
+        console.log('Headers:', JSON.stringify(req.headers));
+      } catch (e) {
+        console.error('Failed to log request headers', e);
+      }
+      next();
+    });
+  }
+
+  // Fallback CORS headers (makes sure preflight is handled even if hosting strips headers)
+  app.use((req, res, next) => {
+    const requestOrigin = req.headers.origin || process.env.FRONTEND_URL || 'https://jalsaathived.vercel.app';
+    // Allow missing origin (curl, mobile apps)
+    if (!req.headers.origin) {
+      res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+    } else if (process.env.NODE_ENV !== 'production' || allowedOrigins.indexOf(req.headers.origin) !== -1) {
+      res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
 
 // Rate limiting
 const limiter = rateLimit({
@@ -122,13 +178,15 @@ app.use(errorHandler);
 
 // Start server (local development only - uncomment to run locally)
 // NOTE: Keep this commented when deploying to AWS Lambda / API Gateway.
-// app.listen(PORT, () => {
-//   console.log(`🚀 JalSaathi Backend Server running on port ${PORT}`);
-//   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-//   console.log(`🔗 Health Check: http://localhost:${PORT}/health`);
-// });
+// If the file is executed directly (node src/server.js), start a local HTTP server.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 JalSaathi Backend Server running on port ${PORT}`);
+    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 Health Check: http://localhost:${PORT}/health`);
+  });
+}
 
-// module.exports = app;
-
-
+// Export the Express app for local testing and the Lambda handler for serverless deployments
+module.exports = app;
 module.exports.handler = serverless(app);

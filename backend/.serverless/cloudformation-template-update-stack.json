@@ -74,7 +74,7 @@
     "ApiLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/jalsaathi-backend-dev-api"
+        "LogGroupName": "/aws/lambda/jalsaathi-backend-prod-api"
       }
     },
     "IamRoleLambdaExecution": {
@@ -103,7 +103,7 @@
                 "-",
                 [
                   "jalsaathi-backend",
-                  "dev",
+                  "prod",
                   "lambda"
                 ]
               ]
@@ -120,7 +120,7 @@
                   ],
                   "Resource": [
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/jalsaathi-backend-dev*:*"
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/jalsaathi-backend-prod*:*"
                     }
                   ]
                 },
@@ -131,7 +131,7 @@
                   ],
                   "Resource": [
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/jalsaathi-backend-dev*:*:*"
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/jalsaathi-backend-prod*:*:*"
                     }
                   ]
                 }
@@ -145,7 +145,7 @@
             "-",
             [
               "jalsaathi-backend",
-              "dev",
+              "prod",
               {
                 "Ref": "AWS::Region"
               },
@@ -162,11 +162,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/jalsaathi-backend/dev/1773662453056-2026-03-16T12:00:53.056Z/jalsaathi-backend.zip"
+          "S3Key": "serverless/jalsaathi-backend/prod/1773685682325-2026-03-16T18:28:02.325Z/jalsaathi-backend.zip"
         },
         "Handler": "server.handler",
         "Runtime": "nodejs18.x",
-        "FunctionName": "jalsaathi-backend-dev-api",
+        "FunctionName": "jalsaathi-backend-prod-api",
         "MemorySize": 1024,
         "Timeout": 6,
         "Environment": {
@@ -201,20 +201,20 @@
         "ApiLogGroup"
       ]
     },
-    "ApiLambdaVersione09loH3sT99IHylcVbQjjSQDMHjNIFAxcAYOXAbNcoQ": {
+    "ApiLambdaVersionlkOB8QSFu14XiMTdVDvIEQ9dVMrwZx14vUCaVU5c": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "ApiLambdaFunction"
         },
-        "CodeSha256": "QzNYdUmOsEp+KCLN08dxbvbSwR08JS0Q+yCf+aLQiKE="
+        "CodeSha256": "Z7VVaDHLFkM6gtr0nQtZlrGupe2GpKE5xyLtx7FGgKA="
       }
     },
     "HttpApi": {
       "Type": "AWS::ApiGatewayV2::Api",
       "Properties": {
-        "Name": "dev-jalsaathi-backend",
+        "Name": "prod-jalsaathi-backend",
         "ProtocolType": "HTTP"
       }
     },
@@ -313,16 +313,16 @@
         "Ref": "ServerlessDeploymentBucket"
       },
       "Export": {
-        "Name": "sls-jalsaathi-backend-dev-ServerlessDeploymentBucketName"
+        "Name": "sls-jalsaathi-backend-prod-ServerlessDeploymentBucketName"
       }
     },
     "ApiLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "ApiLambdaVersione09loH3sT99IHylcVbQjjSQDMHjNIFAxcAYOXAbNcoQ"
+        "Ref": "ApiLambdaVersionlkOB8QSFu14XiMTdVDvIEQ9dVMrwZx14vUCaVU5c"
       },
       "Export": {
-        "Name": "sls-jalsaathi-backend-dev-ApiLambdaFunctionQualifiedArn"
+        "Name": "sls-jalsaathi-backend-prod-ApiLambdaFunctionQualifiedArn"
       }
     },
     "HttpApiId": {
@@ -331,7 +331,7 @@
         "Ref": "HttpApi"
       },
       "Export": {
-        "Name": "sls-jalsaathi-backend-dev-HttpApiId"
+        "Name": "sls-jalsaathi-backend-prod-HttpApiId"
       }
     },
     "HttpApiUrl": {
@@ -356,7 +356,7 @@
         ]
       },
       "Export": {
-        "Name": "sls-jalsaathi-backend-dev-HttpApiUrl"
+        "Name": "sls-jalsaathi-backend-prod-HttpApiUrl"
       }
     }
   }
