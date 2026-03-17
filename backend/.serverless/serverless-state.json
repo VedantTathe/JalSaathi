@@ -8,7 +8,7 @@
       "name": "aws",
       "runtime": "nodejs18.x",
       "region": "ap-south-1",
-      "stage": "prod",
+      "stage": "dev",
       "environment": {
         "BACKEND_URL": "http://localhost:5000",
         "MONGODB_URI": "mongodb+srv://vedant:vedant@cluster0.3glbf3u.mongodb.net/JalSaathiDB?retryWrites=true&w=majority",
@@ -105,7 +105,7 @@
           "ApiLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/jalsaathi-backend-prod-api"
+              "LogGroupName": "/aws/lambda/jalsaathi-backend-dev-api"
             }
           },
           "IamRoleLambdaExecution": {
@@ -134,7 +134,7 @@
                       "-",
                       [
                         "jalsaathi-backend",
-                        "prod",
+                        "dev",
                         "lambda"
                       ]
                     ]
@@ -151,7 +151,7 @@
                         ],
                         "Resource": [
                           {
-                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/jalsaathi-backend-prod*:*"
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/jalsaathi-backend-dev*:*"
                           }
                         ]
                       },
@@ -162,7 +162,7 @@
                         ],
                         "Resource": [
                           {
-                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/jalsaathi-backend-prod*:*:*"
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/jalsaathi-backend-dev*:*:*"
                           }
                         ]
                       }
@@ -176,7 +176,7 @@
                   "-",
                   [
                     "jalsaathi-backend",
-                    "prod",
+                    "dev",
                     {
                       "Ref": "AWS::Region"
                     },
@@ -193,11 +193,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/jalsaathi-backend/prod/1773685682325-2026-03-16T18:28:02.325Z/jalsaathi-backend.zip"
+                "S3Key": "serverless/jalsaathi-backend/dev/1773723002515-2026-03-17T04:50:02.515Z/jalsaathi-backend.zip"
               },
               "Handler": "server.handler",
               "Runtime": "nodejs18.x",
-              "FunctionName": "jalsaathi-backend-prod-api",
+              "FunctionName": "jalsaathi-backend-dev-api",
               "MemorySize": 1024,
               "Timeout": 6,
               "Environment": {
@@ -232,20 +232,20 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersionlkOB8QSFu14XiMTdVDvIEQ9dVMrwZx14vUCaVU5c": {
+          "ApiLambdaVersionCUugmCGBGMESE1PI8vdKzBy6eu8pbMYNKwkfzjhDo": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "Z7VVaDHLFkM6gtr0nQtZlrGupe2GpKE5xyLtx7FGgKA="
+              "CodeSha256": "01PXnudrxjezovZ6Oq4ekc35lU/mrkgael7M4grJSmU="
             }
           },
           "HttpApi": {
             "Type": "AWS::ApiGatewayV2::Api",
             "Properties": {
-              "Name": "prod-jalsaathi-backend",
+              "Name": "dev-jalsaathi-backend",
               "ProtocolType": "HTTP"
             }
           },
@@ -341,16 +341,16 @@
               "Ref": "ServerlessDeploymentBucket"
             },
             "Export": {
-              "Name": "sls-jalsaathi-backend-prod-ServerlessDeploymentBucketName"
+              "Name": "sls-jalsaathi-backend-dev-ServerlessDeploymentBucketName"
             }
           },
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersionlkOB8QSFu14XiMTdVDvIEQ9dVMrwZx14vUCaVU5c"
+              "Ref": "ApiLambdaVersionCUugmCGBGMESE1PI8vdKzBy6eu8pbMYNKwkfzjhDo"
             },
             "Export": {
-              "Name": "sls-jalsaathi-backend-prod-ApiLambdaFunctionQualifiedArn"
+              "Name": "sls-jalsaathi-backend-dev-ApiLambdaFunctionQualifiedArn"
             }
           },
           "HttpApiId": {
@@ -359,7 +359,7 @@
               "Ref": "HttpApi"
             },
             "Export": {
-              "Name": "sls-jalsaathi-backend-prod-HttpApiId"
+              "Name": "sls-jalsaathi-backend-dev-HttpApiId"
             }
           },
           "HttpApiUrl": {
@@ -384,7 +384,7 @@
               ]
             },
             "Export": {
-              "Name": "sls-jalsaathi-backend-prod-HttpApiUrl"
+              "Name": "sls-jalsaathi-backend-dev-HttpApiUrl"
             }
           }
         }
@@ -487,13 +487,13 @@
             "resolvedPath": "/{proxy+}"
           }
         ],
-        "name": "jalsaathi-backend-prod-api",
+        "name": "jalsaathi-backend-dev-api",
         "package": {},
         "memory": 1024,
         "timeout": 6,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "ApiLambdaVersionlkOB8QSFu14XiMTdVDvIEQ9dVMrwZx14vUCaVU5c"
+        "versionLogicalId": "ApiLambdaVersionCUugmCGBGMESE1PI8vdKzBy6eu8pbMYNKwkfzjhDo"
       }
     },
     "configValidationMode": "warn",
@@ -514,7 +514,7 @@
     "artifact": "E:\\2. Projects\\1. Important Projects\\JalSaathi\\JalSaathi\\backend\\.serverless\\jalsaathi-backend.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/jalsaathi-backend/prod/1773685682325-2026-03-16T18:28:02.325Z",
+    "artifactDirectoryName": "serverless/jalsaathi-backend/dev/1773723002515-2026-03-17T04:50:02.515Z",
     "artifact": "jalsaathi-backend.zip"
   }
 }
