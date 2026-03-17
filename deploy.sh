@@ -1,120 +1,71 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# deploy.sh — Deploy backend (Serverless) and frontend (S3)
-# Usage:
-#   S3_BUCKET=your-bucket STAGE=dev ./deploy.sh
+# One-click: build a Lambda container image for the backend, push to ECR,
+# and update the existing Lambda function to use the new image.
+# Edit the hardcoded defaults below if needed.
 
-ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKEND_DIR="$ROOT_DIR/backend"
-FRONTEND_DIR="$ROOT_DIR/frontend"
+# Defaults (edit as needed)
+AWS_REGION="ap-south-1"
+STAGE="dev"
+BACKEND_DIR="./backend"
+BACKEND_REPO="jalsaathi-backend"
+IMAGE_TAG="${1:-latest}"
 
-# Defaults (can be overridden via env vars or command-line flags)
-# Default bucket updated to the full bucket name provided by user
-S3_BUCKET="${S3_BUCKET:-jalsaathi-frontend-552109717221-ap-south-1-an}"
-STAGE="${STAGE:-dev}"
-# CloudFront distribution IDs (comma or space separated). Default set to primary distribution.
-CLOUDFRONT_DISTRIBUTION_IDS="${CLOUDFRONT_DISTRIBUTION_IDS:-ERZRKXB6JJ9QD}"
+# Lambda function name created by Serverless is typically: <service>-<stage>-<function>
+# Our service is `jalsaathi-backend` and function key is `api` in serverless.yml,
+# so default name becomes `jalsaathi-backend-<stage>-api`.
+LAMBDA_FUNCTION_NAME="${LAMBDA_FUNCTION_NAME:-jalsaathi-backend-$STAGE-api}"
 
-usage() {
-  cat <<EOF
-Usage: $0 [-b BUCKET] [-s STAGE]
+echo "→ Building Lambda container image for backend"
+echo "Region: $AWS_REGION  Stage: $STAGE  Image tag: $IMAGE_TAG"
+echo "Lambda function name: $LAMBDA_FUNCTION_NAME"
 
-Defaults:
-  BUCKET=jalsaathi-frontend-552109717221-ap-south-1-an
-  STAGE=dev
+command -v aws >/dev/null 2>&1 || { echo "Please install and configure the AWS CLI."; exit 1; }
+command -v docker >/dev/null 2>&1 || { echo "Please install Docker."; exit 1; }
 
-Examples:
-  ./deploy.sh
-  ./deploy.sh -b my-bucket -s prod
-  S3_BUCKET=my-bucket STAGE=prod ./deploy.sh
-EOF
-}
-
-# Parse optional command-line args
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -b|--bucket)
-      S3_BUCKET="$2"; shift 2;;
-    -s|--stage)
-      STAGE="$2"; shift 2;;
-    -h|--help)
-      usage; exit 0;;
-    *)
-      echo "Unknown option: $1"; usage; exit 1;;
-  esac
-done
-
-echo "Deploying JalSaathi (stage: $STAGE)"
-echo "S3 bucket: $S3_BUCKET"
-
-echo
-echo "==> 1) Install backend dependencies"
-cd "$BACKEND_DIR"
-npm install
-echo
-echo "==> 2) Deploy backend with Serverless Framework (using npx)"
-# Use npx so global serverless install is not required.
-npx --yes serverless@3 deploy --stage "$STAGE" --config serverless.yml
-
-echo
-echo "==> 3) Install frontend dependencies and build"
-cd "$FRONTEND_DIR"
-npm install
-npm run build
-
-echo
-echo "==> 4) Sync frontend 'dist' to S3"
-aws s3 sync dist/ "s3://$S3_BUCKET" --delete
-
-echo
-echo "==> 5) Ensure index.html is uploaded with no-cache headers"
-# Replace index.html metadata without ACL (some buckets enforce 'Bucket owner enforced' and don't allow ACLs)
-aws s3 cp "$FRONTEND_DIR/dist/index.html" "s3://$S3_BUCKET/index.html" \
-  --cache-control "no-cache, no-store, must-revalidate" \
-  --content-type "text/html" \
-  --metadata-directive REPLACE || echo "Warning: failed to update index.html cache-control"
-
-if [ -z "$CLOUDFRONT_DISTRIBUTION_IDS" ]; then
-  echo
-  echo "No CLOUDFRONT_DISTRIBUTION_IDS set — attempting to auto-detect CloudFront distributions for bucket: $S3_BUCKET"
-  if command -v aws >/dev/null 2>&1; then
-    # List distribution IDs and inspect each distribution's origins for the bucket name
-    DIST_IDS=$(aws cloudfront list-distributions --query "DistributionList.Items[].Id" --output text 2>/dev/null || true)
-    DETECTED_IDS=""
-    for DID in $DIST_IDS; do
-      ORIGINS=$(aws cloudfront get-distribution --id "$DID" --query "Distribution.DistributionConfig.Origins.Items[].DomainName" --output text 2>/dev/null || true)
-      for ORIGIN in $ORIGINS; do
-        if echo "$ORIGIN" | grep -F -q "$S3_BUCKET"; then
-          DETECTED_IDS="$DETECTED_IDS $DID"
-          break
-        fi
-      done
-    done
-    DETECTED_IDS=$(echo $DETECTED_IDS)
-    if [ -n "$DETECTED_IDS" ]; then
-      CLOUDFRONT_DISTRIBUTION_IDS="$DETECTED_IDS"
-      echo "Auto-detected CloudFront distribution IDs: $CLOUDFRONT_DISTRIBUTION_IDS"
-    else
-      echo "Could not auto-detect CloudFront distributions for bucket $S3_BUCKET; skipping invalidation."
-    fi
-  else
-    echo "AWS CLI not found; skipping CloudFront invalidation."
-  fi
+# Resolve AWS account id
+AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-}"
+if [ -z "$AWS_ACCOUNT_ID" ]; then
+  AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)
+fi
+if [ -z "$AWS_ACCOUNT_ID" ]; then
+  echo "AWS_ACCOUNT_ID not set and could not be determined from AWS CLI. Set AWS_ACCOUNT_ID env var or configure aws cli.";
+  exit 1
 fi
 
-if [ -n "$CLOUDFRONT_DISTRIBUTION_IDS" ]; then
-  echo
-  echo "==> 6) Creating CloudFront invalidation for distribution(s): $CLOUDFRONT_DISTRIBUTION_IDS"
-  # normalize comma-separated into space-separated
-  IDS=$(echo "$CLOUDFRONT_DISTRIBUTION_IDS" | tr ',' ' ')
-  for ID in $IDS; do
-    echo "Invalidating CloudFront distribution: $ID"
-    aws cloudfront create-invalidation --distribution-id "$ID" --paths "/*" || echo "Warning: CloudFront invalidation failed for $ID"
-  done
+ECR_REGISTRY="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+BACKEND_IMAGE="$ECR_REGISTRY/$BACKEND_REPO:$IMAGE_TAG"
+
+echo "ECR registry: $ECR_REGISTRY"
+
+echo "Logging into ECR..."
+if ! aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"; then
+  echo "Failed to login to ECR. Ensure your IAM user has ecr:GetAuthorizationToken and related permissions.";
+  exit 1
+fi
+
+echo "Creating ECR repository if missing..."
+if ! aws ecr describe-repositories --repository-names "$BACKEND_REPO" --region "$AWS_REGION" >/dev/null 2>&1; then
+  aws ecr create-repository --repository-name "$BACKEND_REPO" --region "$AWS_REGION" >/dev/null || true
+fi
+
+echo "Building Docker image (this may take a minute)..."
+docker build -t "$BACKEND_REPO:$IMAGE_TAG" -f "$BACKEND_DIR/Dockerfile" "$BACKEND_DIR"
+
+echo "Tagging and pushing image to ECR: $BACKEND_IMAGE"
+docker tag "$BACKEND_REPO:$IMAGE_TAG" "$BACKEND_IMAGE"
+docker push "$BACKEND_IMAGE"
+
+echo "Updating Lambda function ($LAMBDA_FUNCTION_NAME) to use image: $BACKEND_IMAGE"
+if aws lambda update-function-code --function-name "$LAMBDA_FUNCTION_NAME" --image-uri "$BACKEND_IMAGE" --publish >/dev/null 2>&1; then
+  echo "Lambda function updated successfully."
 else
-  echo "No CloudFront distribution IDs found — skipping invalidation."
+  echo "Failed to update Lambda function."
+  echo "If the function does not exist, create it first (requires a role ARN). Example:"
+  echo "  aws lambda create-function --function-name $LAMBDA_FUNCTION_NAME --package-type Image --code ImageUri=$BACKEND_IMAGE --role arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>"
+  exit 1
 fi
 
-echo
-echo "Deployment completed successfully."
+echo "Done. Backend image pushed: $BACKEND_IMAGE"
+echo "Lambda function: $LAMBDA_FUNCTION_NAME should be pulling the new image shortly."
