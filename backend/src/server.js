@@ -50,18 +50,31 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
   'http://localhost:3000',
   'http://localhost:5174',
+  'http://localhost:5173',
   'https://jalsaathived.vercel.app',
-  'https://d1wl5h07d7rj0z.cloudfront.net'
+  'https://d1wl5h07d7rj0z.cloudfront.net',
+  'https://d2jz2lz6xmw1no.cloudfront.net'  // Production CloudFront URL
 ];
 
 // Respond to CORS preflight requests early with correct headers
 app.options('*', (req, res) => {
-  const origin = req.headers.origin || process.env.FRONTEND_URL || allowedOrigins[0];
-  if (process.env.NODE_ENV === 'production' && allowedOrigins.indexOf(origin) === -1) {
-    // Do not allow unknown origins in production
+  const origin = req.headers.origin;
+  const frontendUrl = process.env.FRONTEND_URL || allowedOrigins[0];
+  
+  // Check if origin is allowed (be lenient in development, strict in production)
+  let isAllowed = false;
+  if (process.env.NODE_ENV === 'development') {
+    isAllowed = true;
+  } else {
+    isAllowed = allowedOrigins.includes(origin) || origin === frontendUrl;
+  }
+  
+  if (!isAllowed && process.env.NODE_ENV === 'production') {
+    console.warn(`CORS blocked request from origin: ${origin}`);
     return res.status(403).send('Origin not allowed');
   }
-  res.setHeader('Access-Control-Allow-Origin', origin);
+  
+  res.setHeader('Access-Control-Allow-Origin', origin || frontendUrl);
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
@@ -76,10 +89,15 @@ if (process.env.NODE_ENV !== 'production') {
     origin: function(origin, callback) {
       // allow requests with no origin (like mobile apps, curl)
       if (!origin) return callback(null, true);
+      // Allow FRONTEND_URL if set
+      if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
+        return callback(null, true);
+      }
       if (allowedOrigins.indexOf(origin) !== -1) {
         return callback(null, true);
       }
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      console.warn(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
       return callback(new Error(msg), false);
     },
     credentials: true,

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jalsaathi-v1';
+const CACHE_NAME = 'jalsaathi-v2';
 const urlsToCache = [
   '/',
   '/index.html',
