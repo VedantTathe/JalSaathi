@@ -46,7 +46,7 @@ const CustomerDashboard = () => {
   const [sortBy, setSortBy] = useState('rating');
   
   // My Orders filter state
-  const [orderFilter, setOrderFilter] = useState('all');
+  const [orderFilter, setOrderFilter] = useState('active');
   const [editingAddress, setEditingAddress] = useState(null);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [orderForm, setOrderForm] = useState({
@@ -504,7 +504,7 @@ const CustomerDashboard = () => {
   }));
 
   // 🏠 1. DASHBOARD HOME - Swiggy-style Provider Selection
-  const DashboardHome = () => {
+  const renderDashboardHome = () => {
     const providers = providersData?.data?.providers || [];
     const addresses = addressesData?.data?.addresses || [];
     const orders = ordersData?.data?.orders || [];
@@ -1134,10 +1134,10 @@ const CustomerDashboard = () => {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <DashboardHome />;
+      case 'dashboard': return renderDashboardHome();
       case 'my-orders': return <MyOrders />;
       case 'addresses': return <AddressManagement />;
-      default: return <DashboardHome />;
+      default: return renderDashboardHome();
     }
   };
 
@@ -1147,17 +1147,20 @@ const CustomerDashboard = () => {
 
       {/* Order Modal */}
       {showOrderModal && selectedProvider && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Place Water Order</h2>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col transform transition-all animate-in slide-in-from-bottom-4 duration-300">
+            {/* Header with Gradient */}
+            <div className="flex items-center justify-between p-4 sm:p-6 bg-gradient-to-r from-primary-500 to-primary-600 rounded-t-2xl">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-white">🛒 Place Water Order</h2>
+                <p className="text-primary-100 text-sm mt-1">Complete your order in 2 steps</p>
+              </div>
               <button 
                 type="button"
                 onClick={() => setShowOrderModal(false)} 
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
+                className="text-white/80 hover:text-white bg-white/20 hover:bg-white/30 transition-all p-2 rounded-full"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
@@ -1269,24 +1272,24 @@ const CustomerDashboard = () => {
             </div>
 
             {/* Fixed Footer with Total and Submit */}
-            <div className="border-t border-gray-200 p-4 sm:p-6">
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">Quantity:</span>
-                  <span className="font-medium text-gray-900">{orderForm.quantity} cans</span>
+            <div className="border-t-2 border-gray-100 p-4 sm:p-6 bg-gradient-to-b from-gray-50 to-white">
+              <div className="bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-200 rounded-xl p-4 mb-4 shadow-sm">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-gray-700 font-medium">Quantity:</span>
+                  <span className="font-semibold text-gray-900 text-lg">{orderForm.quantity} cans</span>
                 </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">Price per can:</span>
-                  <span className="font-medium text-gray-900">Rs. {selectedProvider.pricePerCan}</span>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-gray-700 font-medium">Price per can:</span>
+                  <span className="font-semibold text-gray-900">Rs. {selectedProvider.pricePerCan}</span>
                 </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">Payment:</span>
-                  <span className="font-medium text-gray-900">{orderForm.paymentMethod === 'online' ? '💳 Online' : '💵 Cash'}</span>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-gray-700 font-medium">Payment:</span>
+                  <span className="font-semibold text-gray-900">{orderForm.paymentMethod === 'online' ? '💳 Online' : '💵 Cash'}</span>
                 </div>
-                <div className="h-px bg-gray-300 my-2"></div>
+                <div className="h-px bg-gradient-to-r from-primary-200 to-transparent my-3"></div>
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-gray-900">Total:</span>
-                  <span className="text-2xl font-bold text-primary-600">
+                  <span className="text-lg font-bold text-gray-900">Total:</span>
+                  <span className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
                     Rs. {selectedProvider.pricePerCan * orderForm.quantity}
                   </span>
                 </div>
@@ -1323,7 +1326,7 @@ const CustomerDashboard = () => {
                   });
                 }}
                 disabled={placeOrderMutation.isLoading || isProcessingPayment}
-                className="w-full bg-primary-600 text-white py-3.5 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center justify-center space-x-2"
+                className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-4 rounded-xl font-bold hover:from-primary-700 hover:to-primary-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 transform hover:scale-105 active:scale-95"
               >
                 {placeOrderMutation.isLoading || isProcessingPayment ? (
                   <>
@@ -1349,11 +1352,14 @@ const CustomerDashboard = () => {
 
       {/* Address Modal */}
       {showAddressModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-            {/* Fixed Header */}
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">{editingAddress ? 'Edit Address' : 'Add New Address'}</h2>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col transform transition-all animate-in slide-in-from-bottom-4 duration-300">
+            {/* Fixed Header with Gradient */}
+            <div className="flex items-center justify-between p-4 sm:p-6 bg-gradient-to-r from-primary-500 to-primary-600 rounded-t-2xl">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-white">📍 {editingAddress ? 'Edit Address' : 'Add New Address'}</h2>
+                <p className="text-primary-100 text-sm mt-1">{editingAddress ? 'Update your delivery location' : 'Set your delivery location'}</p>
+              </div>
               <button 
                 type="button"
                 onClick={() => {
@@ -1371,10 +1377,10 @@ const CustomerDashboard = () => {
                   setMapCenter([20.5937, 78.9629]);
                   setMapZoom(5);
                 }} 
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
+                className="text-white/80 hover:text-white bg-white/20 hover:bg-white/30 transition-all p-2 rounded-full"
                 aria-label="Close"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               </button>
             </div>
             
@@ -1574,7 +1580,7 @@ const CustomerDashboard = () => {
             </div>
             
             {/* Fixed Footer with Submit Button */}
-            <div className="border-t border-gray-200 p-4 sm:p-6">
+            <div className="border-t-2 border-gray-100 p-4 sm:p-6 bg-gradient-to-b from-gray-50 to-white">
               <button
                 type="submit"
                 onClick={(e) => {
@@ -1586,9 +1592,22 @@ const CustomerDashboard = () => {
                   }
                 }}
                 disabled={createAddressMutation.isLoading || updateAddressMutation.isLoading}
-                className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-4 rounded-xl font-bold hover:from-primary-700 hover:to-primary-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
               >
-                {(createAddressMutation.isLoading || updateAddressMutation.isLoading) ? 'Saving...' : editingAddress ? 'Update Address' : 'Add Address'}
+                {(createAddressMutation.isLoading || updateAddressMutation.isLoading) ? (
+                  <span className="flex items-center space-x-2">
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Saving...</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center space-x-2">
+                    <CheckCircle className="h-5 w-5" />
+                    <span>{editingAddress ? 'Update Address' : 'Save Address'}</span>
+                  </span>
+                )}
               </button>
             </div>
           </div>
