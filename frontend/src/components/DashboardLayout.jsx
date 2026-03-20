@@ -4,7 +4,8 @@ import {
   Droplets, 
   User, 
   LogOut, 
-  Bell
+  Bell,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import AddToHomeScreenPrompt from './AddToHomeScreenPrompt';
@@ -13,6 +14,8 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [showAddToHomeScreen, setShowAddToHomeScreen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     // Show popup only if user hasn't added to home screen and after a short delay
@@ -25,9 +28,21 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
     }
   }, [user]);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
+    setIsLoggingOut(true);
     await logout();
+    setShowLogoutConfirm(false);
     navigate('/login');
+  };
+
+  const cancelLogout = () => {
+    if (!isLoggingOut) {
+      setShowLogoutConfirm(false);
+    }
   };
 
   return (
@@ -218,6 +233,48 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
         <AddToHomeScreenPrompt
           onClose={() => setShowAddToHomeScreen(false)}
         />
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-primary-500 to-primary-700 p-4 text-white">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Confirm Logout</h3>
+                  <p className="text-xs text-white/90">You will need to sign in again</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5">
+              <p className="text-sm text-gray-700 mb-5">
+                Are you sure you want to log out of your account?
+              </p>
+
+              <div className="flex items-center gap-3 justify-end">
+                <button
+                  onClick={cancelLogout}
+                  disabled={isLoggingOut}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-60"
+                >
+                  No
+                </button>
+                <button
+                  onClick={confirmLogout}
+                  disabled={isLoggingOut}
+                  className="px-4 py-2 rounded-lg bg-primary-600 text-white font-semibold hover:bg-primary-700 disabled:opacity-60"
+                >
+                  {isLoggingOut ? 'Logging out...' : 'Yes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
