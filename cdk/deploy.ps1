@@ -42,7 +42,37 @@ function Invoke-CommandWithRetry {
 }
 
 Write-Host "JalSaathi Deployment Started" -ForegroundColor Magenta
-Write-Host "================================`n" -ForegroundColor Magenta
+Write-Host "================================" -ForegroundColor Magenta
+
+# Load environment variables from .env file
+Write-Host "Loading environment variables from .env..." -ForegroundColor Yellow
+$envFile = Join-Path -Path (Get-Location) -ChildPath ".env"
+if (Test-Path $envFile) {
+    $content = Get-Content $envFile
+    $loadedCount = 0
+    foreach ($line in $content) {
+        $trimmedLine = $line.Trim()
+        if ($trimmedLine -and -not $trimmedLine.StartsWith("#")) {
+            $parts = $trimmedLine -split '=', 2
+            if ($parts.Count -eq 2) {
+                $key = $parts[0].Trim()
+                $value = $parts[1].Trim()
+                # Remove quotes if present
+                if ($value.StartsWith('"') -and $value.EndsWith('"')) {
+                    $value = $value.Substring(1, $value.Length - 2)
+                }
+                [Environment]::SetEnvironmentVariable($key, $value, "Process")
+                $loadedCount++
+            }
+        }
+    }
+    Write-Host "Loaded $loadedCount environment variables from .env" -ForegroundColor Green
+}
+else {
+    Write-Host ".env file not found in current directory" -ForegroundColor Yellow
+}
+
+Write-Host ""
 
 # Validate required environment variables
 Write-Host "Validating environment variables..." -ForegroundColor Yellow
@@ -60,30 +90,50 @@ if ($missingVars.Count -gt 0) {
     foreach ($var in $missingVars) {
         Write-Host "  - $var" -ForegroundColor Red
     }
-    Write-Host "`nPlease set these variables before deployment (e.g., `$env:VARIABLE_NAME='value')" -ForegroundColor Yellow
+    Write-Host "Please set these variables before deployment" -ForegroundColor Yellow
     exit 1
 }
-Write-Host "✓ All required environment variables are set" -ForegroundColor Green
+Write-Host "All required environment variables are set" -ForegroundColor Green
 
 # Build frontend
-Write-Host "`nBuilding frontend..." -ForegroundColor Blue
+Write-Host ""
+Write-Host "Building frontend..." -ForegroundColor Blue
 Push-Location ../frontend
-npm install
-$buildResult = npm run build
+Write-Host "Installing frontend dependencies..." -ForegroundColor Gray
+npm ci --include dev
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Frontend npm ci failed" -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+Write-Host "Running build..." -ForegroundColor Gray
+npm run build
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Frontend build failed" -ForegroundColor Red
     Pop-Location
     exit 1
 }
-Write-Host "✓ Frontend built successfully" -ForegroundColor Green
+Write-Host "Frontend built successfully" -ForegroundColor Green
 Pop-Location
 
 # Install CDK dependencies
-Write-Host "`nInstalling CDK dependencies..." -ForegroundColor Blue
-npm install
+Write-Host ""
+Write-Host "Installing CDK dependencies..." -ForegroundColor Blue
+if (Test-Path "node_modules") {
+    Write-Host "Updating existing node_modules..." -ForegroundColor Gray
+} else {
+    Write-Host "Installing fresh dependencies..." -ForegroundColor Gray
+}
+npm ci
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: CDK npm ci failed" -ForegroundColor Red
+    exit 1
+}
+Write-Host "CDK dependencies installed" -ForegroundColor Green
 
 # Bootstrap
-Write-Host "`nBootstrapping AWS environment..." -ForegroundColor Blue
+Write-Host ""
+Write-Host "Bootstrapping AWS environment..." -ForegroundColor Blue
 $bootstrapScript = { npx cdk bootstrap }
 if (-not (Invoke-CommandWithRetry -Description "CDK Bootstrap" -Command $bootstrapScript -MaxRetries $MaxRetries -RetryDelay $RetryDelay)) {
     Write-Host "FAILED: Deployment failed during bootstrapping" -ForegroundColor Red
@@ -91,12 +141,14 @@ if (-not (Invoke-CommandWithRetry -Description "CDK Bootstrap" -Command $bootstr
 }
 
 # Deploy
-Write-Host "`nDeploying application..." -ForegroundColor Blue
+Write-Host ""
+Write-Host "Deploying application..." -ForegroundColor Blue
 $deployScript = { npx cdk deploy --all --require-approval never }
 if (-not (Invoke-CommandWithRetry -Description "CDK Deploy" -Command $deployScript -MaxRetries $MaxRetries -RetryDelay $RetryDelay)) {
     Write-Host "FAILED: Deployment failed during stack deployment" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nSUCCESS: Deployment completed successfully!" -ForegroundColor Green
-Write-Host "Your application is live!" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "SUCCESS: Deployment completed successfully" -ForegroundColor Green
+Write-Host "Your application is now live" -ForegroundColor Cyan

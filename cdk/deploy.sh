@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+# Load environment variables from .env file
+if [ -f ".env" ]; then
+  echo "📂 Loading environment variables from .env..."
+  set -a
+  source .env
+  set +a
+else
+  echo "⚠️  .env file not found in cdk directory"
+fi
+
 MAX_RETRIES=3
 RETRY_DELAY=5
 
@@ -53,7 +63,8 @@ cd "$(dirname "$0")"
 echo ""
 echo "Building frontend..."
 cd ../frontend
-npm install
+echo "Installing frontend dependencies..."
+npm ci --include dev
 if ! npm run build; then
   echo "❌ Frontend build failed"
   exit 1
@@ -63,7 +74,7 @@ cd ../cdk
 
 echo ""
 echo "Installing CDK dependencies..."
-npm install
+npm ci --include dev
 
 echo ""
 echo "Bootstrapping (if required)..."
