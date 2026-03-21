@@ -1,7 +1,21 @@
 const jwt = require('jsonwebtoken');
 
+// Validate JWT_SECRET on startup
+if (!process.env.JWT_SECRET) {
+  console.error('❌ CRITICAL: JWT_SECRET environment variable is not set!');
+  console.error('   Set JWT_SECRET before starting the server');
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+}
+
 // Generate JWT token
 const generateToken = (userId, role) => {
+  // Double-check JWT_SECRET exists (defensive programming)
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured. Cannot generate authentication token.');
+  }
+  
   return jwt.sign(
     { userId, role }, 
     process.env.JWT_SECRET,

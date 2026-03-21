@@ -72,7 +72,14 @@ class AuthService {
       if (!emailResult.success) {
         console.error('❌ Email sending failed, cleaning up user record');
         // If email fails, delete the temp user
-        await User.findByIdAndDelete(tempUser._id);
+        try {
+          await User.findByIdAndDelete(tempUser._id);
+          console.log('✅ Temporary user record cleaned up');
+        } catch (deleteError) {
+          console.error('⚠️  Failed to clean up temporary user:', deleteError.message);
+          // Continue even if deletion fails - record will expire anyway
+        }
+        
         const isConfigIssue = (emailResult.error || '').toLowerCase().includes('not configured');
         const message = isConfigIssue
           ? 'Email service is not configured on server. Please contact support.'
@@ -92,30 +99,50 @@ class AuthService {
   // Verify OTP and complete registration
   static async verifyEmailAndRegister(email, otp, registrationData) {
     try {
+      // Validate inputs
+      if (!email || !otp) {
+        console.log('❌ Missing email or OTP');
+        return formatResponse(false, 'Email and OTP are required', null, 400);
+      }
+
+      // Validate OTP format
+      if (!/^\d{6}$/.test(String(otp).trim())) {
+        console.log(`❌ Invalid OTP format: "${otp}"`);
+        return formatResponse(false, 'OTP must be 6 digits', null, 400);
+      }
+
+      console.log(`🔐 Verifying registration OTP for: ${email}`);
+      
       // Find user with email and get OTP fields
       const user = await User.findOne({ email })
         .select('+emailVerificationOTP +otpExpiry');
       
       if (!user) {
+        console.log('❌ User not found');
         return formatResponse(false, 'User not found. Please register again.', null, 404);
       }
       
       if (user.isEmailVerified) {
+        console.log('❌ Email already verified');
         return formatResponse(false, 'Email already verified. Please login.', null, 400);
       }
       
-      // Verify OTP
+      // Verify OTP (verifyOTP now has debug logging)
+      console.log('🔍 Calling verifyOTP...');
       if (!user.verifyOTP(otp)) {
+        console.error('❌ OTP verification failed');
         return formatResponse(false, 'Invalid or expired OTP', null, 400);
       }
       
       // Mark email as verified and activate user
+      console.log('✅ OTP verified successfully');
       user.isEmailVerified = true;
       user.isActive = true;
       user.emailVerificationOTP = undefined;
       user.otpExpiry = undefined;
       
       await user.save();
+      console.log('✅ User activated');
       
       // If registering as provider, create provider profile
       if (user.role === 'provider' && registrationData) {
@@ -158,8 +185,15 @@ class AuthService {
         await Provider.create(providerData);
       }
       
-      // Send welcome email
-      await sendWelcomeEmail(email, user.name, user.role);
+      // Send welcome email (non-critical - don't fail registration if it fails)
+      try {
+        await sendWelcomeEmail(email, user.name, user.role);
+        console.log('✅ Welcome email sent');
+      } catch (emailError) {
+        console.error('⚠️  Welcome email failed (non-critical):', emailError.message);
+        // Don't fail registration over welcome email failure
+        // User is already registered and verified
+      }
       
       return formatResponse(true, 'Email verified successfully. Registration complete!', generateTokenResponse(user), 201);
       
@@ -331,20 +365,38 @@ class AuthService {
   // Verify login OTP and authenticate user
   static async verifyLoginOTP(email, otp) {
     try {
+      // Validate inputs
+      if (!email || !otp) {
+        console.log('❌ Missing email or OTP');
+        return formatResponse(false, 'Email and OTP are required', null, 400);
+      }
+
+      // Validate OTP format
+      if (!/^\d{6}$/.test(String(otp).trim())) {
+        console.log(`❌ Invalid OTP format: "${otp}"`);
+        return formatResponse(false, 'OTP must be 6 digits', null, 400);
+      }
+
+      console.log(`🔐 Verifying login OTP for: ${email}`);
+      
       // Find user with email and get OTP fields
       const user = await User.findOne({ email })
         .select('+emailVerificationOTP +otpExpiry');
       
       if (!user) {
+        console.log('❌ User not found');
         return formatResponse(false, 'User not found', null, 404);
       }
       
       if (!user.isActive) {
+        console.log('❌ Account is deactivated');
         return formatResponse(false, 'Account is deactivated', null, 401);
       }
       
       // Verify OTP
+      console.log('🔍 Calling verifyOTP...');
       if (!user.verifyOTP(otp)) {
+        console.error('❌ OTP verification failed');
         return formatResponse(false, 'Invalid or expired OTP', null, 400);
       }
       
@@ -491,6 +543,18 @@ class AuthService {
       
     } catch (error) {
       console.error('Update profile error:', error);
+      
+      // Handle validation errors specifically
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(err => err.message).join(', ');
+        return formatResponse(false, `Validation error: ${messages}`, null, 400);
+      }
+      
+      // Handle cast errors (invalid ID)
+      if (error.name === 'CastError') {
+        return formatResponse(false, 'Invalid user ID', null, 400);
+      }
+      
       return formatResponse(false, 'Failed to update profile', null, 500);
     }
   }
@@ -517,6 +581,18 @@ class AuthService {
       
     } catch (error) {
       console.error('Change password error:', error);
+      
+      // Handle validation errors
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(err => err.message).join(', ');
+        return formatResponse(false, `Validation error: ${messages}`, null, 400);
+      }
+      
+      // Handle bcrypt hash errors
+      if (error.message && error.message.includes('hash')) {
+        return formatResponse(false, 'Failed to process password', null, 500);
+      }
+      
       return formatResponse(false, 'Failed to change password', null, 500);
     }
   }
@@ -561,26 +637,43 @@ class AuthService {
   // Verify password reset OTP
   static async verifyPasswordResetOTP(email, otp) {
     try {
-      console.log('🔐 verifyPasswordResetOTP called for:', email);
+      // Validate inputs
+      if (!email || !otp) {
+        console.log('❌ Missing email or OTP');
+        return formatResponse(false, 'Email and OTP are required', null, 400);
+      }
+
+      // Validate OTP format
+      if (!/^\d{6}$/.test(String(otp).trim())) {
+        console.log(`❌ Invalid OTP format: "${otp}"`);
+        return formatResponse(false, 'OTP must be 6 digits', null, 400);
+      }
+
+      console.log(`🔐 Verifying password reset OTP for: ${email}`);
       
       // Find user with email and get OTP fields
       const user = await User.findOne({ email })
         .select('+emailVerificationOTP +otpExpiry');
       
       if (!user) {
+        console.log('❌ User not found');
         return formatResponse(false, 'User not found', null, 404);
       }
       
       if (!user.isActive) {
+        console.log('❌ Account is deactivated');
         return formatResponse(false, 'Account is deactivated', null, 401);
       }
       
       // Verify OTP
+      console.log('🔍 Calling verifyOTP...');
       if (!user.verifyOTP(otp)) {
+        console.error('❌ OTP verification failed');
         return formatResponse(false, 'Invalid or expired OTP', null, 400);
       }
       
       // Return success but don't clear OTP yet (will clear after password reset)
+      console.log('✅ Password reset OTP verified');
       return formatResponse(true, 'OTP verified successfully', { email }, 200);
       
     } catch (error) {
@@ -593,6 +686,12 @@ class AuthService {
   static async resetPassword(email, otp, newPassword) {
     try {
       console.log('🔐 resetPassword called for:', email);
+      
+      // Validate OTP format
+      if (!/^\d{6}$/.test(String(otp).trim())) {
+        console.log(`❌ Invalid OTP format: "${otp}"`);
+        return formatResponse(false, 'OTP must be 6 digits', null, 400);
+      }
       
       // Find user with email and get OTP and password fields
       const user = await User.findOne({ email })
@@ -626,6 +725,18 @@ class AuthService {
       
     } catch (error) {
       console.error('Reset password error:', error);
+      
+      // Handle validation errors
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(err => err.message).join(', ');
+        return formatResponse(false, `Validation error: ${messages}`, null, 400);
+      }
+      
+      // Handle bcrypt hash errors
+      if (error.message && error.message.includes('hash')) {
+        return formatResponse(false, 'Failed to process password', null, 500);
+      }
+      
       return formatResponse(false, 'Failed to reset password', null, 500);
     }
   }

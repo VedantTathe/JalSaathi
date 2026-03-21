@@ -11,10 +11,27 @@ const sendRegistrationOTP = asyncHandler(async (req, res) => {
 const verifyEmailAndRegister = asyncHandler(async (req, res) => {
   const { email, otp, registrationData } = req.body;
   
+  // Validate required fields
   if (!email || !otp) {
     return res.status(400).json({
       success: false,
       message: 'Email and OTP are required'
+    });
+  }
+
+  // Validate OTP format (must be 6 digits)
+  if (!/^\d{6}$/.test(String(otp).trim())) {
+    return res.status(400).json({
+      success: false,
+      message: 'OTP must be exactly 6 digits'
+    });
+  }
+
+  // Validate email format
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid email address'
     });
   }
   
@@ -56,10 +73,27 @@ const sendLoginOTP = asyncHandler(async (req, res) => {
 const verifyLoginOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   
+  // Validate required fields
   if (!email || !otp) {
     return res.status(400).json({
       success: false,
       message: 'Email and OTP are required'
+    });
+  }
+
+  // Validate OTP format (must be 6 digits)
+  if (!/^\d{6}$/.test(String(otp).trim())) {
+    return res.status(400).json({
+      success: false,
+      message: 'OTP must be exactly 6 digits'
+    });
+  }
+
+  // Validate email format
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid email address'
     });
   }
   
@@ -164,10 +198,27 @@ const sendPasswordResetOTP = asyncHandler(async (req, res) => {
 const verifyPasswordResetOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   
+  // Validate required fields
   if (!email || !otp) {
     return res.status(400).json({
       success: false,
       message: 'Email and OTP are required'
+    });
+  }
+
+  // Validate OTP format (must be 6 digits)
+  if (!/^\d{6}$/.test(String(otp).trim())) {
+    return res.status(400).json({
+      success: false,
+      message: 'OTP must be exactly 6 digits'
+    });
+  }
+
+  // Validate email format
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid email address'
     });
   }
   

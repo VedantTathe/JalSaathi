@@ -134,13 +134,44 @@ userSchema.methods.generateOTP = function() {
 
 // Instance method to verify OTP
 userSchema.methods.verifyOTP = function(enteredOTP) {
+  // Validate OTP exists
   if (!this.emailVerificationOTP || !this.otpExpiry) {
+    console.log('❌ OTP not found on user record');
     return false;
   }
+
+  // Check if OTP has expired
   if (Date.now() > this.otpExpiry) {
-    return false; // OTP expired
+    console.log('❌ OTP has expired');
+    console.log('   Current time:', new Date(Date.now()));
+    console.log('   OTP expiry:', new Date(this.otpExpiry));
+    return false;
   }
-  return this.emailVerificationOTP === enteredOTP;
+
+  // Normalize and validate the entered OTP
+  if (!enteredOTP) {
+    console.log('❌ No OTP provided');
+    return false;
+  }
+
+  // Convert to string and remove whitespace
+  const normalizedEntered = String(enteredOTP).trim();
+  const normalizedStored = String(this.emailVerificationOTP).trim();
+
+  // Validate OTP format (must be 6 digits)
+  if (!/^\d{6}$/.test(normalizedEntered)) {
+    console.log(`❌ Entered OTP has invalid format: "${normalizedEntered}"`);
+    return false;
+  }
+
+  // Compare OTPs
+  const isValid = normalizedStored === normalizedEntered;
+  console.log(`🔍 OTP Verification:
+    Entered: "${normalizedEntered}" (${typeof normalizedEntered})
+    Stored:  "${normalizedStored}" (${typeof normalizedStored})
+    Match: ${isValid}`);
+
+  return isValid;
 };
 
 // Static method to find users by role

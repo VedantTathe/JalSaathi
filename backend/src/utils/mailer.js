@@ -1,5 +1,24 @@
 const nodemailer = require('nodemailer');
 
+// Validate email config on startup
+const validateEmailConfig = () => {
+  const config = {
+    host: process.env.EMAIL_HOST || process.env.SMTP_HOST,
+    port: process.env.EMAIL_PORT || process.env.SMTP_PORT || '587',
+    user: process.env.EMAIL_USER || process.env.SMTP_USER || process.env.GMAIL_USER,
+    pass: process.env.EMAIL_PASS || process.env.SMTP_PASS || process.env.GMAIL_PASS
+  };
+
+  if (!config.host || !config.user || !config.pass) {
+    console.warn('⚠️  EMAIL SERVICE NOT CONFIGURED');
+    console.warn('   Set these environment variables: EMAIL_HOST, EMAIL_USER, EMAIL_PASS');
+    console.warn('   Email functionality will be disabled');
+    return false;
+  }
+  console.log('✅ Email service configured');
+  return true;
+};
+
 const resolveMailConfig = () => {
   const host = process.env.EMAIL_HOST || process.env.SMTP_HOST;
   const portRaw = process.env.EMAIL_PORT || process.env.SMTP_PORT || '587';
@@ -30,7 +49,9 @@ const createTransporter = () => {
   console.log('   User:', config.user ? 'SET' : 'MISSING');
 
   if (!config.isConfigured) {
-    throw new Error('Email service is not configured. Set EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, and EMAIL_FROM in environment variables.');
+    const error = new Error('Email service is not configured. Set EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, and EMAIL_FROM in environment variables.');
+    error.isConfigIssue = true;
+    throw error;
   }
   
   return nodemailer.createTransport({

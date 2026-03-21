@@ -1,1 +1,39 @@
+# Environment Variables (NEVER commit secrets!)
+.env
+.env.local
+.env.*.local
+
+# AWS/CDK
+cdk.out/
+cdk.context.json
 ServerlessDeployPolicy.json
+*.d.ts
+*.js.map
+
+# Node modules
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build artifacts
+dist/
+build/
+*.tgz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Serverless
+.serverless/
+.serverless_plugins/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

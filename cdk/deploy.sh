@@ -26,21 +26,52 @@ retry_command() {
   return 1
 }
 
+# Validate required environment variables
+echo "Validating environment variables..."
+REQUIRED_VARS=("MONGODB_URI" "JWT_SECRET" "EMAIL_USER" "EMAIL_PASS" "CASHFREE_APP_ID" "CASHFREE_SECRET_KEY")
+MISSING_VARS=()
+
+for var in "${REQUIRED_VARS[@]}"; do
+  if [ -z "${!var:-}" ]; then
+    MISSING_VARS+=("$var")
+  fi
+done
+
+if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+  echo "❌ ERROR: Missing required environment variables:"
+  for var in "${MISSING_VARS[@]}"; do
+    echo "  - $var"
+  done
+  echo ""
+  echo "ℹ️  Please set these variables before deployment (e.g., export VARIABLE_NAME='value')"
+  exit 1
+fi
+echo "✅ All required environment variables are set"
+
 cd "$(dirname "$0")"
 
+echo ""
 echo "Building frontend..."
 cd ../frontend
 npm install
-npm run build
+if ! npm run build; then
+  echo "❌ Frontend build failed"
+  exit 1
+fi
+echo "✅ Frontend built successfully"
 cd ../cdk
 
+echo ""
 echo "Installing CDK dependencies..."
 npm install
 
+echo ""
 echo "Bootstrapping (if required)..."
 retry_command "npx cdk bootstrap"
 
+echo ""
 echo "Deploying all stacks (no approval)..."
 retry_command "npx cdk deploy --all --require-approval never"
 
+echo ""
 echo "✅ Deployment completed successfully!"

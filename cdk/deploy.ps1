@@ -44,11 +44,38 @@ function Invoke-CommandWithRetry {
 Write-Host "JalSaathi Deployment Started" -ForegroundColor Magenta
 Write-Host "================================`n" -ForegroundColor Magenta
 
+# Validate required environment variables
+Write-Host "Validating environment variables..." -ForegroundColor Yellow
+$requiredVars = @('MONGODB_URI', 'JWT_SECRET', 'EMAIL_USER', 'EMAIL_PASS', 'CASHFREE_APP_ID', 'CASHFREE_SECRET_KEY')
+$missingVars = @()
+
+foreach ($var in $requiredVars) {
+    if (-not (Get-Item "Env:$var" -ErrorAction SilentlyContinue)) {
+        $missingVars += $var
+    }
+}
+
+if ($missingVars.Count -gt 0) {
+    Write-Host "ERROR: Missing required environment variables:" -ForegroundColor Red
+    foreach ($var in $missingVars) {
+        Write-Host "  - $var" -ForegroundColor Red
+    }
+    Write-Host "`nPlease set these variables before deployment (e.g., `$env:VARIABLE_NAME='value')" -ForegroundColor Yellow
+    exit 1
+}
+Write-Host "✓ All required environment variables are set" -ForegroundColor Green
+
 # Build frontend
-Write-Host "Building frontend..." -ForegroundColor Blue
+Write-Host "`nBuilding frontend..." -ForegroundColor Blue
 Push-Location ../frontend
 npm install
-npm run build
+$buildResult = npm run build
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Frontend build failed" -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+Write-Host "✓ Frontend built successfully" -ForegroundColor Green
 Pop-Location
 
 # Install CDK dependencies

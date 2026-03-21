@@ -93,9 +93,55 @@ const checkValidationErrors = (req, res, next) => {
   next();
 };
 
+// Validation rules for OTP verification
+const otpVerificationValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email'),
+    
+  body('otp')
+    .trim()
+    .matches(/^\d{6}$/)
+    .withMessage('OTP must be exactly 6 digits'),
+    
+  body('registrationData')
+    .optional()
+    .isObject()
+    .withMessage('Registration data must be an object')
+];
+
+// Validation rules for resend OTP
+const resendOTPValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email')
+];
+
+// Validation rules for send login OTP
+const sendLoginOTPValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email')
+];
+
+// Validation rules for send password reset OTP
+const sendPasswordResetOTPValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email')
+];
+
 module.exports = {
   registerValidation,
   loginValidation,
   providerRegistrationValidation,
-  checkValidationErrors
+  checkValidationErrors,
+  otpVerificationValidation,
+  resendOTPValidation,
+  sendLoginOTPValidation,
+  sendPasswordResetOTPValidation
 };

@@ -7,6 +7,10 @@ const {
   registerValidation, 
   loginValidation, 
   providerRegistrationValidation,
+  otpVerificationValidation,
+  resendOTPValidation,
+  sendLoginOTPValidation,
+  sendPasswordResetOTPValidation,
   checkValidationErrors 
 } = require('./validation');
 
@@ -19,10 +23,14 @@ router.post('/send-otp',
 );
 
 router.post('/verify-otp',
+  otpVerificationValidation,
+  checkValidationErrors,
   authController.verifyEmailAndRegister
 );
 
 router.post('/resend-otp',
+  resendOTPValidation,
+  checkValidationErrors,
   authController.resendOTP
 );
 
@@ -47,19 +55,27 @@ router.post('/login',
 
 // Login with OTP (passwordless login)
 router.post('/login/send-otp',
+  sendLoginOTPValidation,
+  checkValidationErrors,
   authController.sendLoginOTP
 );
 
 router.post('/login/verify-otp',
+  otpVerificationValidation,
+  checkValidationErrors,
   authController.verifyLoginOTP
 );
 
 // Forgot password routes
 router.post('/forgot-password/send-otp',
+  sendPasswordResetOTPValidation,
+  checkValidationErrors,
   authController.sendPasswordResetOTP
 );
 
 router.post('/forgot-password/verify-otp',
+  otpVerificationValidation,
+  checkValidationErrors,
   authController.verifyPasswordResetOTP
 );
 
