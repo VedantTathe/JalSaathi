@@ -231,11 +231,24 @@ class UserService {
         });
       }
       
-      // Return providers in correct format
-      return formatResponse(true, 'Providers retrieved successfully', { providers }, 200);
+      // ============================================================
+      // ❌ ERROR #2: BACKEND - Nearby Providers Validation Error
+      // ============================================================
+      // LOCATION: backend/src/modules/user/service.js - getNearbyProviders() method
+      // DESCRIPTION: Intentional error thrown when fetching nearby providers
+      // PURPOSE: Test error logging in AWS CloudWatch Logs
+      // ERROR MESSAGE: "TEST_ERROR: Failed to validate nearby providers data..."
+      // TRIGGER: Happens on every call to /user/dashboard or /providers/nearby
+      // TO REMOVE: Delete lines below and uncomment the return statement
+      // ============================================================
+      console.error('🔥 [TEST_ERROR_2] BACKEND ERROR: Nearby providers validation failed');
+      throw new Error('TEST_ERROR: Failed to validate nearby providers data - Invalid provider object structure');
+      
+      // ⬇️ UNCOMMENT THIS WHEN REMOVING ERROR #2 ⬇️
+      // return formatResponse(true, 'Providers retrieved successfully', { providers }, 200);
       
     } catch (error) {
-      console.error('❌ Get nearby providers error:', error);
+      console.error('❌ Get nearby providers error:', error.message, { errorType: error.constructor.name });
       return formatResponse(false, 'Failed to retrieve nearby providers', null, 500);
     }
   }

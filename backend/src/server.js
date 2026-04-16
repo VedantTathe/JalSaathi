@@ -43,6 +43,9 @@ const { initializeCronJobs } = require('./utils/cronJobs');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy for API Gateway
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 // Middleware - CORS
@@ -53,7 +56,10 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://jalsaathived.vercel.app',
   'https://d1wl5h07d7rj0z.cloudfront.net',
-  'https://d2jz2lz6xmw1no.cloudfront.net'  // Production CloudFront URL
+  'https://d2jz2lz6xmw1no.cloudfront.net',  // Production CloudFront URL
+  'http://jalsaathistack-jalsaathibucketcdea0c72-zt1kesivxa1a.s3-website.ap-south-1.amazonaws.com',  // S3 Static Website
+  // Add any S3 website URLs dynamically
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
 ];
 
 // Respond to CORS preflight requests early with correct headers
