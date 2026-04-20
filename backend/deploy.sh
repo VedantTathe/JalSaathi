@@ -10,6 +10,9 @@ FUNCTION_NAME=${FUNCTION_NAME:-jalsaathi-backend-dev-api}
 ECR_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Set deployment target to AWS
+export DEPLOYMENT_TARGET=aws
+
 # Git Bash on Windows may fail to execute the Python aws shim directly.
 # Prefer aws.cmd on Windows-like shells.
 AWS_BIN="aws"
@@ -19,6 +22,8 @@ case "${OSTYPE:-}" in
     ;;
 esac
 
+echo "🚀 Deploying to AWS Lambda..."
+echo "📦 Deployment Target: $DEPLOYMENT_TARGET"
 echo "Using AWS region: ${AWS_REGION}"
 echo "ECR URI: ${ECR_URI}"
 
@@ -38,4 +43,4 @@ docker push "${ECR_URI}:${IMAGE_TAG}"
 echo "Updating Lambda function to use image ${ECR_URI}:${IMAGE_TAG}..."
 "${AWS_BIN}" lambda update-function-code --function-name "${FUNCTION_NAME}" --image-uri "${ECR_URI}:${IMAGE_TAG}" --region "${AWS_REGION}"
 
-echo "Deployment complete. Lambda updated to ${ECR_URI}:${IMAGE_TAG}"
+echo "✅ Deployment complete. Lambda updated to ${ECR_URI}:${IMAGE_TAG}"

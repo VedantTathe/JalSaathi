@@ -124,7 +124,7 @@ if (Test-Path "node_modules") {
 } else {
     Write-Host "Installing fresh dependencies..." -ForegroundColor Gray
 }
-npm ci
+npm ci --include dev
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: CDK npm ci failed" -ForegroundColor Red
     exit 1

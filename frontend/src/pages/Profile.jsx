@@ -47,6 +47,24 @@ const Profile = () => {
     {
       onSuccess: (response) => {
         const data = response.data || response;
+        
+        // ============================================================
+        // ❌ ERROR #1: FRONTEND - Profile Data Processing Error
+        // ============================================================
+        // LOCATION: frontend/src/pages/Profile.jsx - Line ~51
+        // DESCRIPTION: Intentional error thrown during profile data fetch
+        // PURPOSE: Test error logging in browser console
+        // ERROR MESSAGE: "TEST_ERROR: Failed to process profile data..."
+        // TO REMOVE: Delete the try-catch block below and uncomment setProfileData
+        // ============================================================
+        try {
+          console.error('🔥 [TEST_ERROR_1] FRONTEND ERROR: Profile data processing failed');
+          throw new Error('TEST_ERROR: Failed to process profile data - Invalid user object structure');
+        } catch (error) {
+          console.error('❌ [ERROR_1_CAUGHT] Profile Error:', error.message, { userData: data, timestamp: new Date().toISOString() });
+          // Continue anyway (for demo purposes)
+        }
+        
         setProfileData({
           name: data.name || '',
           email: data.email || '',

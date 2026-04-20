@@ -8,6 +8,8 @@ provider:
   region: ap-south-1
   stage: ${opt:stage, 'dev'}
   environment:
+    DEPLOYMENT_TARGET: aws
+    NODE_ENV: production
     BACKEND_URL: ${env:BACKEND_URL}
     MONGODB_URI: ${env:MONGODB_URI}
     JWT_SECRET: ${env:JWT_SECRET}

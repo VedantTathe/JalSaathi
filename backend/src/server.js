@@ -43,6 +43,9 @@ const { initializeCronJobs } = require('./utils/cronJobs');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy for API Gateway
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 // Middleware - CORS
@@ -53,7 +56,10 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://jalsaathived.vercel.app',
   'https://d1wl5h07d7rj0z.cloudfront.net',
-  'https://d2jz2lz6xmw1no.cloudfront.net'  // Production CloudFront URL
+  'https://d2jz2lz6xmw1no.cloudfront.net',  // Production CloudFront URL
+  'http://jalsaathistack-jalsaathibucketcdea0c72-zt1kesivxa1a.s3-website.ap-south-1.amazonaws.com',  // S3 Static Website
+  // Add any S3 website URLs dynamically
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
 ];
 
 // Respond to CORS preflight requests early with correct headers
@@ -151,15 +157,36 @@ app.use('/api/', limiter);
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jalsaathi')
+// Database connection with Vercel-optimized settings
+const mongooseOptions = {
+  maxPoolSize: 1,              // Vercel has limited connections
+  minPoolSize: 0,              // No persistent pool needed
+  maxIdleTimeMS: 30000,        // Close idle connections quickly
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,      // Vercel functions have up to 60s max
+  connectTimeoutMS: 10000,
+  waitQueueTimeoutMS: 10000,
+  family: 4                    // Force IPv4 for stability
+};
+
+// Increase Mongoose buffer timeout for slow Vercel cold starts
+mongoose.set('bufferTimeoutMS', 30000);
+
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jalsaathi', mongooseOptions)
 .then(() => {
   console.log('✅ MongoDB connected successfully');
+  console.log('🚀 Vercel connection pool configured');
   
-  // Initialize cron jobs after successful database connection
-  initializeCronJobs();
+  // Note: Cron jobs disabled on Vercel - use external scheduler instead
+  // (Each Vercel invocation is isolated, cron won't persist between calls)
+  if (process.env.NODE_ENV !== 'production') {
+    initializeCronJobs();
+  }
 })
-.catch(err => console.error('❌ MongoDB connection error:', err));
+.catch(err => {
+  console.error('❌ MongoDB connection error:', err);
+  console.error('📝 Check MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -194,9 +221,13 @@ app.use('*', (req, res) => {
 // Error handling middleware
 app.use(errorHandler);
 
-// Start server (local development only - uncomment to run locally)
-// NOTE: Keep this commented when deploying to AWS Lambda / API Gateway.
-// If the file is executed directly (node src/server.js), start a local HTTP server.
+// Detect deployment platform
+const DEPLOYMENT_TARGET = process.env.DEPLOYMENT_TARGET || 'vercel'; // Default to Vercel
+
+console.log(`📦 Deployment Target: ${DEPLOYMENT_TARGET.toUpperCase()}`);
+
+// Start server (local development only)
+// If file is executed directly (node src/server.js), start HTTP server
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`🚀 JalSaathi Backend Server running on port ${PORT}`);
@@ -205,6 +236,14 @@ if (require.main === module) {
   });
 }
 
-// Export the Express app for local testing and the Lambda handler for serverless deployments
-module.exports = app;
-module.exports.handler = serverless(app);
+// Export based on deployment platform
+if (DEPLOYMENT_TARGET === 'aws') {
+  // AWS Lambda expects a handler function
+  console.log('🔧 Configured for AWS Lambda/API Gateway');
+  module.exports.handler = serverless(app);
+  module.exports.app = app; // Also export app for testing
+} else {
+  // Vercel expects the Express app directly
+  console.log('🔧 Configured for Vercel');
+  module.exports = app;
+}
