@@ -2,6 +2,12 @@
   "version": 2,
   "installCommand": "sh -c 'if [ -d frontend ]; then cd frontend; elif [ -d ../frontend ]; then cd ../frontend; else echo \"frontend not found\"; exit 1; fi; NPM_CONFIG_PRODUCTION=false npm install --include=dev'",
   "buildCommand": "sh -c 'if [ -d frontend ]; then cd frontend; elif [ -d ../frontend ]; then cd ../frontend; else echo \"frontend not found\"; exit 1; fi; npm run build; rm -rf ../public || true; mkdir -p ../public; cp -R dist/* ../public/'",
+  "builds": [
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
   "outputDirectory": "public",
   "rewrites": [
     {
