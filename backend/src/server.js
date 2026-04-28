@@ -41,6 +41,20 @@ const { authenticateToken } = require('./middlewares/auth');
 const { initializeCronJobs } = require('./utils/cronJobs');
 
 const app = express();
+
+// Global fallback CORS headers to ensure every response (including errors)
+// and preflight (OPTIONS) receive the necessary Access-Control-* headers.
+// This runs before other middlewares to guard against platform-level stripping
+// or early returns that would otherwise omit CORS headers.
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
+  // Allow credentials only if explicitly configured
+  // (Using '*' with credentials is disallowed by browsers)
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
 const PORT = process.env.PORT || 5000;
 
 // Trust proxy for API Gateway
