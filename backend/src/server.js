@@ -98,21 +98,21 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Database connection - optimized for both Vercel and AWS Lambda
 const mongooseOptions = {
-  maxPoolSize: process.env.DEPLOYMENT_TARGET === 'aws' ? 5 : 1,  // Lambda can handle more connections
-  minPoolSize: 0,
-  maxIdleTimeMS: 60000,
-  serverSelectionTimeoutMS: 10000,  // Increased for cold starts
-  socketTimeoutMS: 55000,            // Lambda timeout is 60s
-  connectTimeoutMS: 15000,           // Increased for connection establishment
-  waitQueueTimeoutMS: 30000,         // Increased wait time
-  family: 4,                         // Force IPv4 for stability
+  maxPoolSize: 1,  // Vercel: keep pool small (1 connection per invocation)
+  minPoolSize: 0,  // No persistent connections between invocations
+  maxIdleTimeMS: 10000,  // Close idle connections quickly
+  serverSelectionTimeoutMS: 5000,  // Quick fail if MongoDB unreachable
+  socketTimeoutMS: 10000,  // Tight socket timeout for Vercel
+  connectTimeoutMS: 5000,  // Quick connection timeout
+  waitQueueTimeoutMS: 5000,  // Fail fast if queue is full
+  family: 4,  // Force IPv4
   retryWrites: true,
   retryReads: true,
   useUnifiedTopology: true
 };
 
 // Increase Mongoose buffer timeout for serverless cold starts
-mongoose.set('bufferTimeoutMS', process.env.DEPLOYMENT_TARGET === 'aws' ? 45000 : 30000);
+mongoose.set('bufferTimeoutMS', 10000);
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jalsaathi', mongooseOptions)
 .then(() => {
