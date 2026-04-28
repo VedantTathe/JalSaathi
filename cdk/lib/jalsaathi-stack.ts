@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { aws_s3 as s3, aws_s3_deployment as s3deploy, aws_lambda as lambda, aws_apigateway as apigateway } from 'aws-cdk-lib';
+import { aws_s3 as s3, aws_s3_deployment as s3deploy, aws_lambda as lambda, aws_apigateway as apigateway, aws_iam as iam } from 'aws-cdk-lib';
 import * as path from 'path';
 
 export interface JalsaathiStackProps extends cdk.StackProps {
@@ -22,27 +22,49 @@ export class JalsaathiStack extends cdk.Stack {
         ignorePublicAcls: false,
         restrictPublicBuckets: false
       }),
-      versioned: true,  // Enable versioning for safe updates
-      enforceSSL: true,
+      versioned: true,
       // Enable static website hosting with SPA routing
       websiteIndexDocument: 'index.html',
-      websiteErrorDocument: 'index.html'  // For SPA routing: serve index.html for 404s
+      websiteErrorDocument: 'index.html',  // For SPA routing: serve index.html for 404s
+      publicReadAccess: true  // Make bucket public
     });
 
     // Make bucket public for static website hosting
     siteBucket.grantPublicAccess('*', 's3:GetObject');
+    
+    // Add explicit bucket policy for public read access
+    siteBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.AnyPrincipal()],
+        actions: ['s3:GetObject', 's3:GetObjectVersion'],
+        resources: [siteBucket.arnForObjects('*')]
+      })
+    );
 
-    // Backend Lambda (packages backend/ with dependencies)
+    // Allow listing bucket (for website index)
+    siteBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.AnyPrincipal()],
+        actions: ['s3:ListBucket'],
+        resources: [siteBucket.bucketArn]
+      })
+    );
+
+    // Backend Lambda with Node.js runtime
     const backendCodePath = path.join(__dirname, '..', '..', 'backend');
+    
     const backendFunction = new lambda.Function(this, 'JalSaathiBackendFunction', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'server.handler',
-      memorySize: 512,
-      timeout: cdk.Duration.seconds(30),
+      handler: 'src/server.handler',
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(60),
       code: lambda.Code.fromAsset(backendCodePath),
       environment: {
         NODE_ENV: 'production',
         PORT: '5000',
+        DEPLOYMENT_TARGET: 'aws',
         MONGODB_URI: process.env.MONGODB_URI || '',
         JWT_SECRET: process.env.JWT_SECRET || '',
         JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',

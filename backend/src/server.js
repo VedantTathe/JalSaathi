@@ -64,24 +64,7 @@ const allowedOrigins = [
 
 // Respond to CORS preflight requests early with correct headers
 app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  const frontendUrl = process.env.FRONTEND_URL || allowedOrigins[0];
-  
-  // Check if origin is allowed (be lenient in development, strict in production)
-  let isAllowed = false;
-  if (process.env.NODE_ENV === 'development') {
-    isAllowed = true;
-  } else {
-    isAllowed = allowedOrigins.includes(origin) || origin === frontendUrl;
-  }
-  
-  if (!isAllowed && process.env.NODE_ENV === 'production') {
-    console.warn(`CORS blocked request from origin: ${origin}`);
-    return res.status(403).send('Origin not allowed');
-  }
-  
-  res.setHeader('Access-Control-Allow-Origin', origin || frontendUrl);
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');  // Allow all origins
   res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
   return res.sendStatus(200);
@@ -91,22 +74,10 @@ if (process.env.NODE_ENV !== 'production') {
   // In development allow all origins to avoid CORS issues with local ports
   app.use(cors({ origin: true, credentials: true }));
 } else {
+  // In production, allow all origins (*)
   app.use(cors({
-    origin: function(origin, callback) {
-      // allow requests with no origin (like mobile apps, curl)
-      if (!origin) return callback(null, true);
-      // Allow FRONTEND_URL if set
-      if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
-        return callback(null, true);
-      }
-      if (allowedOrigins.indexOf(origin) !== -1) {
-        return callback(null, true);
-      }
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      console.warn(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
-      return callback(new Error(msg), false);
-    },
-    credentials: true,
+    origin: '*',  // Allow all origins
+    credentials: false,  // Can't use credentials with '*'
     methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
     allowedHeaders: ['Content-Type','Authorization','X-Requested-With','Accept']
   }));
@@ -129,14 +100,7 @@ if (process.env.NODE_ENV !== 'production') {
 
   // Fallback CORS headers (makes sure preflight is handled even if hosting strips headers)
   app.use((req, res, next) => {
-    const requestOrigin = req.headers.origin || process.env.FRONTEND_URL || 'https://jalsaathived.vercel.app';
-    // Allow missing origin (curl, mobile apps)
-    if (!req.headers.origin) {
-      res.setHeader('Access-Control-Allow-Origin', requestOrigin);
-    } else if (process.env.NODE_ENV !== 'production' || allowedOrigins.indexOf(req.headers.origin) !== -1) {
-      res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
-    }
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', '*');  // Allow all origins
     res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
     if (req.method === 'OPTIONS') {
@@ -157,20 +121,23 @@ app.use('/api/', limiter);
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Database connection with Vercel-optimized settings
+// Database connection - optimized for both Vercel and AWS Lambda
 const mongooseOptions = {
-  maxPoolSize: 1,              // Vercel has limited connections
-  minPoolSize: 0,              // No persistent pool needed
-  maxIdleTimeMS: 30000,        // Close idle connections quickly
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,      // Vercel functions have up to 60s max
-  connectTimeoutMS: 10000,
-  waitQueueTimeoutMS: 10000,
-  family: 4                    // Force IPv4 for stability
+  maxPoolSize: process.env.DEPLOYMENT_TARGET === 'aws' ? 5 : 1,  // Lambda can handle more connections
+  minPoolSize: 0,
+  maxIdleTimeMS: 60000,
+  serverSelectionTimeoutMS: 10000,  // Increased for cold starts
+  socketTimeoutMS: 55000,            // Lambda timeout is 60s
+  connectTimeoutMS: 15000,           // Increased for connection establishment
+  waitQueueTimeoutMS: 30000,         // Increased wait time
+  family: 4,                         // Force IPv4 for stability
+  retryWrites: true,
+  retryReads: true,
+  useUnifiedTopology: true
 };
 
-// Increase Mongoose buffer timeout for slow Vercel cold starts
-mongoose.set('bufferTimeoutMS', 30000);
+// Increase Mongoose buffer timeout for serverless cold starts
+mongoose.set('bufferTimeoutMS', process.env.DEPLOYMENT_TARGET === 'aws' ? 45000 : 30000);
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jalsaathi', mongooseOptions)
 .then(() => {

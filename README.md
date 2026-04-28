@@ -52,6 +52,42 @@ This approach ensures clean architecture while keeping deployment simple.
 
 ---
 
+# 🚀 Deployment Overview
+
+JalSaathi supports **dual deployment**: automatic to Vercel (on git push) or manual to AWS (on-demand).
+
+## Quick Start
+
+### Deploy to Vercel (Auto-Deploy)
+```bash
+git push origin main
+# ✅ Automatically deploys both frontend + backend in 2-3 minutes
+# 📍 Frontend: https://jalsaathived.vercel.app
+```
+
+### Deploy to AWS (Manual)
+```bash
+cd cdk
+./deploy.ps1        # Windows
+# OR
+./deploy.sh         # Linux/Mac/WSL
+# ✅ Deploys to Lambda + S3 in 10-15 minutes
+```
+
+## Deployment Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [QUICK_DEPLOY_REFERENCE.md](./QUICK_DEPLOY_REFERENCE.md) | Quick command reference |
+| [DEPLOYMENT_SETUP_COMPLETE.md](./DEPLOYMENT_SETUP_COMPLETE.md) | Complete setup overview |
+| [DEPLOYMENT_VERIFICATION_CHECKLIST.md](./DEPLOYMENT_VERIFICATION_CHECKLIST.md) | Step-by-step verification |
+| [DEPLOYMENT_COMMANDS_REFERENCE.md](./DEPLOYMENT_COMMANDS_REFERENCE.md) | Expected outputs & troubleshooting |
+| [cdk/README.md](./cdk/README.md) | AWS CDK infrastructure details |
+
+**Start Here:** [QUICK_DEPLOY_REFERENCE.md](./QUICK_DEPLOY_REFERENCE.md) - Quick overview of both deployment paths.
+
+---
+
 # 📌 Problem Statement
 
 In most areas, water delivery works through:

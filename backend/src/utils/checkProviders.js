@@ -5,7 +5,8 @@ const User = require('../modules/user/model');
 
 const checkProviders = async () => {
   try {
-    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://vedant:vedant@cluster0.3glbf3u.mongodb.net/JalSaathiDB?retryWrites=true&w=majority';
+    const MONGODB_URI = process.env.MONGODB_URI;
+    if (!MONGODB_URI) throw new Error('MONGODB_URI environment variable is required');
     await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected to MongoDB\n');
 

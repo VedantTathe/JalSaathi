@@ -1,0 +1,53 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "buildCommand": "npm run build --prefix frontend && npm install --prefix backend",
+  "outputDirectory": "frontend/dist",
+  "env": [
+    "MONGODB_URI",
+    "JWT_SECRET",
+    "NODE_ENV",
+    "BACKEND_URL",
+    "EMAIL_USER",
+    "EMAIL_PASSWORD",
+    "RAZORPAY_KEY_ID",
+    "RAZORPAY_KEY_SECRET",
+    "CASHFREE_APP_ID",
+    "CASHFREE_SECRET_KEY",
+    "CASHFREE_WEBHOOK_URL",
+    "AWS_REGION",
+    "FRONTEND_URL",
+    "DEPLOYMENT_TARGET"
+  ],
+  "functions": {
+    "backend/src/server.js": {
+      "runtime": "nodejs18.x",
+      "memory": 1024,
+      "maxDuration": 60,
+      "environment": {
+        "DEPLOYMENT_TARGET": "vercel"
+      }
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/backend/src/server.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    }
+  ]
+}

@@ -7,8 +7,9 @@ const Address = require('../modules/address/model');
 
 const seedUsers = async () => {
   try {
-    // Connect to MongoDB
-    const MONGODB_URI = 'mongodb+srv://vedant:vedant@cluster0.3glbf3u.mongodb.net/JalSaathiDB?retryWrites=true&w=majority';
+    // Connect to MongoDB via environment variable (do NOT hardcode credentials)
+    const MONGODB_URI = process.env.MONGODB_URI;
+    if (!MONGODB_URI) throw new Error('MONGODB_URI environment variable is required for seeding');
     await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected to MongoDB');
 
