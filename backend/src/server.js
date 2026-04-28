@@ -48,86 +48,33 @@ const { initializeCronJobs } = require('./utils/cronJobs');
 
 const app = express();
 
-// Global fallback CORS headers to ensure every response (including errors)
-// and preflight (OPTIONS) receive the necessary Access-Control-* headers.
-// This runs before other middlewares to guard against platform-level stripping
-// or early returns that would otherwise omit CORS headers.
+// === CRITICAL: Handle preflight OPTIONS requests FIRST ===
+// This MUST be before helmet() and other middlewares
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
-  // Allow credentials only if explicitly configured
-  // (Using '*' with credentials is disallowed by browsers)
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  // CORS headers for ALL responses
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD');
+  res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.set('Access-Control-Max-Age', '3600');
+  
+  // Return 200 for preflight OPTIONS immediately
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
   next();
 });
+
 const PORT = process.env.PORT || 5000;
 
 // Trust proxy for API Gateway
 app.set('trust proxy', 1);
 
-// Security middleware
-app.use(helmet());
-// Middleware - CORS
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:3000',
-  'http://localhost:3000',
-  'http://localhost:5174',
-  'http://localhost:5173',
-  'https://jalsaathived.vercel.app',
-  'https://d1wl5h07d7rj0z.cloudfront.net',
-  'https://d2jz2lz6xmw1no.cloudfront.net',  // Production CloudFront URL
-  'http://jalsaathistack-jalsaathibucketcdea0c72-zt1kesivxa1a.s3-website.ap-south-1.amazonaws.com',  // S3 Static Website
-  // Add any S3 website URLs dynamically
-  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
-];
-
-// Respond to CORS preflight requests early with correct headers
-app.options('*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');  // Allow all origins
-  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
-  return res.sendStatus(200);
-});
-
-if (process.env.NODE_ENV !== 'production') {
-  // In development allow all origins to avoid CORS issues with local ports
-  app.use(cors({ origin: true, credentials: true }));
-} else {
-  // In production, allow all origins (*)
-  app.use(cors({
-    origin: '*',  // Allow all origins
-    credentials: false,  // Can't use credentials with '*'
-    methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-    allowedHeaders: ['Content-Type','Authorization','X-Requested-With','Accept']
-  }));
-}
-
-  // Optional debug logging for requests (enable by setting DEBUG_API=true in env)
-  if (process.env.DEBUG_API === 'true') {
-    app.use((req, res, next) => {
-      try {
-        console.log('== Incoming Request ==');
-        console.log('Method:', req.method, 'URL:', req.originalUrl);
-        console.log('Origin:', req.headers.origin);
-        console.log('Headers:', JSON.stringify(req.headers));
-      } catch (e) {
-        console.error('Failed to log request headers', e);
-      }
-      next();
-    });
-  }
-
-  // Fallback CORS headers (makes sure preflight is handled even if hosting strips headers)
-  app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');  // Allow all origins
-    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
-    if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
-    }
-    next();
-  });
+// Security middleware - configure to not interfere with CORS
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginOpenerPolicy: false
+}));
+// CORS already handled by early middleware above
 
 // Rate limiting
 const limiter = rateLimit({
