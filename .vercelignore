@@ -2,3 +2,6 @@ backend/
 cdk/
 .git/
 .github/
+*.md
+.env*
+.DS_Store
