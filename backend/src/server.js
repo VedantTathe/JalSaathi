@@ -1,4 +1,10 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+// Load environment variables if present; don't crash if .env is missing in platform
+try {
+  const envPath = require('path').join(__dirname, '../.env');
+  require('dotenv').config({ path: envPath });
+} catch (e) {
+  console.warn('⚠️ dotenv load warning:', e && e.message ? e.message : e);
+}
 
 const serverless = require("serverless-http");
 
@@ -176,6 +182,12 @@ app.get('/health', (req, res) => {
     message: 'JalSaathi Backend is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Lightweight ping for readiness and to verify CORS from platform
+app.get('/api/ping', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.status(200).json({ ok: true, time: Date.now() });
 });
 
 // API Routes
