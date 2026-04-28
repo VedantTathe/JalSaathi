@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run build --prefix frontend && mkdir -p public && cp -r frontend/dist/* public/",
+  "buildCommand": "npm run build --prefix ../frontend && mkdir -p public && cp -r ../frontend/dist/* public/",
   "outputDirectory": "public",
   "rewrites": [
     {
