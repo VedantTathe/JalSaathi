@@ -4,5 +4,15 @@
   "buildCommand": "npm install",
   "env": {
     "NODE_ENV": "production"
-  }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,OPTIONS,POST,PUT,PATCH,DELETE",
+        "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Requested-With,Accept"
+      }
+    }
+  ]
 }
