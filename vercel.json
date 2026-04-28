@@ -1,14 +1,8 @@
 {
   "version": 2,
-  "installCommand": "cd ../frontend && NPM_CONFIG_PRODUCTION=false npm install --include=dev",
-  "buildCommand": "cd ../frontend && npm run build && cp -R dist ../frontend-dist",
-  "builds": [
-    {
-      "src": "frontend-dist/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "outputDirectory": "frontend-dist",
+  "installCommand": "cd frontend && NPM_CONFIG_PRODUCTION=false npm install --include=dev",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/dist",
   "rewrites": [
     {
       "source": "/(.*)",
