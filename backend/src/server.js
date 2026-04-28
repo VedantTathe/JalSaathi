@@ -203,14 +203,22 @@ if (require.main === module) {
   });
 }
 
-// Export based on deployment platform
-if (DEPLOYMENT_TARGET === 'aws') {
-  // AWS Lambda expects a handler function
-  console.log('🔧 Configured for AWS Lambda/API Gateway');
+// Always export both the Express `app` and a serverless `handler`.
+// This ensures the app works locally (`node src/server.js`), on AWS Lambda,
+// and on Vercel Serverless Functions which expect a handler export.
+try {
+  module.exports.app = app;
   module.exports.handler = serverless(app);
-  module.exports.app = app; // Also export app for testing
-} else {
-  // Vercel expects the Express app directly
-  console.log('🔧 Configured for Vercel');
+  console.log('🔧 Exported serverless handler and app');
+} catch (err) {
+  console.error('⚠️ Failed to export serverless handler:', err);
+  // Fallback: export only the app
   module.exports = app;
+}
+
+// Additional platform-specific logging
+if (DEPLOYMENT_TARGET === 'aws') {
+  console.log('🔧 Deployment target: AWS Lambda/API Gateway (handler available)');
+} else {
+  console.log('🔧 Deployment target: Vercel or local (handler available)');
 }
