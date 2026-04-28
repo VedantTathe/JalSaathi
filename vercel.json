@@ -3,22 +3,6 @@
   "framework": "vite",
   "buildCommand": "npm run build --prefix frontend && npm install --prefix backend",
   "outputDirectory": "frontend/dist",
-  "env": {
-    "MONGODB_URI": "@MONGODB_URI",
-    "JWT_SECRET": "@JWT_SECRET",
-    "NODE_ENV": "@NODE_ENV",
-    "BACKEND_URL": "@BACKEND_URL",
-    "EMAIL_USER": "@EMAIL_USER",
-    "EMAIL_PASSWORD": "@EMAIL_PASSWORD",
-    "RAZORPAY_KEY_ID": "@RAZORPAY_KEY_ID",
-    "RAZORPAY_KEY_SECRET": "@RAZORPAY_KEY_SECRET",
-    "CASHFREE_APP_ID": "@CASHFREE_APP_ID",
-    "CASHFREE_SECRET_KEY": "@CASHFREE_SECRET_KEY",
-    "CASHFREE_WEBHOOK_URL": "@CASHFREE_WEBHOOK_URL",
-    "AWS_REGION": "@AWS_REGION",
-    "FRONTEND_URL": "@FRONTEND_URL",
-    "DEPLOYMENT_TARGET": "@DEPLOYMENT_TARGET"
-  },
   "functions": {
     "backend/src/server.js": {
       "runtime": "nodejs18.x",
