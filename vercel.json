@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "installCommand": "cd ../frontend && npm install",
+  "installCommand": "cd ../frontend && NPM_CONFIG_PRODUCTION=false npm install --include=dev",
   "buildCommand": "cd ../frontend && npm run build && cp -R dist ../frontend-dist",
   "outputDirectory": "frontend-dist",
   "rewrites": [
