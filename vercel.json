@@ -1,7 +1,7 @@
 {
   "version": 2,
   "installCommand": "cd ../frontend && npm install --include=dev",
-  "buildCommand": "VITE_APP_API_BASE_URL=https://jalsaathi-api.vercel.app/api npm run build --prefix ../frontend && mkdir -p public && cp -r ../frontend/dist/* public/ && cp -r ../frontend/public/* public/ 2>/dev/null || true",
+  "buildCommand": "npm run build --prefix ../frontend && mkdir -p public && cp -r ../frontend/dist/* public/",
   "builds": [
     {
       "src": "public/**",

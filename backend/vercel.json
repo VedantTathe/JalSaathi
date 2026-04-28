@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "buildCommand": "npm install",
+  "framework": "express",
+  "public": false,
+  "functions": {
+    "src/server.js": {
+      "runtime": "nodejs18.x"
+    }
+  }
+}
