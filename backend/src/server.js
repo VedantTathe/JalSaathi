@@ -139,36 +139,43 @@ const mongooseOptions = {
 // Increase Mongoose buffer timeout for serverless cold starts
 mongoose.set('bufferTimeoutMS', 10000);
 
-// Set connection timeout to 10 seconds for Vercel
-const connectionTimeout = setTimeout(() => {
-  console.warn('⚠️  MongoDB connection timeout - server will continue without connection pool');
-}, 10000);
+// Flag to track if we've already started connection
+let dbConnectAttempted = false;
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jalsaathi', mongooseOptions)
-.then(() => {
-  clearTimeout(connectionTimeout);
-  console.log('✅ MongoDB connected successfully');
-  console.log('🚀 Vercel connection pool configured');
+// Lazy connect to database - happens in background, doesn't block handler export
+const connectToDatabase = async () => {
+  if (dbConnectAttempted) return;
+  dbConnectAttempted = true;
   
-  // Note: Cron jobs disabled on Vercel - use external scheduler instead
-  // (Each Vercel invocation is isolated, cron won't persist between calls)
-  if (process.env.NODE_ENV !== 'production') {
-    initializeCronJobs();
+  try {
+    console.log('🔄 Attempting MongoDB connection...');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jalsaathi', mongooseOptions);
+    console.log('✅ MongoDB connected successfully');
+    console.log('🚀 Vercel connection pool configured');
+    
+    if (process.env.NODE_ENV !== 'production') {
+      initializeCronJobs();
+    }
+  } catch (err) {
+    console.error('❌ MongoDB connection error:', err.message);
+    console.error('📝 Check MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
   }
-})
-.catch(err => {
-  clearTimeout(connectionTimeout);
-  console.error('❌ MongoDB connection error:', err.message);
-  console.error('📝 Check MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
-  console.warn('⚠️  Continuing without MongoDB connection - connection pooling may not work');
-});
+};
+
+// Start database connection in background (don't await - returns immediately)
+setImmediate(() => connectToDatabase());
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  // Trigger DB connection on first request if not already attempted
+  if (!dbConnectAttempted) {
+    connectToDatabase();
+  }
   res.status(200).json({ 
     status: 'OK', 
     message: 'JalSaathi Backend is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    dbConnected: mongoose.connection.readyState === 1
   });
 });
 
