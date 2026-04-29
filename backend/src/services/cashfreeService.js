@@ -1,5 +1,15 @@
 const crypto = require('crypto');
 
+const normalizeBaseUrl = (value, fallback) => {
+  const raw = (value || fallback || '').trim();
+  if (!raw) return '';
+  let url = raw;
+  if (url.endsWith('/api')) {
+    url = url.slice(0, -4);
+  }
+  return url.replace(/\/+$/, '');
+};
+
 async function createOrder({ orderId, amount, customer = {} }) {
   try {
     const appId = process.env.CASHFREE_APP_ID;
@@ -21,8 +31,14 @@ async function createOrder({ orderId, amount, customer = {} }) {
     };
 
     // Allow configuring return and notify URLs so Cashfree can POST webhooks
-    const backendBase = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
-    const frontendBase = process.env.FRONTEND_URL || 'http://localhost:5174';
+    const backendBase = normalizeBaseUrl(
+      process.env.BACKEND_URL,
+      `http://localhost:${process.env.PORT || 5000}`
+    );
+    const frontendBase = normalizeBaseUrl(
+      process.env.FRONTEND_URL,
+      'http://localhost:5173'
+    );
     payload.order_meta = payload.order_meta || {};
     if (!payload.order_meta.notify_url) {
       payload.order_meta.notify_url = process.env.CASHFREE_WEBHOOK_URL || `${backendBase}/api/webhook/cashfree`;
