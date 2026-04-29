@@ -1,8 +1,8 @@
 // api/index.js
 
-const handler = require('../src/server');
+const server = require('../src/server');
 
-// Ensure Vercel gets a function
-module.exports = async (req, res) => {
-  return handler(req, res);
+// Always export a function explicitly
+module.exports = (req, res) => {
+  return server(req, res);
 };
