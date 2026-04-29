@@ -139,8 +139,14 @@ const mongooseOptions = {
 // Increase Mongoose buffer timeout for serverless cold starts
 mongoose.set('bufferTimeoutMS', 10000);
 
+// Set connection timeout to 10 seconds for Vercel
+const connectionTimeout = setTimeout(() => {
+  console.warn('⚠️  MongoDB connection timeout - server will continue without connection pool');
+}, 10000);
+
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jalsaathi', mongooseOptions)
 .then(() => {
+  clearTimeout(connectionTimeout);
   console.log('✅ MongoDB connected successfully');
   console.log('🚀 Vercel connection pool configured');
   
@@ -151,8 +157,10 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jalsaathi
   }
 })
 .catch(err => {
-  console.error('❌ MongoDB connection error:', err);
+  clearTimeout(connectionTimeout);
+  console.error('❌ MongoDB connection error:', err.message);
   console.error('📝 Check MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
+  console.warn('⚠️  Continuing without MongoDB connection - connection pooling may not work');
 });
 
 // Health check endpoint

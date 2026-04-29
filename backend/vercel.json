@@ -5,25 +5,16 @@
   "env": {
     "NODE_ENV": "production"
   },
+  "functions": {
+    "api/index.js": {
+      "memory": 1024,
+      "maxDuration": 120
+    }
+  },
   "routes": [
     {
-      "src": "/api/(?<path>.*)",
-      "methods": ["OPTIONS"],
-      "status": 204,
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD",
-        "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
-        "Access-Control-Max-Age": "3600"
-      }
-    },
-    {
-      "src": "/api/(.*)",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD",
-        "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-      }
+      "src": "/(.*)",
+      "dest": "/api/index.js"
     }
   ]
 }
