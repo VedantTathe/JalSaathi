@@ -1,5 +1,5 @@
 // Load env
-require('dotenv').config();
+// require('dotenv').config();
 
 const serverless = require('serverless-http');
 const express = require('express');
@@ -69,15 +69,19 @@ if (!cached) {
 }
 
 async function connectDB() {
+  console.log("ENV URI exists:", !!process.env.MONGODB_URI);
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
     console.log("🔄 Connecting MongoDB...");
 
     cached.promise = mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 10000,
-      connectTimeoutMS: 10000,
-    }).then(m => {
+  serverSelectionTimeoutMS: 5000,
+  connectTimeoutMS: 5000,
+  socketTimeoutMS: 5000,
+  family: 4,        // 🔥 IMPORTANT FIX
+  maxPoolSize: 5
+}).then(m => {
       console.log("✅ MongoDB connected");
       return m;
     }).catch(err => {
@@ -108,10 +112,18 @@ app.get('/api/ping', (req, res) => {
 // ===== ROUTES (WITH DB ENSURE) =====
 app.use('/api', async (req, res, next) => {
   try {
-    await connectDB();
+    if (mongoose.connection.readyState !== 1) {
+      await Promise.race([
+        connectDB(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('DB timeout')), 5000)
+        )
+      ]);
+    }
     next();
   } catch (err) {
-    res.status(500).json({ message: 'DB connection failed' });
+    console.error('❌ DB ERROR:', err.message);
+    return res.status(500).json({ message: 'Database connection failed' });
   }
 });
 
