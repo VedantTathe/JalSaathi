@@ -286,18 +286,13 @@ const Register = () => {
       );
       
       if (response.success && response.data) {
-        // Store token and update auth context
+        // Store token
         localStorage.setItem('jalsaathi_token', response.data.token);
         setOtpSuccess('Registration successful! Redirecting...');
         toast.success('Registration successful!');
         
-        // Refresh auth status
-        await checkAuthStatus();
-        
-        // Navigate to dashboard
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true });
-        }, 1000);
+        // Navigate immediately to dashboard (AuthContext will verify token on mount)
+        navigate('/dashboard', { replace: true });
       } else {
         setOtpError(response.message || 'Invalid OTP. Please try again.');
         toast.error(response.message || 'Invalid OTP');

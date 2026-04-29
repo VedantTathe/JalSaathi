@@ -83,6 +83,9 @@ router.post('/forgot-password/reset',
   authController.resetPassword
 );
 
+// Public route to verify token (frontend calls this on app load)
+router.get('/verify-token', authController.verifyToken);
+
 // Protected routes
 router.use(authenticateToken); // Apply authentication to all routes below
 
@@ -90,7 +93,6 @@ router.get('/profile', authController.getProfile);
 router.put('/profile', authController.updateProfile);
 router.post('/change-password', authController.changePassword);
 router.post('/logout', authController.logout);
-router.get('/verify-token', authController.verifyToken);
 router.post('/add-to-home-screen', authController.updateAddToHomeScreenStatus);
 
 module.exports = router;

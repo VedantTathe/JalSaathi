@@ -1,5 +1,7 @@
 const AuthService = require('./service');
 const { asyncHandler } = require('../../middlewares/errorHandler');
+const jwt = require('jsonwebtoken');
+const User = require('../user/model');
 
 // Send registration OTP
 const sendRegistrationOTP = asyncHandler(async (req, res) => {
@@ -165,18 +167,52 @@ const logout = asyncHandler(async (req, res) => {
 
 // Verify token endpoint
 const verifyToken = asyncHandler(async (req, res) => {
-  // If we reach here, token is valid (middleware already verified it)
-  res.status(200).json({
-    success: true,
-    message: 'Token is valid',
-    user: {
-      id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
-      addedToHomeScreen: req.user.addedToHomeScreen
+  // Get token from Authorization header (manually verify since this is now a public route)
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return res.status(200).json({
+      success: false,
+      message: 'No token provided',
+      user: null
+    });
+  }
+
+  try {
+    // Verify token manually
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Fetch user data (token stores userId, not id)
+    const user = await User.findById(decoded.userId).select('-password -emailVerificationOTP -otpExpiry');
+    
+    if (!user) {
+      return res.status(200).json({
+        success: false,
+        message: 'User not found',
+        user: null
+      });
     }
-  });
+
+    res.status(200).json({
+      success: true,
+      message: 'Token is valid',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        addedToHomeScreen: user.addedToHomeScreen
+      }
+    });
+  } catch (error) {
+    // Token is invalid or expired
+    console.error('Token verification error:', error.message);
+    res.status(200).json({
+      success: false,
+      message: 'Token is invalid or expired',
+      user: null
+    });
+  }
 });
 
 // Send password reset OTP
