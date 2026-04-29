@@ -96,6 +96,31 @@ app.use('/api/', limiter);
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Request logging middleware
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  const originalSend = res.send;
+  
+  // Intercept response to log status
+  res.send = function(data) {
+    const duration = Date.now() - startTime;
+    const logLevel = res.statusCode >= 400 ? '❌' : (res.statusCode >= 300 ? '⚠️ ' : '✅');
+    const method = req.method.padEnd(6);
+    const status = res.statusCode.toString().padEnd(3);
+    const path = req.path.substring(0, 50).padEnd(50);
+    
+    console.log(`${logLevel} [${method}] [${status}] ${path} (${duration}ms)`);
+    
+    if (res.statusCode >= 400) {
+      console.log(`   └─ Error details:`, data?.message || data || 'No error message');
+    }
+    
+    return originalSend.call(this, data);
+  };
+  
+  next();
+});
+
 // Database connection - optimized for both Vercel and AWS Lambda
 const mongooseOptions = {
   maxPoolSize: 1,  // Vercel: keep pool small (1 connection per invocation)

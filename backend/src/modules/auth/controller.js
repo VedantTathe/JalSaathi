@@ -169,8 +169,11 @@ const logout = asyncHandler(async (req, res) => {
 const verifyToken = asyncHandler(async (req, res) => {
   // Get token from Authorization header (manually verify since this is now a public route)
   const token = req.headers.authorization?.split(' ')[1];
+  
+  console.log('🔐 [verifyToken] Token verification requested');
 
   if (!token) {
+    console.log('🔐 [verifyToken] ⚠️  No token provided in request');
     return res.status(200).json({
       success: false,
       message: 'No token provided',
@@ -179,13 +182,16 @@ const verifyToken = asyncHandler(async (req, res) => {
   }
 
   try {
+    console.log('🔐 [verifyToken] 🔍 Verifying JWT token...');
     // Verify token manually
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('🔐 [verifyToken] ✅ Token decoded. UserId:', decoded.userId);
     
     // Fetch user data (token stores userId, not id)
     const user = await User.findById(decoded.userId).select('-password -emailVerificationOTP -otpExpiry');
     
     if (!user) {
+      console.log('🔐 [verifyToken] ❌ User not found for userId:', decoded.userId);
       return res.status(200).json({
         success: false,
         message: 'User not found',
@@ -193,6 +199,7 @@ const verifyToken = asyncHandler(async (req, res) => {
       });
     }
 
+    console.log('🔐 [verifyToken] ✅ User found:', user.email, 'Role:', user.role);
     res.status(200).json({
       success: true,
       message: 'Token is valid',
@@ -206,7 +213,8 @@ const verifyToken = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     // Token is invalid or expired
-    console.error('Token verification error:', error.message);
+    console.error('🔐 [verifyToken] ❌ Token verification failed:', error.message);
+    console.error('🔐 [verifyToken] Error type:', error.name);
     res.status(200).json({
       success: false,
       message: 'Token is invalid or expired',

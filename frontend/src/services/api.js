@@ -5,6 +5,11 @@ import axios from 'axios';
 // For local dev, backend runs on localhost:5000
 const API_BASE_URL = import.meta.env.VITE_APP_API_BASE_URL || '/api';
 
+const LOG_PREFIX = '[API Client]';
+
+console.log(`${LOG_PREFIX} Initializing API client with base URL:`, API_BASE_URL);
+console.log(`${LOG_PREFIX} Environment: ${import.meta.env.MODE}`);
+
 // Create axios instance
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -21,19 +26,34 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem('jalsaathi_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log(`${LOG_PREFIX} 🔐 [${config.method?.toUpperCase()}] ${config.url} (with token)`);
+    } else {
+      console.log(`${LOG_PREFIX} 📤 [${config.method?.toUpperCase()}] ${config.url} (no token)`);
     }
     return config;
   },
   (error) => {
+    console.error(`${LOG_PREFIX} ❌ Request error:`, error);
     return Promise.reject(error);
   }
 );
 
 // Response interceptor to handle errors
 apiClient.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    console.log(`${LOG_PREFIX} ✅ [${response.status}] ${response.config.url} -`, response.data?.message || 'OK');
+    return response.data;
+  },
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error?.response?.status;
+    const message = error?.response?.data?.message || error?.message;
+    const url = error?.config?.url;
+    
+    console.error(`${LOG_PREFIX} ❌ [${status}] ${url} - ${message}`);
+    console.error(`${LOG_PREFIX} Full error:`, error);
+    
+    if (status === 401) {
+      console.warn(`${LOG_PREFIX} ⚠️  Unauthorized (401) - clearing token`);
       // Remove invalid token
       localStorage.removeItem('jalsaathi_token');
       
@@ -42,8 +62,15 @@ apiClient.interceptors.response.use(
       const currentPath = window.location.pathname;
       
       if (!authPages.includes(currentPath)) {
+        console.log(`${LOG_PREFIX} 🔄 Redirecting to /login from ${currentPath}`);
         window.location.href = '/login';
       }
+    } else if (status === 403) {
+      console.warn(`${LOG_PREFIX} ⚠️  Forbidden (403) - token may be expired`);
+      localStorage.removeItem('jalsaathi_token');
+    } else if (!status) {
+      console.error(`${LOG_PREFIX} ❌ Network error - no response from server`);
+      console.error(`${LOG_PREFIX} Possible causes: server down, CORS issue, or network connectivity`);
     }
     return Promise.reject(error);
   }

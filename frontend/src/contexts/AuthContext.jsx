@@ -3,6 +3,7 @@ import { authApi } from '../services/api';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
+const LOG_PREFIX = '[AuthContext]';
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -17,35 +18,50 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log(`${LOG_PREFIX} Checking auth status on app load...`);
     checkAuthStatus();
   }, []);
 
   const checkAuthStatus = async () => {
+    console.log(`${LOG_PREFIX} 🔍 checkAuthStatus() called`);
     const token = localStorage.getItem('jalsaathi_token');
     
     if (!token) {
+      console.log(`${LOG_PREFIX} ⚠️  No token in localStorage`);
       setUser(null);
       setLoading(false);
       return;
     }
 
+    console.log(`${LOG_PREFIX} 🔑 Token found in localStorage, verifying...`);
+
     try {
       const response = await authApi.verifyToken();
+      console.log(`${LOG_PREFIX} ✅ Token verification response:`, response);
+      
       if (response.success && response.user) {
+        console.log(`${LOG_PREFIX} ✅ User authenticated:`, response.user);
         setUser(response.user);
       } else {
+        console.warn(`${LOG_PREFIX} ⚠️  Token verification returned success=false`);
+        console.warn(`${LOG_PREFIX} Response:`, response);
         localStorage.removeItem('jalsaathi_token');
         setUser(null);
       }
     } catch (error) {
       const status = error?.response?.status;
+      const message = error?.response?.data?.message || error?.message;
+      console.error(`${LOG_PREFIX} ❌ Auth check failed [${status}]:`, message);
+      console.error(`${LOG_PREFIX} Full error:`, error);
+      
       // 401/403 is expected when token is expired/invalid; clear session silently.
       if (status !== 401 && status !== 403) {
-        console.error('Auth check failed:', error);
+        console.error(`${LOG_PREFIX} Unexpected error status: ${status}`);
       }
       localStorage.removeItem('jalsaathi_token');
       setUser(null);
     } finally {
+      console.log(`${LOG_PREFIX} ✅ Auth check complete. User:`, user, 'Loading:', false);
       setLoading(false);
     }
   };
