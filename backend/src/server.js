@@ -179,6 +179,16 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Root endpoint - returns basic info
+app.get('/', (req, res) => {
+  res.status(200).json({ 
+    name: 'JalSaathi Backend',
+    version: '1.0.0',
+    status: 'running',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Lightweight ping for readiness and to verify CORS from platform
 app.get('/api/ping', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
