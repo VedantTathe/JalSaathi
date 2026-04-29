@@ -1,5 +1,15 @@
 const nodemailer = require('nodemailer');
 
+// Utility: Promise with timeout
+const promiseWithTimeout = (promise, timeoutMs = 15000) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Email sending timed out after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
+};
+
 // Validate email config on startup
 const validateEmailConfig = () => {
   const config = {
@@ -73,22 +83,21 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send OTP email
+// Send OTP email (fire-and-forget with timeout)
 const sendOTPEmail = async (email, otp, name = 'User') => {
-  console.log(`📧 Attempting to send OTP email to: ${email}`);
-  console.log(`   OTP: ${otp}`);
-  console.log(`   Name: ${name}`);
+  console.log(`📧 Queueing OTP email to: ${email}`);
   
-  try {
-    const transporter = createTransporter();
-    const config = resolveMailConfig();
-    
-    console.log('   Creating mail options...');
-    const mailOptions = {
-      from: config.from,
-      to: email,
-      subject: 'JalSaathi - Email Verification OTP',
-      html: `
+  // Send email asynchronously without waiting (fire-and-forget)
+  setImmediate(async () => {
+    try {
+      const transporter = createTransporter();
+      const config = resolveMailConfig();
+      
+      const mailOptions = {
+        from: config.from,
+        to: email,
+        subject: 'JalSaathi - Email Verification OTP',
+        html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -164,32 +173,35 @@ const sendOTPEmail = async (email, otp, name = 'User') => {
         </body>
         </html>
       `
-    };
-    
-    console.log('   Sending email...');
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ OTP email sent successfully to ${email}`);
-    console.log(`   Message ID: ${info.messageId}`);
-    return { success: true };
-    
-  } catch (error) {
-    console.error(`❌ Error sending OTP email to ${email}:`, error.message);
-    console.error('   Full error:', error);
-    return { success: false, error: error.message };
-  }
+      };
+      
+      // Use timeout wrapper for email sending
+      const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 15000);
+      console.log(`✅ OTP email sent to ${email}`);
+    } catch (error) {
+      console.error(`❌ Background: Failed to send OTP email to ${email}:`, error.message);
+    }
+  });
+  
+  // Return success immediately without waiting for email
+  return { success: true };
 };
 
-// Send OTP for login
+// Send OTP for login (fire-and-forget with timeout)
 const sendLoginOTPEmail = async (email, otp, name = 'User') => {
-  try {
-    const transporter = createTransporter();
-    const config = resolveMailConfig();
-    
-    const mailOptions = {
-      from: config.from,
-      to: email,
-      subject: 'JalSaathi - Login OTP',
-      html: `
+  console.log(`📧 Queueing login OTP email to: ${email}`);
+  
+  // Send email asynchronously without waiting (fire-and-forget)
+  setImmediate(async () => {
+    try {
+      const transporter = createTransporter();
+      const config = resolveMailConfig();
+      
+      const mailOptions = {
+        from: config.from,
+        to: email,
+        subject: 'JalSaathi - Login OTP',
+        html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -274,35 +286,41 @@ const sendLoginOTPEmail = async (email, otp, name = 'User') => {
         </body>
         </html>
       `
-    };
-    
-    await transporter.sendMail(mailOptions);
-    console.log(`Login OTP email sent to ${email}`);
-    return { success: true };
-    
-  } catch (error) {
-    console.error('Error sending login OTP email:', error);
-    return { success: false, error: error.message };
-  }
+      };
+      
+      // Use timeout wrapper for email sending
+      await promiseWithTimeout(transporter.sendMail(mailOptions), 15000);
+      console.log(`✅ Login OTP email sent to ${email}`);
+    } catch (error) {
+      console.error(`❌ Background: Failed to send login OTP email to ${email}:`, error.message);
+    }
+  });
+  
+  // Return success immediately without waiting for email
+  return { success: true };
 };
 
 // Send welcome email after successful verification
 const sendWelcomeEmail = async (email, name, role) => {
-  try {
-    const transporter = createTransporter();
-    const config = resolveMailConfig();
-    
-    const roleMessages = {
-      customer: 'You can now start ordering fresh drinking water from nearby providers.',
-      provider: 'Your provider account is under review. You will be notified once approved.',
-      delivery: 'You can now start accepting delivery assignments.'
-    };
-    
-    const mailOptions = {
-      from: config.from,
-      to: email,
-      subject: 'Welcome to JalSaathi!',
-      html: `
+  console.log(`📧 Queueing welcome email to: ${email}`);
+  
+  // Send email asynchronously without waiting (fire-and-forget)
+  setImmediate(async () => {
+    try {
+      const transporter = createTransporter();
+      const config = resolveMailConfig();
+      
+      const roleMessages = {
+        customer: 'You can now start ordering fresh drinking water from nearby providers.',
+        provider: 'Your provider account is under review. You will be notified once approved.',
+        delivery: 'You can now start accepting delivery assignments.'
+      };
+      
+      const mailOptions = {
+        from: config.from,
+        to: email,
+        subject: 'Welcome to JalSaathi!',
+        html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -373,29 +391,34 @@ const sendWelcomeEmail = async (email, name, role) => {
         </body>
         </html>
       `
-    };
-    
-    await transporter.sendMail(mailOptions);
-    console.log(`Welcome email sent to ${email}`);
-    return { success: true };
-    
-  } catch (error) {
-    console.error('Error sending welcome email:', error);
-    return { success: false, error: error.message };
-  }
+      };
+      
+      await promiseWithTimeout(transporter.sendMail(mailOptions), 15000);
+      console.log(`✅ Welcome email sent to ${email}`);
+    } catch (error) {
+      console.error(`❌ Background: Failed to send welcome email to ${email}:`, error.message);
+    }
+  });
+  
+  // Return success immediately without waiting for email
+  return { success: true };
 };
 
 // Send password reset OTP email
 const sendPasswordResetOTPEmail = async (email, otp, name = 'User') => {
-  try {
-    const transporter = createTransporter();
-    const config = resolveMailConfig();
-    
-    const mailOptions = {
-      from: config.from,
-      to: email,
-      subject: 'JalSaathi - Password Reset OTP',
-      html: `
+  console.log(`📧 Queueing password reset OTP email to: ${email}`);
+  
+  // Send email asynchronously without waiting (fire-and-forget)
+  setImmediate(async () => {
+    try {
+      const transporter = createTransporter();
+      const config = resolveMailConfig();
+      
+      const mailOptions = {
+        from: config.from,
+        to: email,
+        subject: 'JalSaathi - Password Reset OTP',
+        html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -481,17 +504,17 @@ const sendPasswordResetOTPEmail = async (email, otp, name = 'User') => {
         </body>
         </html>
       `
-    };
-    
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ Password reset OTP email sent successfully to ${email}`);
-    console.log(`   Message ID: ${info.messageId}`);
-    return { success: true };
-    
-  } catch (error) {
-    console.error(`❌ Error sending password reset OTP email to ${email}:`, error.message);
-    return { success: false, error: error.message };
-  }
+      };
+      
+      await promiseWithTimeout(transporter.sendMail(mailOptions), 15000);
+      console.log(`✅ Password reset OTP email sent to ${email}`);
+    } catch (error) {
+      console.error(`❌ Background: Failed to send password reset OTP email to ${email}:`, error.message);
+    }
+  });
+  
+  // Return success immediately without waiting for email
+  return { success: true };
 };
 
 // Send delivery boy credentials email
@@ -629,7 +652,7 @@ const sendDeliveryBoyCredentialsEmail = async (email, name, password, providerNa
       `
     };
     
-    const info = await transporter.sendMail(mailOptions);
+    const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 15000);
     console.log(`✅ Delivery boy credentials email sent successfully to ${email}`);
     console.log(`   Message ID: ${info.messageId}`);
     return { success: true };
