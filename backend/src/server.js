@@ -162,8 +162,24 @@ const connectToDatabase = async () => {
   }
 };
 
-// Start database connection in background (don't await - returns immediately)
-setImmediate(() => connectToDatabase());
+// Do not start DB connection in background on serverless.
+// Connect only when needed to avoid keeping the event loop alive.
+
+const ensureDatabaseConnection = async (req, res, next) => {
+  if (mongoose.connection.readyState === 1) {
+    return next();
+  }
+
+  try {
+    await connectToDatabase();
+    return next();
+  } catch (err) {
+    return res.status(503).json({
+      success: false,
+      message: 'Database connection unavailable'
+    });
+  }
+};
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -196,6 +212,7 @@ app.get('/api/ping', (req, res) => {
 });
 
 // API Routes
+app.use('/api', ensureDatabaseConnection);
 app.use('/api/auth', authRoutes);
 app.use('/api/user', authenticateToken, userRoutes);
 app.use('/api/provider', authenticateToken, providerRoutes);
