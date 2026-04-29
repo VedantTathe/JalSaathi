@@ -8,19 +8,19 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 // Routes
-const authRoutes = require('../modules/auth/routes');
-const userRoutes = require('../modules/user/routes');
-const providerRoutes = require('../modules/provider/routes');
-const orderRoutes = require('../modules/order/routes');
-const deliveryRoutes = require('../modules/delivery/routes');
-const adminRoutes = require('../modules/admin/routes');
-const addressRoutes = require('../modules/address/routes');
-const settlementRoutes = require('../modules/settlement/routes');
-const paymentWebhook = require('../modules/payment/webhook');
+const authRoutes = require('./modules/auth/routes');
+const userRoutes = require('./modules/user/routes');
+const providerRoutes = require('./modules/provider/routes');
+const orderRoutes = require('./modules/order/routes');
+const deliveryRoutes = require('./modules/delivery/routes');
+const adminRoutes = require('./modules/admin/routes');
+const addressRoutes = require('./modules/address/routes');
+const settlementRoutes = require('./modules/settlement/routes');
+const paymentWebhook = require('./modules/payment/webhook');
 
 // Middlewares
-const { errorHandler } = require('../middlewares/errorHandler');
-const { authenticateToken } = require('../middlewares/auth');
+const { errorHandler } = require('./middlewares/errorHandler');
+const { authenticateToken } = require('./middlewares/auth');
 
 const app = express();
 
