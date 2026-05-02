@@ -26,6 +26,9 @@ const { authenticateToken } = require('./middlewares/auth');
 
 const app = express();
 
+// Trust the first proxy (needed on Vercel/Heroku/NGINX)
+app.set('trust proxy', 1);
+
 // ===== CORS FIRST =====
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
