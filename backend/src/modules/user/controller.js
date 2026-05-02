@@ -9,12 +9,12 @@ const getDashboard = asyncHandler(async (req, res) => {
 
 // Get nearby providers
 const getNearbyProviders = asyncHandler(async (req, res) => {
-  console.error("Failed to fetch nearby providers");
-
-  return res.status(500).json({
-    success: false,
-    message: "Internal Server Error"
-  });
+  const { area } = req.query;
+  const { response, statusCode } = await UserService.getNearbyProviders(
+    req.user._id,
+    area
+  );
+  res.status(statusCode).json(response);
 });
 
 // Get customer orders

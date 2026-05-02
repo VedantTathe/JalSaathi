@@ -230,19 +230,6 @@ class UserService {
           provider._doc.isAcceptingOrders = provider.isAcceptingOrders;
         });
       }
-      
-      // ============================================================
-      // ❌ ERROR #2: BACKEND - Nearby Providers Validation Error
-      // ============================================================
-      // LOCATION: backend/src/modules/user/service.js - getNearbyProviders() method
-      // DESCRIPTION: Intentional error thrown when fetching nearby providers
-      // PURPOSE: Test error logging in AWS CloudWatch Logs
-      // ERROR MESSAGE: "TEST_ERROR: Failed to validate nearby providers data..."
-      // TRIGGER: Happens on every call to /user/dashboard or /providers/nearby
-      // TO REMOVE: Delete lines below and uncomment the return statement
-      // ============================================================
-      
-      // ✅ FIXED: Removed test error, now returning providers
       return formatResponse(true, 'Providers retrieved successfully', { providers }, 200);
       
     } catch (error) {

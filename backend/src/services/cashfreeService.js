@@ -37,7 +37,7 @@ async function createOrder({ orderId, amount, customer = {} }) {
     );
     const frontendBase = normalizeBaseUrl(
       process.env.FRONTEND_URL,
-      'http://localhost:5173'
+      'http://localhost:5174'
     );
     payload.order_meta = payload.order_meta || {};
     if (!payload.order_meta.notify_url) {
