@@ -503,12 +503,11 @@ OrderService.checkPaymentStatus = async function(customerId, orderId) {
     if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
 
     const cfOrderId = order.paymentInfo && (order.paymentInfo.orderId || order.paymentInfo.order_id);
-    // If stored Cashfree order id is missing, try the expected convention 'order_<id>' as a fallback
-    let effectiveCfOrderId = cfOrderId;
-    if (!effectiveCfOrderId) {
-      effectiveCfOrderId = `order_${order._id}`;
-      console.warn('[OrderService] No stored Cashfree order id; using fallback:', effectiveCfOrderId);
+    if (!cfOrderId) {
+      console.warn('[OrderService] No stored Cashfree order id; payment session not created yet');
+      return formatResponse(false, 'Payment session not created. Please retry payment.', null, 409);
     }
+    const effectiveCfOrderId = cfOrderId;
 
     console.log('[OrderService] Checking payment status for order:', orderId, 'Cashfree Order ID:', effectiveCfOrderId);
     const payments = await cashfreeService.getOrderPayments(effectiveCfOrderId);
@@ -559,6 +558,9 @@ OrderService.checkPaymentStatus = async function(customerId, orderId) {
     return formatResponse(false, 'No successful payment found yet', { payments: items }, 202);
   } catch (err) {
     console.error('[OrderService] checkPaymentStatus error:', err);
+    if (err && err.details && err.details.code === 'order_not_found') {
+      return formatResponse(false, 'Payment session not found. Please retry payment.', { code: err.details.code }, 409);
+    }
     return formatResponse(false, 'Failed to check payment status: ' + (err.message || ''), null, 500);
   }
 };

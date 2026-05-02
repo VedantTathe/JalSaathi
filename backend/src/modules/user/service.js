@@ -241,6 +241,25 @@ class UserService {
   // Get customer orders
   static async getCustomerOrders(userId, status = null, limit = 20, page = 1) {
     try {
+      const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+      await Order.updateMany(
+        {
+          customerId: userId,
+          paymentStatus: 'pending',
+          paymentMethod: 'online',
+          status: 'pending',
+          createdAt: { $lt: oneMinuteAgo }
+        },
+        {
+          $set: {
+            paymentStatus: 'failed',
+            status: 'failed',
+            'paymentInfo.failedAt': new Date(),
+            'paymentInfo.failedReason': 'Payment timeout - order not completed within 1 minute'
+          }
+        }
+      );
+
       const query = { customerId: userId };
       if (status) {
         query.status = status;
