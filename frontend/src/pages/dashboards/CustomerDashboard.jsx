@@ -929,7 +929,7 @@ const CustomerDashboard = () => {
                               } else {
                                 // Still pending - just refresh, let cron job handle auto-fail after 1 minute
                                 await queryClient.invalidateQueries('customer-orders', { refetchActive: true });
-                                toast.info('Payment still pending. Will auto-cancel in 1 minute if not completed.');
+                                toast('Payment still pending. Will auto-cancel in 1 minute if not completed.');
                               }
                             } catch (e) {
                               console.error('Refresh payment error:', e);

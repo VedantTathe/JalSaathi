@@ -143,11 +143,11 @@ const Profile = () => {
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
       
       if (isIOS) {
-        toast.info('Tap the Share button and select "Add to Home Screen"', {
+        toast('Tap the Share button and select "Add to Home Screen"', {
           duration: 5000
         });
       } else {
-        toast.info('Install option is not available in your browser', {
+        toast('Install option is not available in your browser', {
           duration: 3000
         });
       }

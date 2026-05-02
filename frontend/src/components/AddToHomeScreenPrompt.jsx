@@ -51,10 +51,10 @@ const AddToHomeScreenPrompt = ({ onClose }) => {
       setDeferredPrompt(null);
     } else if (isIOS) {
       // iOS - just close the prompt, they need to follow manual instructions
-      toast.info('Please follow the instructions above');
+      toast('Please follow the instructions above');
     } else {
       // Browser doesn't support installation
-      toast.info('Your browser doesn\'t support app installation');
+      toast('Your browser doesn\'t support app installation');
     }
   };
 
