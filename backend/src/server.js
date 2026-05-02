@@ -1,5 +1,7 @@
-// Load env
-// require('dotenv').config();
+// Load env for local/dev only
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
 const serverless = require('serverless-http');
 const express = require('express');
@@ -147,5 +149,18 @@ app.use('*', (req, res) => {
 // ===== ERROR =====
 app.use(errorHandler);
 
-// ===== EXPORT (CRITICAL FOR VERCEL) =====
-module.exports = serverless(app);
+// ===== EXPORTS =====
+const handler = serverless(app);
+
+module.exports = {
+  app,
+  handler
+};
+
+// ===== LOCAL START =====
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+}

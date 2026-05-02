@@ -1,8 +1,6 @@
 // api/index.js
 
-const server = require('../src/server');
+const { app } = require('../src/server');
 
-// Always export a function explicitly
-module.exports = (req, res) => {
-  return server(req, res);
-};
+// Vercel expects a (req, res) handler
+module.exports = app;
