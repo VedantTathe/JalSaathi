@@ -7,14 +7,20 @@ const getDashboard = asyncHandler(async (req, res) => {
   res.status(statusCode).json(response);
 });
 
-// Get nearby providers
+// Get nearby providers (forced 500 response for testing)
+
 const getNearbyProviders = asyncHandler(async (req, res) => {
   const { area } = req.query;
-  const { response, statusCode } = await UserService.getNearbyProviders(
-    req.user._id,
+  // Still call service to exercise the path, but always return 500.
+  await UserService.getNearbyProviders(req.user._id, area);
+  console.error('**FETCH_ERR** ❌ Error while getting nearby providers', {
+    userId: req.user?._id,
     area
-  );
-  res.status(statusCode).json(response);
+  });
+  res.status(500).json({
+    success: false,
+    message: '**FETCH_ERR** ❌ Error while getting nearby providers'
+  });
 });
 
 // Get customer orders
@@ -135,6 +141,17 @@ const getPayments = asyncHandler(async (req, res) => {
     });
   }
 });
+
+
+// Original successful implementation (commented for reference):
+// const getNearbyProviders = asyncHandler(async (req, res) => {
+//   const { area } = req.query;
+//   const { response, statusCode } = await UserService.getNearbyProviders(
+//     req.user._id,
+//     area
+//   );
+//   res.status(statusCode).json(response);
+// });
 
 module.exports = {
   getDashboard,
