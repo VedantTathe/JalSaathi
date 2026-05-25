@@ -19,7 +19,7 @@ class ProviderService {
           pricePerCan: 30, // Default price
           serviceRadius: 5,
           minimumOrder: 1,
-          coordinates: { latitude: 0, longitude: 0 },
+          coordinates: user.address?.coordinates || { latitude: 0, longitude: 0 },
           operatingHours: { open: '08:00', close: '20:00' },
           description: 'Area water can delivery management service.'
         });
