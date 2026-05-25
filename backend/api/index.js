@@ -1,6 +1,6 @@
 // api/index.js
 
-const { handler } = require('../src/server');
+const { app } = require('../src/server');
 
-// Vercel expects a (req, res) handler wrapped by serverless-http
-module.exports = handler;
+// Vercel expects the raw Express app exported directly, not the AWS Lambda serverless-http wrapper.
+module.exports = app;
