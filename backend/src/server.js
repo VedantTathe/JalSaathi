@@ -30,13 +30,26 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ===== CORS FIRST =====
+const allowedOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+
+  if (origin && allowedOrigins.length && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(204).end();
   }
   next();
 });
@@ -75,22 +88,27 @@ if (!cached) {
 
 async function connectDB() {
   console.log("ENV URI exists:", !!process.env.MONGODB_URI);
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI not set');
+  }
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
     console.log("🔄 Connecting MongoDB...");
 
     cached.promise = mongoose.connect(process.env.MONGODB_URI, {
-  serverSelectionTimeoutMS: 5000,
-  connectTimeoutMS: 5000,
-  socketTimeoutMS: 5000,
-  family: 4,        // 🔥 IMPORTANT FIX
-  maxPoolSize: 5
-}).then(m => {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
+      socketTimeoutMS: 5000,
+      family: 4,        // 🔥 IMPORTANT FIX
+      maxPoolSize: 5
+    }).then(m => {
       console.log("✅ MongoDB connected");
       return m;
     }).catch(err => {
       console.error("❌ MongoDB error:", err);
+      cached.promise = null;
+      cached.conn = null;
       throw err;
     });
   }
@@ -117,6 +135,9 @@ app.get('/api/ping', (req, res) => {
 // ===== ROUTES (WITH DB ENSURE) =====
 app.use('/api', async (req, res, next) => {
   try {
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
     if (mongoose.connection.readyState !== 1) {
       await Promise.race([
         connectDB(),
