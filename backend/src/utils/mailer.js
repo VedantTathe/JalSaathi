@@ -13,6 +13,32 @@ const promiseWithTimeout = (promise, timeoutMs = 8000) => {
   ]);
 };
 
+// Retry email sending with exponential backoff
+const sendEmailWithRetry = async (transporter, mailOptions, maxRetries = 2) => {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`📧 Email attempt ${attempt}/${maxRetries}: ${mailOptions.to}`);
+      const result = await promiseWithTimeout(transporter.sendMail(mailOptions), 8000);
+      console.log(`✅ Email sent on attempt ${attempt}`);
+      return result;
+    } catch (error) {
+      lastError = error;
+      console.error(`❌ Email attempt ${attempt} failed:`, error.message);
+      
+      if (attempt < maxRetries) {
+        // Exponential backoff: 1s, 2s
+        const delayMs = attempt * 1000;
+        console.log(`⏳ Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  
+  throw lastError;
+};
+
 // Validate email config on startup
 const validateEmailConfig = () => {
   const config = {
@@ -81,15 +107,22 @@ const createTransporter = () => {
       user: config.user,
       pass: config.pass
     },
-    connectionTimeout: 8000,    // 8 seconds (Vercel safe)
-    greetingTimeout: 8000,
-    socketTimeout: 15000,
+    // Vercel-optimized SMTP settings
+    connectionTimeout: 5000,    // 5 seconds
+    greetingTimeout: 5000,
+    socketTimeout: 10000,       // 10 seconds total
+    tls: {
+      rejectUnauthorized: false // Gmail requires this
+    },
     pool: {
-      maxConnections: 1,        // For serverless: limit connections
-      maxMessages: 100,
+      maxConnections: 1,        // Serverless: single connection
+      maxMessages: Infinity,    // Send unlimited messages per connection
       rateDelta: 1000,
-      rateLimit: 14             // 14 emails per second
-    }
+      rateLimit: 20             // 20 emails per second max
+    },
+    // Enable connection keepalive
+    keepAlive: true,
+    requireTLS: true
   });
 
   return cachedTransporter;
@@ -190,8 +223,8 @@ const sendOTPEmail = async (email, otp, name = 'User') => {
       `
       };
       
-      // Use timeout wrapper for email sending
-      const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 8000);
+      // Send with retry logic
+      const info = await sendEmailWithRetry(transporter, mailOptions, 2);
       console.log(`✅ OTP email sent to ${email}`);
       return { success: true };
     } catch (error) {
@@ -303,8 +336,8 @@ const sendLoginOTPEmail = async (email, otp, name = 'User') => {
       `
       };
       
-      // Use timeout wrapper for email sending
-      const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 8000);
+      // Send with retry logic
+      const info = await sendEmailWithRetry(transporter, mailOptions, 2);
       console.log(`✅ Login OTP email sent to ${email}`);
       return { success: true };
     } catch (error) {
@@ -408,7 +441,7 @@ const sendWelcomeEmail = async (email, name, role) => {
     `
     };
     
-    const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 8000);
+    const info = await sendEmailWithRetry(transporter, mailOptions, 1);
     console.log(`✅ Welcome email sent to ${email}`);
     return { success: true };
   } catch (error) {
@@ -518,7 +551,7 @@ const sendPasswordResetOTPEmail = async (email, otp, name = 'User') => {
     `
     };
     
-    const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 8000);
+    const info = await sendEmailWithRetry(transporter, mailOptions, 2);
     console.log(`✅ Password reset OTP email sent to ${email}`);
     return { success: true };
   } catch (error) {
@@ -666,7 +699,7 @@ const sendDeliveryBoyCredentialsEmail = async (email, name, password, providerNa
       `
     };
     
-    const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 15000);
+    const info = await sendEmailWithRetry(transporter, mailOptions, 2);
     console.log(`✅ Delivery boy credentials email sent successfully to ${email}`);
     console.log(`   Message ID: ${info.messageId}`);
     return { success: true };
