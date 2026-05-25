@@ -1,5 +1,5 @@
-// Load env for local/dev only
-if (process.env.NODE_ENV !== 'production') {
+// Load env for local/dev, or as a fallback if cloud environment variables are missing
+if (process.env.NODE_ENV !== 'production' || !process.env.MONGODB_URI) {
   require('dotenv').config();
 }
 
@@ -117,10 +117,24 @@ async function connectDB() {
   return cached.conn;
 }
 
+async function connectWithTimeout(timeoutMs = 5000) {
+  return Promise.race([
+    connectDB(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('DB timeout')), timeoutMs)
+    )
+  ]);
+}
+
 // ===== HEALTH =====
 app.get('/health', async (req, res) => {
-  await connectDB();
-  res.json({ status: 'OK' });
+  try {
+    await connectWithTimeout(5000);
+    res.json({ status: 'OK' });
+  } catch (err) {
+    console.error('❌ Health DB error:', err.message);
+    res.status(503).json({ status: 'DB_UNAVAILABLE' });
+  }
 });
 
 // ===== BASIC =====
@@ -139,12 +153,7 @@ app.use('/api', async (req, res, next) => {
       return res.status(204).end();
     }
     if (mongoose.connection.readyState !== 1) {
-      await Promise.race([
-        connectDB(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('DB timeout')), 5000)
-        )
-      ]);
+      await connectWithTimeout(5000);
     }
     next();
   } catch (err) {
