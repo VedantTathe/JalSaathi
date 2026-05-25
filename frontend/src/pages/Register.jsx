@@ -282,7 +282,8 @@ const Register = () => {
       const { authApi } = await import('../services/api');
       const response = await authApi.verifyRegistrationOTP(
         registrationData.email,
-        otpCode
+        otpCode,
+        registrationData
       );
       
       if (response.success && response.data) {

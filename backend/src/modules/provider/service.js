@@ -5,10 +5,33 @@ const { formatResponse } = require('../../utils/helpers');
 const { sendDeliveryBoyCredentialsEmail } = require('../../utils/mailer');
 
 class ProviderService {
+  // Helper to retrieve the provider profile or auto-create a default one if it's missing (self-healing)
+  static async getProvider(userId) {
+    let provider = await Provider.findOne({ userId });
+    if (!provider) {
+      const user = await User.findById(userId);
+      if (user && user.role === 'provider') {
+        console.log(`🛡️ [ProviderService] Auto-healing missing provider profile for user ${userId}...`);
+        provider = await Provider.create({
+          userId: user._id,
+          businessName: user.name || 'JalSaathi Water Services',
+          area: user.address?.area || 'Local Area',
+          pricePerCan: 30, // Default price
+          serviceRadius: 5,
+          minimumOrder: 1,
+          coordinates: { latitude: 0, longitude: 0 },
+          operatingHours: { open: '08:00', close: '20:00' },
+          description: 'Area water can delivery management service.'
+        });
+      }
+    }
+    return provider;
+  }
+
   // Toggle provider online/offline status
   static async toggleOnlineStatus(userId) {
     try {
-      const provider = await Provider.findOne({ userId });
+      const provider = await ProviderService.getProvider(userId);
       if (!provider) {
         return formatResponse(false, 'Provider profile not found', null, 404);
       }
@@ -47,7 +70,7 @@ class ProviderService {
         if (['name', 'email', 'phone', 'address'].includes(key)) userUpdates[key] = updateData[key];
       });
 
-      const provider = await Provider.findOne({ userId });
+      const provider = await ProviderService.getProvider(userId);
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }
@@ -82,7 +105,7 @@ class ProviderService {
   // Get provider orders (last 16 hours only)
   static async getProviderOrders(userId, status = null, limit = 100, page = 1) {
     try {
-      const provider = await Provider.findOne({ userId });
+      const provider = await ProviderService.getProvider(userId);
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }
@@ -127,7 +150,7 @@ class ProviderService {
   // Accept order
   static async acceptOrder(userId, orderId) {
     try {
-      const provider = await Provider.findOne({ userId });
+      const provider = await ProviderService.getProvider(userId);
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }
@@ -159,7 +182,7 @@ class ProviderService {
   // Reject order
   static async rejectOrder(userId, orderId, reason = '') {
     try {
-      const provider = await Provider.findOne({ userId });
+      const provider = await ProviderService.getProvider(userId);
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }
@@ -191,7 +214,7 @@ class ProviderService {
     try {
       console.log(`[assignDeliveryBoy] userId=${userId}, orderId=${orderId}, deliveryBoyId=${deliveryBoyId}`);
       
-      const provider = await Provider.findOne({ userId });
+      const provider = await ProviderService.getProvider(userId);
       if (!provider) {
         console.log('[assignDeliveryBoy] Provider not found');
         return formatResponse(false, 'Provider not found', null, 404);
@@ -231,10 +254,13 @@ class ProviderService {
     try {
       console.log('[Service] getDeliveryBoys called for userId:', userId);
       
-      const provider = await Provider.findOne({ userId }).populate(
-        'deliveryBoys', 
-        'name email phone isActive'
-      );
+      let provider = await ProviderService.getProvider(userId);
+      if (provider) {
+        provider = await Provider.findById(provider._id).populate(
+          'deliveryBoys', 
+          'name email phone isActive'
+        );
+      }
       
       if (!provider) {
         console.log('[Service] Provider not found');
@@ -259,7 +285,10 @@ class ProviderService {
       console.log('[Service] addDeliveryBoy called for userId:', userId);
       console.log('[Service] Delivery boy data:', { name: deliveryBoyData.name, email: deliveryBoyData.email });
       
-      const provider = await Provider.findOne({ userId }).populate('userId', 'name');
+      let provider = await ProviderService.getProvider(userId);
+      if (provider) {
+        provider = await Provider.findById(provider._id).populate('userId', 'name');
+      }
       if (!provider) {
         console.log('[Service] Provider not found');
         return formatResponse(false, 'Provider not found', null, 404);
@@ -354,7 +383,7 @@ class ProviderService {
   // Remove delivery boy
   static async removeDeliveryBoy(userId, deliveryBoyId) {
     try {
-      const provider = await Provider.findOne({ userId });
+      const provider = await ProviderService.getProvider(userId);
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }
@@ -389,7 +418,7 @@ class ProviderService {
   // Get provider analytics
   static async getAnalytics(userId) {
     try {
-      const provider = await Provider.findOne({ userId });
+      const provider = await ProviderService.getProvider(userId);
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }
@@ -447,7 +476,7 @@ class ProviderService {
   // Get order history grouped by day with revenue summary
   static async getOrderHistory(userId, query = {}) {
     try {
-      const provider = await Provider.findOne({ userId });
+      const provider = await ProviderService.getProvider(userId);
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }
@@ -532,7 +561,7 @@ class ProviderService {
   // Get customers who have ordered from this provider
   static async getCustomers(userId, query = {}) {
     try {
-      const provider = await Provider.findOne({ userId });
+      const provider = await ProviderService.getProvider(userId);
       if (!provider) {
         return formatResponse(false, 'Provider not found', null, 404);
       }

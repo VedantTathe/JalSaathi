@@ -89,7 +89,7 @@ export const authApi = {
     apiClient.post('/auth/change-password', { currentPassword, newPassword }),
   // OTP-related endpoints
   sendRegistrationOTP: (userData) => apiClient.post('/auth/send-otp', userData),
-  verifyRegistrationOTP: (email, otp) => apiClient.post('/auth/verify-otp', { email, otp }),
+  verifyRegistrationOTP: (email, otp, registrationData) => apiClient.post('/auth/verify-otp', { email, otp, registrationData }),
   resendOTP: (email) => apiClient.post('/auth/resend-otp', { email }),
   sendLoginOTP: (email) => apiClient.post('/auth/login/send-otp', { email }),
   verifyLoginOTP: (email, otp) => apiClient.post('/auth/login/verify-otp', { email, otp }),
