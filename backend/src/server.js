@@ -6,6 +6,7 @@ if (process.env.NODE_ENV !== 'production' || !process.env.MONGODB_URI) {
 const serverless = require('serverless-http');
 const express = require('express');
 const mongoose = require('mongoose');
+mongoose.set('bufferCommands', false); // Disable command buffering in serverless to prevent query hangs
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
@@ -93,10 +94,22 @@ async function connectDB() {
   }
   if (cached.conn) return cached.conn;
 
+  let uri = process.env.MONGODB_URI;
+  if (uri && typeof uri === 'string') {
+    uri = uri.trim();
+    // Programmatically strip wrapping double or single quotes if pasted verbatim into Vercel
+    if (uri.startsWith('"') && uri.endsWith('"')) {
+      uri = uri.slice(1, -1);
+    }
+    if (uri.startsWith("'") && uri.endsWith("'")) {
+      uri = uri.slice(1, -1);
+    }
+  }
+
   if (!cached.promise) {
     console.log("🔄 Connecting MongoDB...");
 
-    cached.promise = mongoose.connect(process.env.MONGODB_URI, {
+    cached.promise = mongoose.connect(uri, {
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 5000,
       socketTimeoutMS: 5000,

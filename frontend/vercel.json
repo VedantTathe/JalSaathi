@@ -1,13 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/:match*",
-      "destination": "https://w3ko27ats7.execute-api.ap-south-1.amazonaws.com/prod/api/:match*"
-    },
-    {
       "source": "/(.*)",
       "destination": "/"
     }
   ]
 }
-
