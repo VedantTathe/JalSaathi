@@ -1,7 +1,10 @@
 const nodemailer = require('nodemailer');
 
-// Utility: Promise with timeout
-const promiseWithTimeout = (promise, timeoutMs = 15000) => {
+// Cache transporter for Vercel (avoid recreating on each request)
+let cachedTransporter = null;
+
+// Utility: Promise with timeout (reduced for Vercel 10s limit)
+const promiseWithTimeout = (promise, timeoutMs = 8000) => {
   return Promise.race([
     promise,
     new Promise((_, reject) =>
@@ -49,8 +52,14 @@ const resolveMailConfig = () => {
   };
 };
 
-// Create transporter
+// Create transporter (cached for Vercel)
 const createTransporter = () => {
+  // Return cached transporter if available
+  if (cachedTransporter) {
+    console.log('📧 Using cached email transporter');
+    return cachedTransporter;
+  }
+
   const config = resolveMailConfig();
 
   console.log('📧 Creating email transporter...');
@@ -64,7 +73,7 @@ const createTransporter = () => {
     throw error;
   }
   
-  return nodemailer.createTransport({
+  cachedTransporter = nodemailer.createTransport({
     host: config.host,
     port: config.port,
     secure: config.secure,
@@ -72,10 +81,18 @@ const createTransporter = () => {
       user: config.user,
       pass: config.pass
     },
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,
-    socketTimeout: 20000
+    connectionTimeout: 8000,    // 8 seconds (Vercel safe)
+    greetingTimeout: 8000,
+    socketTimeout: 15000,
+    pool: {
+      maxConnections: 1,        // For serverless: limit connections
+      maxMessages: 100,
+      rateDelta: 1000,
+      rateLimit: 14             // 14 emails per second
+    }
   });
+
+  return cachedTransporter;
 };
 
 // Generate 6-digit OTP
@@ -83,21 +100,19 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send OTP email (fire-and-forget with timeout)
+// Send OTP email (Vercel-optimized: wait for send to complete)
 const sendOTPEmail = async (email, otp, name = 'User') => {
-  console.log(`📧 Queueing OTP email to: ${email}`);
+  console.log(`📧 Sending OTP email to: ${email}`);
   
-  // Send email asynchronously without waiting (fire-and-forget)
-  setImmediate(async () => {
-    try {
-      const transporter = createTransporter();
-      const config = resolveMailConfig();
-      
-      const mailOptions = {
-        from: config.from,
-        to: email,
-        subject: 'JalSaathi - Email Verification OTP',
-        html: `
+  try {
+    const transporter = createTransporter();
+    const config = resolveMailConfig();
+    
+    const mailOptions = {
+      from: config.from,
+      to: email,
+      subject: 'JalSaathi - Email Verification OTP',
+      html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -176,32 +191,32 @@ const sendOTPEmail = async (email, otp, name = 'User') => {
       };
       
       // Use timeout wrapper for email sending
-      const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 15000);
+      const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 8000);
       console.log(`✅ OTP email sent to ${email}`);
+      return { success: true };
     } catch (error) {
-      console.error(`❌ Background: Failed to send OTP email to ${email}:`, error.message);
+      console.error(`❌ Failed to send OTP email to ${email}:`, error.message);
+      return { 
+        success: false, 
+        error: error.message,
+        isConfigIssue: error.isConfigIssue 
+      };
     }
-  });
-  
-  // Return success immediately without waiting for email
-  return { success: true };
 };
 
-// Send OTP for login (fire-and-forget with timeout)
+// Send OTP for login (Vercel-optimized: wait for send to complete)
 const sendLoginOTPEmail = async (email, otp, name = 'User') => {
-  console.log(`📧 Queueing login OTP email to: ${email}`);
+  console.log(`📧 Sending login OTP email to: ${email}`);
   
-  // Send email asynchronously without waiting (fire-and-forget)
-  setImmediate(async () => {
-    try {
-      const transporter = createTransporter();
-      const config = resolveMailConfig();
-      
-      const mailOptions = {
-        from: config.from,
-        to: email,
-        subject: 'JalSaathi - Login OTP',
-        html: `
+  try {
+    const transporter = createTransporter();
+    const config = resolveMailConfig();
+    
+    const mailOptions = {
+      from: config.from,
+      to: email,
+      subject: 'JalSaathi - Login OTP',
+      html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -289,232 +304,231 @@ const sendLoginOTPEmail = async (email, otp, name = 'User') => {
       };
       
       // Use timeout wrapper for email sending
-      await promiseWithTimeout(transporter.sendMail(mailOptions), 15000);
+      const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 8000);
       console.log(`✅ Login OTP email sent to ${email}`);
+      return { success: true };
     } catch (error) {
-      console.error(`❌ Background: Failed to send login OTP email to ${email}:`, error.message);
+      console.error(`❌ Failed to send login OTP email to ${email}:`, error.message);
+      return { 
+        success: false, 
+        error: error.message,
+        isConfigIssue: error.isConfigIssue 
+      };
     }
-  });
-  
-  // Return success immediately without waiting for email
-  return { success: true };
 };
 
 // Send welcome email after successful verification
 const sendWelcomeEmail = async (email, name, role) => {
-  console.log(`📧 Queueing welcome email to: ${email}`);
+  console.log(`📧 Sending welcome email to: ${email}`);
   
-  // Send email asynchronously without waiting (fire-and-forget)
-  setImmediate(async () => {
-    try {
-      const transporter = createTransporter();
-      const config = resolveMailConfig();
-      
-      const roleMessages = {
-        customer: 'You can now start ordering fresh drinking water from nearby providers.',
-        provider: 'Your provider account is under review. You will be notified once approved.',
-        delivery: 'You can now start accepting delivery assignments.'
-      };
-      
-      const mailOptions = {
-        from: config.from,
-        to: email,
-        subject: 'Welcome to JalSaathi!',
-        html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              line-height: 1.6;
-              color: #333;
-            }
-            .container {
-              max-width: 600px;
-              margin: 0 auto;
-              padding: 20px;
-              background-color: #f9f9f9;
-            }
-            .header {
-              background-color: #10b981;
-              color: white;
-              padding: 20px;
-              text-align: center;
-              border-radius: 5px 5px 0 0;
-            }
-            .content {
-              background-color: white;
-              padding: 30px;
-              border-radius: 0 0 5px 5px;
-            }
-            .button {
-              display: inline-block;
-              padding: 12px 30px;
-              background-color: #2563eb;
-              color: white;
-              text-decoration: none;
-              border-radius: 5px;
-              margin: 20px 0;
-            }
-            .footer {
-              margin-top: 20px;
-              text-align: center;
-              color: #666;
-              font-size: 12px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Welcome to JalSaathi!</h1>
-            </div>
-            <div class="content">
-              <h2>Registration Successful!</h2>
-              <p>Hello ${name},</p>
-              <p>Congratulations! Your email has been verified and your account is now active.</p>
-              <p>${roleMessages[role] || 'You can now access all features of your account.'}</p>
-              
-              <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL}/login" class="button">Login to Your Account</a>
-              </div>
-              
-              <p>If you have any questions, feel free to contact our support team.</p>
-              
-              <p>Best regards,<br>JalSaathi Team</p>
-            </div>
-            <div class="footer">
-              <p>This is an automated email. Please do not reply.</p>
-            </div>
+  try {
+    const transporter = createTransporter();
+    const config = resolveMailConfig();
+    
+    const roleMessages = {
+      customer: 'You can now start ordering fresh drinking water from nearby providers.',
+      provider: 'Your provider account is under review. You will be notified once approved.',
+      delivery: 'You can now start accepting delivery assignments.'
+    };
+    
+    const mailOptions = {
+      from: config.from,
+      to: email,
+      subject: 'Welcome to JalSaathi!',
+      html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+          }
+          .header {
+            background-color: #10b981;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+          }
+          .content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 0 0 5px 5px;
+          }
+          .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+          }
+          .footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Welcome to JalSaathi!</h1>
           </div>
-        </body>
-        </html>
-      `
-      };
-      
-      await promiseWithTimeout(transporter.sendMail(mailOptions), 15000);
-      console.log(`✅ Welcome email sent to ${email}`);
-    } catch (error) {
-      console.error(`❌ Background: Failed to send welcome email to ${email}:`, error.message);
-    }
-  });
-  
-  // Return success immediately without waiting for email
-  return { success: true };
+          <div class="content">
+            <h2>Registration Successful!</h2>
+            <p>Hello ${name},</p>
+            <p>Congratulations! Your email has been verified and your account is now active.</p>
+            <p>${roleMessages[role] || 'You can now access all features of your account.'}</p>
+            
+            <div style="text-align: center;">
+              <a href="${process.env.FRONTEND_URL}/login" class="button">Login to Your Account</a>
+            </div>
+            
+            <p>If you have any questions, feel free to contact our support team.</p>
+            
+            <p>Best regards,<br>JalSaathi Team</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated email. Please do not reply.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+    };
+    
+    const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 8000);
+    console.log(`✅ Welcome email sent to ${email}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Failed to send welcome email to ${email}:`, error.message);
+    // Non-critical, return success anyway (registration is already complete)
+    return { success: true };
+  }
 };
 
 // Send password reset OTP email
 const sendPasswordResetOTPEmail = async (email, otp, name = 'User') => {
-  console.log(`📧 Queueing password reset OTP email to: ${email}`);
+  console.log(`📧 Sending password reset OTP email to: ${email}`);
   
-  // Send email asynchronously without waiting (fire-and-forget)
-  setImmediate(async () => {
-    try {
-      const transporter = createTransporter();
-      const config = resolveMailConfig();
-      
-      const mailOptions = {
-        from: config.from,
-        to: email,
-        subject: 'JalSaathi - Password Reset OTP',
-        html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              line-height: 1.6;
-              color: #333;
-            }
-            .container {
-              max-width: 600px;
-              margin: 0 auto;
-              padding: 20px;
-              background-color: #f9f9f9;
-            }
-            .header {
-              background-color: #dc2626;
-              color: white;
-              padding: 20px;
-              text-align: center;
-              border-radius: 5px 5px 0 0;
-            }
-            .content {
-              background-color: white;
-              padding: 30px;
-              border-radius: 0 0 5px 5px;
-            }
-            .otp-box {
-              background-color: #fef2f2;
-              border: 2px dashed #dc2626;
-              padding: 20px;
-              text-align: center;
-              margin: 20px 0;
-              border-radius: 5px;
-            }
-            .otp-code {
-              font-size: 32px;
-              font-weight: bold;
-              color: #dc2626;
-              letter-spacing: 5px;
-            }
-            .footer {
-              margin-top: 20px;
-              text-align: center;
-              color: #666;
-              font-size: 12px;
-            }
-            .warning {
-              background-color: #fff3cd;
-              border-left: 4px solid #ffc107;
-              padding: 10px;
-              margin: 15px 0;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>🔐 Password Reset Request</h1>
-            </div>
-            <div class="content">
-              <h2>Reset Your Password</h2>
-              <p>Hello ${name},</p>
-              <p>We received a request to reset your JalSaathi account password. Use the OTP below to proceed:</p>
-              
-              <div class="otp-box">
-                <div class="otp-code">${otp}</div>
-              </div>
-              
-              <p><strong>This OTP is valid for 10 minutes.</strong></p>
-              
-              <div class="warning">
-                <strong>⚠️ Security Notice:</strong><br>
-                If you didn't request a password reset, please ignore this email and ensure your account is secure.
-              </div>
-              
-              <p>Best regards,<br>JalSaathi Team</p>
-            </div>
-            <div class="footer">
-              <p>This is an automated email. Please do not reply.</p>
-            </div>
+  try {
+    const transporter = createTransporter();
+    const config = resolveMailConfig();
+    
+    const mailOptions = {
+      from: config.from,
+      to: email,
+      subject: 'JalSaathi - Password Reset OTP',
+      html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+          }
+          .header {
+            background-color: #dc2626;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+          }
+          .content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 0 0 5px 5px;
+          }
+          .otp-box {
+            background-color: #fef2f2;
+            border: 2px dashed #dc2626;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            border-radius: 5px;
+          }
+          .otp-code {
+            font-size: 32px;
+            font-weight: bold;
+            color: #dc2626;
+            letter-spacing: 5px;
+          }
+          .footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+          }
+          .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 15px 0;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔐 Password Reset Request</h1>
           </div>
-        </body>
-        </html>
-      `
-      };
-      
-      await promiseWithTimeout(transporter.sendMail(mailOptions), 15000);
-      console.log(`✅ Password reset OTP email sent to ${email}`);
-    } catch (error) {
-      console.error(`❌ Background: Failed to send password reset OTP email to ${email}:`, error.message);
-    }
-  });
-  
-  // Return success immediately without waiting for email
-  return { success: true };
+          <div class="content">
+            <h2>Reset Your Password</h2>
+            <p>Hello ${name},</p>
+            <p>We received a request to reset your JalSaathi account password. Use the OTP below to proceed:</p>
+            
+            <div class="otp-box">
+              <div class="otp-code">${otp}</div>
+            </div>
+            
+            <p><strong>This OTP is valid for 10 minutes.</strong></p>
+            
+            <div class="warning">
+              <strong>⚠️ Security Notice:</strong><br>
+              If you didn't request a password reset, please ignore this email and ensure your account is secure.
+            </div>
+            
+            <p>Best regards,<br>JalSaathi Team</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated email. Please do not reply.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+    };
+    
+    const info = await promiseWithTimeout(transporter.sendMail(mailOptions), 8000);
+    console.log(`✅ Password reset OTP email sent to ${email}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Failed to send password reset OTP email to ${email}:`, error.message);
+    return { 
+      success: false, 
+      error: error.message,
+      isConfigIssue: error.isConfigIssue 
+    };
+  }
 };
 
 // Send delivery boy credentials email

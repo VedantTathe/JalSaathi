@@ -1,6 +1,6 @@
 // api/index.js
 
-const { app } = require('../src/server');
+const { handler } = require('../src/server');
 
-// Vercel expects a (req, res) handler
-module.exports = app;
+// Vercel expects a (req, res) handler wrapped by serverless-http
+module.exports = handler;
