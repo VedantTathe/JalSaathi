@@ -275,11 +275,15 @@ const CustomerDashboard = () => {
           order_id: rOrder?.id || rOrder?.order_id,
           handler: async function (response) {
             try {
+              // Synchronously verify payment with backend since webhook may be delayed/missing
+              await orderApi.verifyPayment(orderId, response);
+              
               toast.success('Payment successful');
               queryClient.invalidateQueries('customer-orders');
               navigate('/dashboard/my-orders');
               resolve(true);
             } catch (err) {
+              console.error('Payment verification failed:', err);
               toast.error('Payment verification failed');
               resolve(false);
             }
