@@ -18,14 +18,14 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../utils/helpers';
 import toast from 'react-hot-toast';
 
-// Helper to load Cashfree SDK
-const loadCashfreeScript = () => {
+// Helper to load Razorpay SDK
+const loadRazorpayScript = () => {
   return new Promise((resolve, reject) => {
-    if (window.cashfree || window.CF) return resolve(true);
+    if (window.Razorpay) return resolve(true);
     const script = document.createElement('script');
-    script.src = 'https://sdk.cashfree.com/js/v1/cashfree.js';
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
     script.onload = () => resolve(true);
-    script.onerror = () => reject(new Error('Failed to load Cashfree SDK'));
+    script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
     document.body.appendChild(script);
   });
 };
@@ -44,35 +44,50 @@ const MakePaymentButton = ({ order, onSuccess }) => {
       const responseData = res?.data || res;
       const rOrder = responseData?.order || responseData?.data || responseData;
 
-      // Prefer a direct checkout URL if backend returned one
-      const checkoutUrl = rOrder?.checkout_url || rOrder?.payment_link || rOrder?.paymentLink || rOrder?.data?.checkout_url;
-      if (checkoutUrl) {
-        window.open(checkoutUrl, '_blank');
+      console.log('Loading Razorpay SDK...');
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded) {
+        toast.error('Razorpay SDK failed to load');
         return;
       }
+      console.log('Razorpay SDK loaded successfully');
 
-      // Otherwise try to use Cashfree JS SDK if available
-      console.log('Loading Cashfree SDK...');
-      await loadCashfreeScript();
-      console.log('Cashfree SDK loaded successfully');
-
-      // Cashfree SDK usage varies; attempt a generic init if available
-      if (window.cashfree && typeof window.cashfree.init === 'function') {
-        try {
-          await window.cashfree.init({
-            orderToken: rOrder?.order_token || rOrder?.token || rOrder?.data?.order_token,
-            orderId: rOrder?.order_id || rOrder?.orderId || rOrder?.id,
-            appId: responseData?.appId || responseData?.key || process.env.REACT_APP_CASHFREE_APP_ID
-          });
-          // After init, open checkout (SDK-specific)
-          if (typeof window.cashfree.open === 'function') window.cashfree.open();
-          return;
-        } catch (e) {
-          console.warn('Cashfree SDK init failed:', e);
+      const options = {
+        key: responseData?.keyId || process.env.VITE_APP_RAZORPAY_KEY_ID || '',
+        amount: rOrder?.amount,
+        currency: rOrder?.currency || 'INR',
+        name: 'JalSaathi',
+        description: 'Order Payment',
+        order_id: rOrder?.id || rOrder?.order_id,
+        handler: async function (response) {
+          try {
+            await verifyPayment.mutateAsync({
+              orderId: order._id,
+              payload: response
+            });
+            toast.success('Payment successful');
+            if (onSuccess) onSuccess();
+          } catch (err) {
+            toast.error('Payment verification failed');
+          }
+        },
+        prefill: {
+          name: order?.customerId?.name || '',
+          email: order?.customerId?.email || '',
+          contact: order?.customerId?.phone || ''
+        },
+        theme: {
+          color: '#3B82F6' // Use appropriate primary color
         }
-      }
+      };
 
-      toast.error('Unable to open Cashfree checkout. Contact support.');
+      const rzp1 = new window.Razorpay(options);
+      rzp1.on('payment.failed', function (response){
+        console.error('Payment failed', response.error);
+        toast.error('Payment failed: ' + response.error.description);
+      });
+      rzp1.open();
+
     } catch (error) {
       console.error('Payment error:', error);
       const errorMsg = error?.response?.data?.message || error.message || 'Payment failed';

@@ -12,8 +12,8 @@
 In Vercel → Project Settings → Environment Variables, add:
 - `MONGODB_URI` = your MongoDB connection string
 - `JWT_SECRET` = your JWT secret key
-- `CASHFREE_APP_ID` = your Cashfree app ID
-- `CASHFREE_SECRET_KEY` = your Cashfree secret key
+- `RAZORPAY_KEY_ID` = your Razorpay app ID
+- `RAZORPAY_KEY_SECRET` = your Razorpay secret key
 - `EMAIL_USER` = your email for OTP sending
 - `EMAIL_PASS` = your email app password
 - All other vars from your `.env` file (except `FRONTEND_URL`)

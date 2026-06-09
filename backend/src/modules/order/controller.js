@@ -68,17 +68,17 @@ const cancelOrder = asyncHandler(async (req, res) => {
   res.status(statusCode).json(response);
 });
 
-// Create payment order (Cashfree) for an existing order
+// Create payment order (Razorpay) for an existing order
 const createPaymentOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
-  const { response, statusCode } = await OrderService.createCashfreeOrder(req.user._id, orderId);
+  const { response, statusCode } = await OrderService.createRazorpayOrder(req.user._id, orderId);
   res.status(statusCode).json(response);
 });
 
 // Verify payment after client checkout
 const verifyPayment = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
-  const { response, statusCode } = await OrderService.verifyCashfreePayment(req.user._id, orderId, req.body);
+  const { response, statusCode } = await OrderService.verifyRazorpayPayment(req.user._id, orderId, req.body);
   res.status(statusCode).json(response);
 });
 

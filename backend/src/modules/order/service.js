@@ -3,7 +3,7 @@ const Provider = require('../provider/model');
 const User = require('../user/model');
 const { formatResponse } = require('../../utils/helpers');
 const crypto = require('crypto');
-const cashfreeService = require('../../services/cashfreeService');
+const razorpayService = require('../../services/razorpayService');
 
 class OrderService {
   // Check if website is accepting orders (defaults to true if env not set)
@@ -319,8 +319,8 @@ class OrderService {
   }
 }
 
-// Cashfree integration: create order and verify payment
-OrderService.createCashfreeOrder = async function(customerId, orderId) {
+// Razorpay integration: create order and verify payment
+OrderService.createRazorpayOrder = async function(customerId, orderId) {
   try {
     if (!this.isWebsiteAcceptingOrders()) {
       return formatResponse(false, 'Sorry, we are not able to process payments right now. Please try again later.', null, 503);
@@ -337,7 +337,7 @@ OrderService.createCashfreeOrder = async function(customerId, orderId) {
     const amount = Number(order.items.totalPrice || 0);
 
     try {
-      // Ensure we pass full customer details (not just an ObjectId) to Cashfree
+      // Ensure we pass full customer details (not just an ObjectId) to Razorpay
       let customer = null;
       try {
         customer = await User.findById(order.customerId).select('name phone email');
@@ -348,7 +348,7 @@ OrderService.createCashfreeOrder = async function(customerId, orderId) {
       // If customer phone is missing, decline creating online payment order
       const customerPhone = (customer && (customer.phone || customer.mobile || customer.contact)) || null;
       if (!customerPhone) {
-        console.error('Customer phone missing; cannot create Cashfree order');
+        console.error('Customer phone missing; cannot create Razorpay order');
         return formatResponse(false, 'Customer phone is required for online payments', null, 400);
       }
 
@@ -371,28 +371,28 @@ OrderService.createCashfreeOrder = async function(customerId, orderId) {
         _rawPhone: rawPhone // debug only
       };
 
-      console.log('🆕 Creating NEW Cashfree payment session for order:', order._id.toString());
-      const data = await cashfreeService.createOrder({ orderId: order._id, amount, customer: customerPayload });
+      console.log('🆕 Creating NEW Razorpay payment session for order:', order._id.toString());
+      const data = await razorpayService.createOrder({ orderId: order._id, amount, customer: customerPayload });
 
-      // Persist cashfree order id (if returned)
+      // Persist razorpay order id (if returned)
       try {
         order.paymentInfo = order.paymentInfo || {};
-        // Cashfree returns 'order_id' field in response payload
+        // Razorpay returns 'order_id' field in response payload
         if (data && (data.order_id || data.id)) {
           order.paymentInfo.orderId = data.order_id || data.id;
         } else {
-          // Fallback: Cashfree order ids are prefixed with 'order_' + internal id
+          // Fallback: Razorpay order ids are prefixed with 'order_' + internal id
           order.paymentInfo.orderId = `order_${order._id}`;
         }
-        order.paymentInfo.provider = 'cashfree';
+        order.paymentInfo.provider = 'razorpay';
         await order.save();
       } catch (e) {
-        console.error('Failed to persist cashfree order id on order:', e);
+        console.error('Failed to persist razorpay order id on order:', e);
       }
 
-      return formatResponse(true, 'Cashfree order created', { appId: process.env.CASHFREE_APP_ID, order: data }, 200);
+      return formatResponse(true, 'Razorpay order created', { appId: process.env.RAZORPAY_KEY_ID, order: data }, 200);
     } catch (err) {
-      console.error('Cashfree order create failed:', err);
+      console.error('Razorpay order create failed:', err);
       let msg = 'Failed to create payment order';
       if (err) {
         if (err.details) {
@@ -413,38 +413,38 @@ OrderService.createCashfreeOrder = async function(customerId, orderId) {
       return formatResponse(false, msg, null, 500);
     }
   } catch (error) {
-    console.error('createCashfreeOrder error:', error);
+    console.error('createRazorpayOrder error:', error);
     return formatResponse(false, 'Failed to create payment order: ' + error.message, null, 500);
   }
 };
 
-OrderService.verifyCashfreePayment = async function(customerId, orderId, paymentPayload) {
+OrderService.verifyRazorpayPayment = async function(customerId, orderId, paymentPayload) {
   try {
     const order = await Order.findById(orderId);
     if (!order) return formatResponse(false, 'Order not found', null, 404);
     if (order.customerId.toString() !== customerId.toString()) return formatResponse(false, 'Not authorized', null, 403);
 
     // Expected fields vary; try common names
-    const orderIdFromPayload = paymentPayload.order_id || paymentPayload.orderId || paymentPayload.order;
-    const referenceId = paymentPayload.reference_id || paymentPayload.referenceId || paymentPayload.reference;
-    const txStatus = paymentPayload.tx_status || paymentPayload.txStatus || paymentPayload.status || paymentPayload.txStatus;
-    const signature = paymentPayload.signature || paymentPayload.signature_hash || paymentPayload.sig;
+    const orderIdFromPayload = paymentPayload.razorpay_order_id || paymentPayload.order_id || paymentPayload.orderId || paymentPayload.order;
+    const referenceId = paymentPayload.razorpay_payment_id || paymentPayload.reference_id || paymentPayload.referenceId || paymentPayload.reference;
+    const txStatus = paymentPayload.razorpay_signature ? 'SUCCESS' : (paymentPayload.tx_status || paymentPayload.txStatus || paymentPayload.status || paymentPayload.txStatus);
+    const signature = paymentPayload.razorpay_signature || paymentPayload.signature || paymentPayload.signature_hash || paymentPayload.sig;
 
     if (!orderIdFromPayload || !referenceId || !txStatus || !signature) {
-      console.error('Invalid Cashfree payment payload:', paymentPayload);
+      console.error('Invalid Razorpay payment payload:', paymentPayload);
       return formatResponse(false, 'Invalid payment payload', null, 400);
     }
 
-    // Basic signature verification (Cashfree may provide different signature rules).
-    const secret = process.env.CASHFREE_SECRET_KEY;
+    // Basic signature verification (Razorpay may provide different signature rules).
+    const secret = process.env.RAZORPAY_KEY_SECRET;
     if (!secret) {
-      console.error('Cashfree secret not configured');
+      console.error('Razorpay secret not configured');
       return formatResponse(false, 'Payment gateway not configured', null, 500);
     }
 
-    const expected = crypto.createHmac('sha256', secret).update(`${orderIdFromPayload}|${referenceId}|${txStatus}`).digest('hex');
+    const expected = crypto.createHmac('sha256', secret).update(orderIdFromPayload + '|' + referenceId).digest('hex');
     if (expected !== signature) {
-      console.error('Cashfree payment signature mismatch', { expected, received: signature });
+      console.error('Razorpay payment signature mismatch', { expected, received: signature });
       order.paymentStatus = 'failed';
       order.status = 'failed'; // Always mark as failed
       order.paymentInfo = order.paymentInfo || {};
@@ -459,7 +459,7 @@ OrderService.verifyCashfreePayment = async function(customerId, orderId, payment
       order.paymentStatus = 'failed';
       order.status = 'failed'; // Always mark as failed
       order.paymentInfo = order.paymentInfo || {};
-      order.paymentInfo.provider = 'cashfree';
+      order.paymentInfo.provider = 'razorpay';
       order.paymentInfo.paymentId = referenceId;
       order.paymentInfo.orderId = orderIdFromPayload;
       order.paymentInfo.failedAt = new Date();
@@ -473,7 +473,7 @@ OrderService.verifyCashfreePayment = async function(customerId, orderId, payment
     order.paymentStatus = 'paid';
     order.paymentMethod = 'online';
     order.paymentInfo = {
-      provider: 'cashfree',
+      provider: 'razorpay',
       paymentId: referenceId,
       orderId: orderIdFromPayload,
       signature,
@@ -488,14 +488,14 @@ OrderService.verifyCashfreePayment = async function(customerId, orderId, payment
 
     return formatResponse(true, 'Payment verified and order marked paid', populatedOrder, 200);
   } catch (error) {
-    console.error('verifyCashfreePayment error:', error);
+    console.error('verifyRazorpayPayment error:', error);
     return formatResponse(false, 'Failed to verify payment: ' + error.message, null, 500);
   }
 };
 
 module.exports = OrderService;
 
-// Check payment status by querying Cashfree directly (useful when webhooks can't reach localhost)
+// Check payment status by querying Razorpay directly (useful when webhooks can't reach localhost)
 OrderService.checkPaymentStatus = async function(customerId, orderId) {
   try {
     const order = await Order.findById(orderId);
@@ -504,18 +504,18 @@ OrderService.checkPaymentStatus = async function(customerId, orderId) {
 
     const cfOrderId = order.paymentInfo && (order.paymentInfo.orderId || order.paymentInfo.order_id);
     if (!cfOrderId) {
-      console.warn('[OrderService] No stored Cashfree order id; payment session not created yet');
+      console.warn('[OrderService] No stored Razorpay order id; payment session not created yet');
       return formatResponse(false, 'Payment session not created. Please retry payment.', null, 409);
     }
     const effectiveCfOrderId = cfOrderId;
 
-    console.log('[OrderService] Checking payment status for order:', orderId, 'Cashfree Order ID:', effectiveCfOrderId);
-    const payments = await cashfreeService.getOrderPayments(effectiveCfOrderId);
+    console.log('[OrderService] Checking payment status for order:', orderId, 'Razorpay Order ID:', effectiveCfOrderId);
+    const payments = await razorpayService.getOrderPayments(effectiveCfOrderId);
     console.log('[OrderService] Payments API result:', JSON.stringify(payments));
     // payments may be an object with 'items' or an array
     const items = Array.isArray(payments) ? payments : (payments.items || payments.data || []);
 
-    // Find successful payment (support various Cashfree response field names)
+    // Find successful payment (support various Razorpay response field names)
     const successPayment = items.find(p => {
       const status = (p.txStatus || p.status || p.tx_status || p.payment_status || p.paymentStatus || '').toString().toLowerCase();
       return status === 'success' || status === 'succeeded' || status === 'successful' || status === 'ok';
@@ -529,7 +529,7 @@ OrderService.checkPaymentStatus = async function(customerId, orderId) {
       order.paymentStatus = 'paid';
       order.paymentMethod = 'online';
       order.paymentInfo = order.paymentInfo || {};
-      order.paymentInfo.provider = 'cashfree';
+      order.paymentInfo.provider = 'razorpay';
       order.paymentInfo.paymentId = referenceId;
       order.paymentInfo.orderId = cfOrderId;
       order.paymentInfo.capturedAt = new Date();

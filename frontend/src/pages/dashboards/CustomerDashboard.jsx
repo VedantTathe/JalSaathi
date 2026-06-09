@@ -106,15 +106,15 @@ const CustomerDashboard = () => {
     }
   );
 
-  // Handle Cashfree return redirect in the main window (if popup redirected here)
+  // Handle Razorpay return redirect in the main window (if popup redirected here)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const cfOrderId = params.get('order_id') || params.get('orderId') || params.get('cf_order_id');
+      const rzpOrderId = params.get('order_id') || params.get('orderId') || params.get('rzp_order_id');
       const referenceId = params.get('reference_id') || params.get('referenceId') || params.get('reference');
       const txStatus = params.get('tx_status') || params.get('txStatus') || params.get('status');
 
-      if (cfOrderId || referenceId || txStatus) {
+      if (rzpOrderId || referenceId || txStatus) {
         (async () => {
           // Refresh local orders list
           await queryClient.invalidateQueries('customer-orders');
@@ -123,8 +123,8 @@ const CustomerDashboard = () => {
           const ordersList = (ordersData && (ordersData.data?.orders || ordersData.orders)) || [];
           let matched = null;
 
-          if (cfOrderId) {
-            matched = ordersList.find(o => (o.paymentInfo && (o.paymentInfo.orderId === cfOrderId || o.paymentInfo.order_id === cfOrderId)));
+          if (rzpOrderId) {
+            matched = ordersList.find(o => (o.paymentInfo && (o.paymentInfo.orderId === rzpOrderId || o.paymentInfo.order_id === rzpOrderId)));
           }
 
           // Fallback: pick latest pending online order if none matched
@@ -217,7 +217,7 @@ const CustomerDashboard = () => {
       if (paymentMethod === 'online' && orderId) {
         setIsProcessingPayment(true);
         try {
-          await handleCashfreeCheckout(orderId, order);
+          await handleRazorpayCheckout(orderId, order);
         } catch (err) {
           console.error('Payment failed:', err);
           toast.error('Payment failed. You can pay later from Order Details.');
@@ -244,12 +244,12 @@ const CustomerDashboard = () => {
     }
   });
 
-  // Handle Cashfree checkout after order is placed
+  // Handle Razorpay checkout after order is placed
   const navigate = useNavigate();
 
-  const handleCashfreeCheckout = async (orderId, orderData) => {
+  const handleRazorpayCheckout = async (orderId, orderData) => {
     try {
-      console.log('Starting Cashfree checkout for order:', orderId);
+      console.log('Starting Razorpay checkout for order:', orderId);
 
       const res = await orderApi.createPayment(orderId);
       console.log('Payment order response:', res);
@@ -320,10 +320,10 @@ const CustomerDashboard = () => {
         }
       }
 
-      toast.error('Unable to open Cashfree checkout. Contact support.');
+      toast.error('Unable to open Razorpay checkout. Contact support.');
       return false;
     } catch (error) {
-      console.error('Cashfree checkout error:', error);
+      console.error('Razorpay checkout error:', error);
       const errorMsg = error?.response?.data?.message || error.message || 'Failed to initialize payment';
       toast.error(errorMsg);
       throw error;

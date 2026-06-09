@@ -19,7 +19,7 @@ cp .env.example .env
 - `MONGODB_URI` - Your MongoDB connection string
 - `JWT_SECRET` - Secret key for JWT tokens
 - `EMAIL_USER` & `EMAIL_PASS` - Gmail SMTP credentials
-- `CASHFREE_APP_ID` & `CASHFREE_SECRET_KEY` - Payment gateway
+- `RAZORPAY_KEY_ID` & `RAZORPAY_KEY_SECRET` - Payment gateway
 
 ### 2. Deploy
 

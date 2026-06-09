@@ -77,7 +77,7 @@ Write-Host ""
 
 # Validate required environment variables
 Write-Host "Validating environment variables..." -ForegroundColor Yellow
-$requiredVars = @('MONGODB_URI', 'JWT_SECRET', 'EMAIL_USER', 'EMAIL_PASS', 'CASHFREE_APP_ID', 'CASHFREE_SECRET_KEY')
+$requiredVars = @('MONGODB_URI', 'JWT_SECRET', 'EMAIL_USER', 'EMAIL_PASS', 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET')
 $missingVars = @()
 
 foreach ($var in $requiredVars) {

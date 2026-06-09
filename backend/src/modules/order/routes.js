@@ -40,7 +40,7 @@ router.post('/:orderId/payment/verify',
   orderController.verifyPayment
 );
 
-// Poll/check payment status (backend queries Cashfree)
+// Poll/check payment status (backend queries Razorpay)
 router.get('/:orderId/payment/check',
   authorizeRoles('customer'),
   orderController.checkPaymentStatus

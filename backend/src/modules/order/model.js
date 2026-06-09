@@ -128,7 +128,7 @@ const orderSchema = new mongoose.Schema({
   },
   // Payment gateway info (payment provider details)
   paymentInfo: {
-    provider: { type: String },       // e.g. 'cashfree'
+    provider: { type: String },       // e.g. 'razorpay'
     orderId: { type: String },         // provider order id
     paymentId: { type: String },       // provider payment id
     signature: { type: String },       // signature for verification

@@ -78,12 +78,12 @@ export class JalsaathiStack extends cdk.Stack {
         EMAIL_FROM: process.env.EMAIL_FROM || '',
         PLATFORM_COMMISSION_PERCENT: process.env.PLATFORM_COMMISSION_PERCENT || '1.5',
         IS_WEBSITE_ON: process.env.IS_WEBSITE_ON || 'true',
-        CASHFREE_APP_ID: process.env.CASHFREE_APP_ID || '',
-        CASHFREE_SECRET_KEY: process.env.CASHFREE_SECRET_KEY || '',
-        CASHFREE_ENV: process.env.CASHFREE_ENV || 'production',
+        RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || '',
+        RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || '',
+        RAZORPAY_ENV: process.env.RAZORPAY_ENV || 'production',
         BACKEND_URL: process.env.BACKEND_URL || 'https://w3ko27ats7.execute-api.ap-south-1.amazonaws.com/prod',
-        CASHFREE_RETURN_URL: process.env.CASHFREE_RETURN_URL || `http://${siteBucket.bucketWebsiteDomainName}/dashboard/`,
-        CASHFREE_WEBHOOK_URL: process.env.CASHFREE_WEBHOOK_URL || 'https://w3ko27ats7.execute-api.ap-south-1.amazonaws.com/prod/api/webhook/cashfree'
+        RAZORPAY_RETURN_URL: process.env.RAZORPAY_RETURN_URL || `http://${siteBucket.bucketWebsiteDomainName}/dashboard/`,
+        RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || 'https://w3ko27ats7.execute-api.ap-south-1.amazonaws.com/prod/api/webhook/razorpay'
       }
     });
 
