@@ -53,7 +53,7 @@ const MakePaymentButton = ({ order, onSuccess }) => {
       console.log('Razorpay SDK loaded successfully');
 
       const options = {
-        key: responseData?.keyId || process.env.VITE_APP_RAZORPAY_KEY_ID || '',
+        key: responseData?.keyId || import.meta.env.VITE_APP_RAZORPAY_KEY_ID || '',
         amount: rOrder?.amount,
         currency: rOrder?.currency || 'INR',
         name: 'JalSaathi',

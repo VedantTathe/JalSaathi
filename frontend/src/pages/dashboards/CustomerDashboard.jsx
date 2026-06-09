@@ -15,14 +15,14 @@ import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '.
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 
-// Load Cashfree SDK dynamically
-const loadCashfreeScript = () => {
-  return new Promise((resolve, reject) => {
-    if (window.cashfree || window.CF) return resolve(true);
+// Load Razorpay SDK dynamically
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
     const script = document.createElement('script');
-    script.src = 'https://sdk.cashfree.com/js/v1/cashfree.js';
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
     script.onload = () => resolve(true);
-    script.onerror = () => reject(new Error('Failed to load Cashfree SDK'));
+    script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
 };
@@ -257,71 +257,52 @@ const CustomerDashboard = () => {
       const responseData = res?.data || res;
       const rOrder = responseData?.order || responseData?.data || responseData;
 
-      // If backend returned a direct checkout URL/open link, use it
-      const checkoutUrl = rOrder?.checkout_url || rOrder?.payment_link || rOrder?.paymentLink || rOrder?.data?.checkout_url;
-      if (checkoutUrl) {
-        // Open Cashfree in the main window (not a popup)
-        window.location.href = checkoutUrl;
-        return true;
+      console.log('Loading Razorpay SDK...');
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded) {
+        toast.error('Razorpay SDK failed to load');
+        return false;
       }
+      console.log('Razorpay SDK loaded successfully');
 
-      console.log('Loading Cashfree SDK...');
-      await loadCashfreeScript();
-      console.log('Cashfree SDK loaded successfully');
-
-      // Try generic SDK init if available
-      if (window.cashfree && typeof window.cashfree.init === 'function') {
-        try {
-          await window.cashfree.init({
-            orderToken: rOrder?.order_token || rOrder?.token || rOrder?.data?.order_token,
-            orderId: rOrder?.order_id || rOrder?.orderId || rOrder?.id,
-            appId: responseData?.appId || process.env.REACT_APP_CASHFREE_APP_ID
-          });
-          if (typeof window.cashfree.open === 'function') {
-            // Open SDK and then poll backend similarly to popup flow
-            window.cashfree.open();
-
-            // Polling fallback in case SDK doesn't provide callbacks
-            const pollInterval = 3000;
-            const maxAttempts = 40;
-            let attempts = 0;
-            return await new Promise((resolve) => {
-              const timer = setInterval(async () => {
-                attempts += 1;
-                try {
-                  const resp = await orderApi.getOrderById(orderId);
-                  const data = resp?.data || resp;
-                  const order = data?.data || data;
-                  const paymentStatus = (order?.paymentStatus || '').toString().toLowerCase();
-                  if (paymentStatus === 'paid') {
-                    clearInterval(timer);
-                    toast.success('Payment successful!');
-                    queryClient.invalidateQueries('customer-orders');
-                    navigate('/dashboard/my-orders');
-                    resolve(true);
-                  } else if (paymentStatus === 'failed') {
-                    clearInterval(timer);
-                    toast.error('Payment failed. You can retry from Order Details.');
-                    queryClient.invalidateQueries('customer-orders');
-                    resolve(false);
-                  } else if (attempts >= maxAttempts) {
-                    clearInterval(timer);
-                    toast.error('Payment timeout. Check Order Details to retry.');
-                    resolve(false);
-                  }
-                } catch (err) {
-                  console.error('Polling order status error:', err);
-                }
-              }, pollInterval);
-            });
+      return await new Promise((resolve, reject) => {
+        const options = {
+          key: responseData?.keyId || import.meta.env.VITE_APP_RAZORPAY_KEY_ID || '',
+          amount: rOrder?.amount,
+          currency: rOrder?.currency || 'INR',
+          name: 'JalSaathi',
+          description: 'Order Payment',
+          order_id: rOrder?.id || rOrder?.order_id,
+          handler: async function (response) {
+            try {
+              toast.success('Payment successful');
+              queryClient.invalidateQueries('customer-orders');
+              navigate('/dashboard/my-orders');
+              resolve(true);
+            } catch (err) {
+              toast.error('Payment verification failed');
+              resolve(false);
+            }
+          },
+          prefill: {
+            name: JSON.parse(localStorage.getItem('user') || '{}')?.name || '',
+            email: JSON.parse(localStorage.getItem('user') || '{}')?.email || '',
+            contact: JSON.parse(localStorage.getItem('user') || '{}')?.phone || ''
+          },
+          theme: {
+            color: '#3B82F6'
           }
-        } catch (e) {
-          console.warn('Cashfree SDK init failed:', e);
-        }
-      }
+        };
 
-      toast.error('Unable to open Razorpay checkout. Contact support.');
-      return false;
+        const rzp1 = new window.Razorpay(options);
+        rzp1.on('payment.failed', function (response){
+          console.error('Payment failed', response.error);
+          toast.error('Payment failed: ' + response.error.description);
+          resolve(false);
+        });
+        rzp1.open();
+      });
+
     } catch (error) {
       console.error('Razorpay checkout error:', error);
       const errorMsg = error?.response?.data?.message || error.message || 'Failed to initialize payment';
