@@ -293,7 +293,12 @@ const CustomerDashboard = () => {
           prefill: {
             name: user?.name || '',
             email: user?.email || '',
-            contact: (user?.phone || user?.phoneNumber || '').replace(/^0+/, '').replace(/^(\+91)?/, '+91')
+            contact: (() => {
+              const raw = (user?.phone || '').toString().trim();
+              // Strip leading + or country code, keep last 10 digits
+              const digits = raw.replace(/\D/g, ''); // remove non-digits
+              return digits.length >= 10 ? digits.slice(-10) : raw;
+            })()
           },
           config: {
             display: {
