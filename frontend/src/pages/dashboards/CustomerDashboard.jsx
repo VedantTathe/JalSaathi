@@ -887,8 +887,19 @@ const CustomerDashboard = () => {
                     <Package className="h-5 w-5 text-gray-400" />
                     <span className="font-mono text-sm text-gray-600 truncate">#{order.orderNumber || order._id.slice(-8)}</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status === 'pending' && order.paymentMethod === 'online' && order.paymentStatus !== 'paid' && order.paymentStatus !== 'completed' ? 'Online Pending' : getStatusText(order.status)}
+                      {getStatusText(order.status)}
                     </span>
+                    {order.paymentMethod === 'online' && (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        order.paymentStatus === 'paid' || order.paymentStatus === 'completed' ? 'bg-green-100 text-green-700'
+                        : order.paymentStatus === 'failed' ? 'bg-red-100 text-red-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {order.paymentStatus === 'paid' || order.paymentStatus === 'completed' ? '✓ Payment Done'
+                          : order.paymentStatus === 'failed' ? '✗ Payment Failed'
+                          : '⏳ Awaiting Payment'}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs sm:text-sm text-gray-500">{formatDateTime(order.timeline?.ordered)}</p>
                 </div>
