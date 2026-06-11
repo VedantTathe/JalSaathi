@@ -5,9 +5,9 @@ const Order = require('../modules/order/model');
  * Auto-fail orders with pending payment status after 1 minute
  * Runs every minute to check for expired pending orders
  */
-const autoFailPendingOrders = cron.schedule('* * * * *', async () => {
+const autoFailPendingOrders = cron.schedule('*/5 * * * * *', async () => {
   try {
-    const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+    const timeoutThreshold = new Date(Date.now() - 5 * 1000);
     
     // Find orders that are:
     // 1. Payment status is 'pending'
@@ -18,7 +18,7 @@ const autoFailPendingOrders = cron.schedule('* * * * *', async () => {
       paymentStatus: 'pending',
       paymentMethod: 'online',
       status: 'pending',
-      createdAt: { $lt: oneMinuteAgo }
+      createdAt: { $lt: timeoutThreshold }
     });
 
     if (expiredOrders.length > 0) {
@@ -30,7 +30,7 @@ const autoFailPendingOrders = cron.schedule('* * * * *', async () => {
         order.status = 'failed';
         order.paymentInfo = order.paymentInfo || {};
         order.paymentInfo.failedAt = new Date();
-        order.paymentInfo.failedReason = 'Payment timeout - order not completed within 1 minute';
+        order.paymentInfo.failedReason = 'Payment timeout - order not completed within 5 seconds';
         
         await order.save();
         console.log(`[CronJob] Auto-failed order ${order._id} (created at ${order.createdAt})`);
@@ -54,7 +54,7 @@ const initializeCronJobs = () => {
   
   // Start auto-fail pending orders job (1 minute timeout)
   autoFailPendingOrders.start();
-  console.log('[CronJob] Auto-fail pending orders job started (1 minute timeout)');
+  console.log('[CronJob] Auto-fail pending orders job started (5 seconds timeout)');
 };
 
 /**

@@ -148,7 +148,7 @@ const CustomerDashboard = () => {
 
               // If payment not completed, just show the pending order
               // Cron job will auto-fail it after 1 minute
-              toast.warning('Payment not completed. Order will be cancelled in 1 minute if not paid.');
+              toast.warning('Payment not completed. Order will be cancelled in 5 seconds if not paid.');
               queryClient.invalidateQueries('customer-orders');
               window.history.replaceState({}, document.title, window.location.pathname);
               navigate('/dashboard/my-orders');
@@ -228,7 +228,7 @@ const CustomerDashboard = () => {
       }
 
       queryClient.invalidateQueries('customer-orders');
-      setShowOrderModal(false);
+      setActivePage('my-orders');
       setOrderForm({ providerId: '', quantity: 1, paymentMethod: 'online', specialInstructions: '', deliveryAddress: null, deliveryTime: 'immediate' });
     },
     onError: (error) => {
@@ -291,7 +291,15 @@ const CustomerDashboard = () => {
           prefill: {
             name: JSON.parse(localStorage.getItem('user') || '{}')?.name || '',
             email: JSON.parse(localStorage.getItem('user') || '{}')?.email || '',
-            contact: JSON.parse(localStorage.getItem('user') || '{}')?.phone || ''
+            contact: (JSON.parse(localStorage.getItem('user') || '{}')?.phone || '').replace(/^0+/, '').replace(/^(\+91)?/, '+91')
+          },
+          config: {
+            display: {
+              sequence: ['block.upi', 'block.cards', 'block.banks', 'block.wallets'],
+              preferences: {
+                show_default_blocks: true
+              }
+            }
           },
           theme: {
             color: '#3B82F6'
@@ -669,6 +677,7 @@ const CustomerDashboard = () => {
                     deliveryTime: 'immediate'
                   });
                   setShowOrderModal(true);
+                  setActivePage('place-order');
                 }
               }}
             >
@@ -777,6 +786,7 @@ const CustomerDashboard = () => {
                           deliveryTime: 'immediate'
                         });
                         setShowOrderModal(true);
+                        setActivePage('place-order');
                       }
                     }}
                     disabled={!provider.isOnline}
@@ -870,7 +880,7 @@ const CustomerDashboard = () => {
                     <Package className="h-5 w-5 text-gray-400" />
                     <span className="font-mono text-sm text-gray-600 truncate">#{order.orderNumber || order._id.slice(-8)}</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status === 'pending' && order.paymentMethod === 'online' ? 'Online Pending' : getStatusText(order.status)}
+                      {order.status === 'pending' && order.paymentMethod === 'online' && order.paymentStatus !== 'paid' && order.paymentStatus !== 'completed' ? 'Online Pending' : getStatusText(order.status)}
                     </span>
                   </div>
                   <p className="text-xs sm:text-sm text-gray-500">{formatDateTime(order.timeline?.ordered)}</p>
@@ -912,9 +922,9 @@ const CustomerDashboard = () => {
                                 await queryClient.invalidateQueries('customer-orders', { refetchActive: true });
                                 toast.error('Payment failed.');
                               } else {
-                                // Still pending - just refresh, let cron job handle auto-fail after 1 minute
+                                // Still pending - just refresh, let cron job handle auto-fail after 5 seconds
                                 await queryClient.invalidateQueries('customer-orders', { refetchActive: true });
-                                toast('Payment still pending. Will auto-cancel in 1 minute if not completed.');
+                                toast('Payment still pending. Will auto-cancel in 5 seconds if not completed.');
                               }
                             } catch (e) {
                               console.error('Refresh payment error:', e);
@@ -1117,55 +1127,37 @@ const CustomerDashboard = () => {
     );
   };
 
-  const renderPage = () => {
-    switch (activePage) {
-      case 'dashboard': return renderDashboardHome();
-      case 'my-orders': return <MyOrders />;
-      case 'addresses': return <AddressManagement />;
-      default: return renderDashboardHome();
-    }
-  };
-
-  return (
-    <DashboardLayout navigation={navigation} activeTab={activePage}>
-      {renderPage()}
-
-      {/* Order Modal */}
-      {showOrderModal && selectedProvider && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col transform transition-all animate-in slide-in-from-bottom-4 duration-300">
-            {/* Header with Gradient */}
-            <div className="flex items-center justify-between p-4 sm:p-6 bg-gradient-to-r from-primary-500 to-primary-600 rounded-t-2xl">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white">🛒 Place Water Order</h2>
-                <p className="text-primary-100 text-sm mt-1">Complete your order in 2 steps</p>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setShowOrderModal(false)} 
-                className="text-white/80 hover:text-white bg-white/20 hover:bg-white/30 transition-all p-2 rounded-full"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="overflow-y-auto p-4 sm:p-6">
-              <form onSubmit={(e) => { e.preventDefault(); }} className="space-y-4 sm:space-y-5">
+  
+  const renderPlaceOrder = () => {
+    if (!selectedProvider) return null;
+    return (
+      <div className="max-w-3xl mx-auto pb-12 animate-in fade-in duration-300">
+        <div className="flex items-center space-x-4 mb-6">
+          <button onClick={() => { setActivePage('dashboard'); setShowOrderModal(false); }} className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-50 border border-gray-200 transition-colors">
+            <X className="h-5 w-5 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Place Water Order</h1>
+            <p className="text-gray-500 text-sm">Complete your order details below</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="p-4 sm:p-6">
+            <form onSubmit={(e) => { e.preventDefault(); }} className="space-y-4 sm:space-y-5">
                 
-                {/* Provider Info */}
-                <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
-                      <Droplets className="h-6 w-6 text-primary-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{selectedProvider.businessName}</h3>
-                      <p className="text-sm text-gray-600">{selectedProvider.area || 'Local Area'}</p>
-                      <p className="text-sm text-primary-600 font-medium">Rs. {selectedProvider.pricePerCan} per can</p>
-                    </div>
+              {/* Provider Info */}
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
+                    <Droplets className="h-6 w-6 text-primary-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{selectedProvider.businessName}</h3>
+                    <p className="text-sm text-gray-600">{selectedProvider.area || 'Local Area'}</p>
+                    <p className="text-sm text-primary-600 font-medium">Rs. {selectedProvider.pricePerCan} per can</p>
                   </div>
                 </div>
+              </div>
 
                 {/* Quantity Selector */}
                 <div>
@@ -1329,9 +1321,27 @@ const CustomerDashboard = () => {
                 )}
               </button>
             </div>
-          </div>
+          
+
+      
         </div>
-      )}
+      </div>
+    );
+  };
+
+  const renderPage = () => {
+    switch (activePage) {
+      case 'dashboard': return renderDashboardHome();
+      case 'my-orders': return <MyOrders />;
+      case 'addresses': return <AddressManagement />;
+      case 'place-order': return renderPlaceOrder();
+      default: return renderDashboardHome();
+    }
+  };
+
+  return (
+    <DashboardLayout navigation={navigation} activeTab={activePage}>
+      {renderPage()}
 
       {/* Address Coordinates Confirmation removed; simple validation toast used instead */}
 

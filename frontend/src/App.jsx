@@ -29,6 +29,8 @@ import TrackOrder from './pages/TrackOrder.jsx';
 // Loading component
 import LoadingSpinner from './components/LoadingSpinner.jsx';
 
+import UpdatePrompt from './components/UpdatePrompt.jsx';
+
 function App() {
   const { user, loading } = useAuth();
 
@@ -42,6 +44,7 @@ function App() {
 
   return (
     <div className="App min-h-screen bg-gray-50">
+      <UpdatePrompt />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Landing />} />
