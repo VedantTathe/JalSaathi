@@ -14,6 +14,7 @@ import { userApi, addressApi, orderApi } from '../../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext.jsx';
 
 // Load Razorpay SDK dynamically
 const loadRazorpayScript = () => {
@@ -36,6 +37,7 @@ L.Icon.Default.mergeOptions({
 });
 
 const CustomerDashboard = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activePage, setActivePage] = useState('dashboard');
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -289,9 +291,9 @@ const CustomerDashboard = () => {
             }
           },
           prefill: {
-            name: JSON.parse(localStorage.getItem('user') || '{}')?.name || '',
-            email: JSON.parse(localStorage.getItem('user') || '{}')?.email || '',
-            contact: (JSON.parse(localStorage.getItem('user') || '{}')?.phone || '').replace(/^0+/, '').replace(/^(\+91)?/, '+91')
+            name: user?.name || '',
+            email: user?.email || '',
+            contact: (user?.phone || user?.phoneNumber || '').replace(/^0+/, '').replace(/^(\+91)?/, '+91')
           },
           config: {
             display: {

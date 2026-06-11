@@ -74,7 +74,15 @@ const MakePaymentButton = ({ order, onSuccess }) => {
         prefill: {
           name: order?.customerId?.name || '',
           email: order?.customerId?.email || '',
-          contact: order?.customerId?.phone || ''
+          contact: (order?.customerId?.phone || '').replace(/^0+/, '').replace(/^(\+91)?/, '+91')
+        },
+        config: {
+          display: {
+            sequence: ['block.upi', 'block.cards', 'block.banks', 'block.wallets'],
+            preferences: {
+              show_default_blocks: true
+            }
+          }
         },
         theme: {
           color: '#3B82F6' // Use appropriate primary color
