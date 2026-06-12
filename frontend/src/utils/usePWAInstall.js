@@ -39,6 +39,8 @@ export function usePWAInstall() {
     return () => _listeners.delete(handler);
   }, []);
 
+  const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
   const handleInstall = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -54,7 +56,6 @@ export function usePWAInstall() {
     }
 
     // iOS fallback
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     if (isIOS) {
       toast('Tap the Share button ↑ then "Add to Home Screen"', { duration: 5000 });
     } else {
@@ -66,5 +67,5 @@ export function usePWAInstall() {
     return false;
   };
 
-  return { deferredPrompt, isInstalled, handleInstall };
+  return { deferredPrompt, isInstalled, handleInstall, isIOS };
 }

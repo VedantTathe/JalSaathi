@@ -43,14 +43,14 @@ const CustomerDashboard = () => {
   const [activePage, setActivePage] = useState('dashboard');
 
   // PWA install prompt — uses shared hook so the prompt is never missed
-  const { deferredPrompt, isInstalled: isAppInstalled, handleInstall } = usePWAInstall();
+  const { deferredPrompt, isInstalled: isAppInstalled, handleInstall, isIOS } = usePWAInstall();
   const [installDismissed, setInstallDismissed] = useState(
     () => sessionStorage.getItem('pwa_install_dismissed') === 'true'
   );
 
   const handleInstallApp = async () => {
     const accepted = await handleInstall();
-    if (accepted !== false) {
+    if (accepted) {
       setInstallDismissed(true);
       sessionStorage.setItem('pwa_install_dismissed', 'true');
     }
@@ -710,8 +710,8 @@ const CustomerDashboard = () => {
           <div className="absolute bottom-0 right-0 w-48 h-48 bg-white/5 rounded-full -mb-24 -mr-24"></div>
         </div>
 
-        {/* Install App Banner — hidden if already installed or dismissed */}
-        {!isAppInstalled && !installDismissed && (
+        {/* Install App Banner — hidden if already installed, dismissed, or unsupported (desktop) */}
+        {!isAppInstalled && !installDismissed && (deferredPrompt !== null || isIOS) && (
           <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-primary-50 border border-primary-200 rounded-xl px-4 py-3 mb-6 gap-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="bg-primary-100 p-2 rounded-lg flex-shrink-0">
