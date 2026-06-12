@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { 
   ShoppingCart, Package, Droplets, MapPin,
   Clock, CheckCircle, Truck, Filter, Star, Phone, Plus,
-  Edit2, Trash2, Home as HomeIcon, X, Briefcase, MapPinned, Download, Smartphone
+  Edit2, Trash2, Home as HomeIcon, X, Briefcase, MapPinned, Download, Smartphone, AlertTriangle
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -59,6 +59,43 @@ const CustomerDashboard = () => {
   const handleDismissInstall = () => {
     setInstallDismissed(true);
     sessionStorage.setItem('pwa_install_dismissed', 'true');
+  };
+
+  // ⚠️ Dev-phase warning — shown before every Order Now
+  const [devWarningStep, setDevWarningStep] = useState(0); // 0=hidden 1=warning 2=confirm
+  const [pendingOrderProvider, setPendingOrderProvider] = useState(null);
+
+  const handleOrderNowClick = (provider) => {
+    if (!provider.isOnline) return;
+    setPendingOrderProvider(provider);
+    setDevWarningStep(1); // show first warning
+  };
+
+  const handleDevWarningOk = () => setDevWarningStep(2); // show second confirmation
+
+  const handleDevWarningConfirm = () => {
+    // User confirmed — proceed with actual order
+    const provider = pendingOrderProvider;
+    if (!provider) return;
+    const defaultAddress = normalizedAddresses.find(addr => addr.isDefault);
+    setSelectedProvider(provider);
+    setOrderForm({
+      providerId: provider._id,
+      quantity: 1,
+      paymentMethod: 'online',
+      specialInstructions: '',
+      deliveryAddress: defaultAddress || null,
+      deliveryTime: 'immediate'
+    });
+    setDevWarningStep(0);
+    setPendingOrderProvider(null);
+    setShowOrderModal(true);
+    setActivePage('place-order');
+  };
+
+  const handleDevWarningCancel = () => {
+    setDevWarningStep(0);
+    setPendingOrderProvider(null);
   };
 
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -748,20 +785,7 @@ const CustomerDashboard = () => {
               key={provider._id} 
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group"
               onClick={() => {
-                if (provider.isOnline) {
-                  const defaultAddress = normalizedAddresses.find(addr => addr.isDefault);
-                  setSelectedProvider(provider);
-                  setOrderForm({ 
-                    providerId: provider._id,
-                    quantity: 1,
-                    paymentMethod: 'online',
-                    specialInstructions: '',
-                    deliveryAddress: defaultAddress || null,
-                    deliveryTime: 'immediate'
-                  });
-                  setShowOrderModal(true);
-                  setActivePage('place-order');
-                }
+                if (provider.isOnline) handleOrderNowClick(provider);
               }}
             >
               {/* Image Header with Status Badge */}
@@ -857,20 +881,7 @@ const CustomerDashboard = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (provider.isOnline) {
-                        const defaultAddress = normalizedAddresses.find(addr => addr.isDefault);
-                        setSelectedProvider(provider);
-                        setOrderForm({ 
-                          providerId: provider._id,
-                          quantity: 1,
-                          paymentMethod: 'online',
-                          specialInstructions: '',
-                          deliveryAddress: defaultAddress || null,
-                          deliveryTime: 'immediate'
-                        });
-                        setShowOrderModal(true);
-                        setActivePage('place-order');
-                      }
+                      if (provider.isOnline) handleOrderNowClick(provider);
                     }}
                     disabled={!provider.isOnline}
                     className={`w-full sm:w-auto py-3 px-5 rounded-xl font-semibold text-base transition-all min-h-[48px] ${
@@ -1702,6 +1713,104 @@ const CustomerDashboard = () => {
           </div>
         </div>
       )}
+      {/* ===== DEV WARNING MODAL — STEP 1 ===== */}
+      {devWarningStep === 1 && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4" style={{background:'rgba(0,0,0,0.7)'}}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Red header */}
+            <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 flex items-center gap-3">
+              <div className="bg-white/20 rounded-full p-2 flex-shrink-0">
+                <AlertTriangle className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <h2 className="text-white font-bold text-xl leading-tight">⚠️ Development Phase</h2>
+                <p className="text-red-100 text-sm mt-0.5">Important notice before you proceed</p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                <p className="text-red-800 font-semibold text-base leading-relaxed">
+                  🚧 This app is currently in <span className="underline">development / demo mode</span>.
+                </p>
+                <ul className="mt-3 space-y-2 text-red-700 text-sm">
+                  <li className="flex items-start gap-2">
+                    <span className="text-red-500 mt-0.5 flex-shrink-0">✗</span>
+                    <span><strong>No water cans will be delivered</strong>, even if you complete payment.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-red-500 mt-0.5 flex-shrink-0">✗</span>
+                    <span><strong>Real money will be charged</strong> via Razorpay — this is a live payment gateway.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-yellow-600 mt-0.5 flex-shrink-0">ℹ</span>
+                    <span>Proceed only if you are testing the app and understand this is a <strong>demo order</strong>.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={handleDevWarningCancel}
+                className="flex-1 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Cancel Order
+              </button>
+              <button
+                onClick={handleDevWarningOk}
+                className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors shadow-lg"
+              >
+                I Understand, Continue →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== DEV WARNING MODAL — STEP 2 (Confirmation) ===== */}
+      {devWarningStep === 2 && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4" style={{background:'rgba(0,0,0,0.7)'}}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-orange-500 to-red-600 px-6 py-5 text-center">
+              <div className="text-4xl mb-2">🧪</div>
+              <h2 className="text-white font-bold text-lg">Final Confirmation</h2>
+              <p className="text-orange-100 text-sm mt-1">Are you sure you want to place a demo order?</p>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5">
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
+                <p className="text-orange-800 font-medium text-sm leading-relaxed">
+                  "Yes, I am ordering for <strong>demo / testing</strong> purposes.<br />
+                  I know <strong>no water can will be delivered</strong>.<br />
+                  I accept full responsibility for any payment made."
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={handleDevWarningCancel}
+                className="flex-1 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors text-sm"
+              >
+                No, Go Back
+              </button>
+              <button
+                onClick={handleDevWarningConfirm}
+                className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold transition-colors shadow-lg text-sm"
+              >
+                ✅ Yes, I'm Sure!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </DashboardLayout>
   );
 };
