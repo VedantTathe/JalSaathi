@@ -134,6 +134,27 @@ userSchema.methods.generateOTP = function() {
 
 // Instance method to verify OTP
 userSchema.methods.verifyOTP = function(enteredOTP) {
+  // Normalize and validate the entered OTP
+  if (!enteredOTP) {
+    console.log('❌ No OTP provided');
+    return false;
+  }
+
+  // Convert to string and remove whitespace
+  const normalizedEntered = String(enteredOTP).trim();
+
+  // Validate OTP format (must be 6 digits)
+  if (!/^\d{6}$/.test(normalizedEntered)) {
+    console.log(`❌ Entered OTP has invalid format: "${normalizedEntered}"`);
+    return false;
+  }
+
+  // --- ADDED TESTING BYPASS ---
+  if (process.env.TEST_MODE === 'true' && normalizedEntered === '000000') {
+    console.log(`✅ TEST MODE: Bypass OTP verification for: "${normalizedEntered}"`);
+    return true;
+  }
+
   // Validate OTP exists
   if (!this.emailVerificationOTP || !this.otpExpiry) {
     console.log('❌ OTP not found on user record');
@@ -148,21 +169,7 @@ userSchema.methods.verifyOTP = function(enteredOTP) {
     return false;
   }
 
-  // Normalize and validate the entered OTP
-  if (!enteredOTP) {
-    console.log('❌ No OTP provided');
-    return false;
-  }
-
-  // Convert to string and remove whitespace
-  const normalizedEntered = String(enteredOTP).trim();
   const normalizedStored = String(this.emailVerificationOTP).trim();
-
-  // Validate OTP format (must be 6 digits)
-  if (!/^\d{6}$/.test(normalizedEntered)) {
-    console.log(`❌ Entered OTP has invalid format: "${normalizedEntered}"`);
-    return false;
-  }
 
   // Compare OTPs
   const isValid = normalizedStored === normalizedEntered;
