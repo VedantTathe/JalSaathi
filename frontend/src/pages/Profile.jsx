@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { user, isInstallable, installApp } = useAuth();
+  const { user, logout } = useAuth();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -300,35 +300,6 @@ const Profile = () => {
                 )}
               </div>
 
-            {/* App Settings */}
-            {isInstallable && (
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Smartphone className="h-5 w-5 mr-2 text-primary-500" />
-                  App Settings
-                </h3>
-                <div className="card premium-glass-card p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h4 className="text-base font-semibold text-gray-900 mb-1">
-                        Install JalSaathi App
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Install the JalSaathi app directly on your device for faster ordering and notifications.
-                      </p>
-                    </div>
-                    <button
-                      onClick={installApp}
-                      className="ml-4 px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center space-x-2 flex-shrink-0"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span className="hidden sm:inline">Install App</span>
-                      <span className="sm:hidden">Install</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
