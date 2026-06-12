@@ -986,7 +986,7 @@ const CustomerDashboard = () => {
             return (
             <div key={order._id} className={`bg-white rounded-lg shadow-sm border p-4 sm:p-6 transition-all hover:shadow-md ${borderClass}`}>
               
-              {isActive && (
+              {isActive && !(order.paymentMethod === 'online' && (order.paymentStatus === 'pending' || !order.paymentStatus)) && (
                 <div className="mb-4 bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-center text-blue-700 text-sm font-medium">
                   <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse mr-3"></div>
                   Your order is active and will be delivered shortly!
