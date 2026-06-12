@@ -66,14 +66,6 @@ const Login = () => {
       setOtpError('Please enter your email address');
       return;
     }
-    if (!otpPhone) {
-      setOtpError('Please enter your mobile number');
-      return;
-    }
-    if (!isValidPhone(otpPhone)) {
-      setOtpError('Please enter a valid 10-digit Indian mobile number');
-      return;
-    }
 
     setOtpLoading(true);
     setOtpError('');
@@ -119,19 +111,9 @@ const Login = () => {
 
         // Merge the entered phone into user data and store it
         const userData = {
-          ...response.data.user,
-          phone: response.data.user?.phone || otpPhone.replace(/\D/g, ''),
+          ...response.data.user
         };
         localStorage.setItem('user', JSON.stringify(userData));
-
-        // If the backend didn't return a phone, update profile with the entered phone
-        if (!response.data.user?.phone && otpPhone) {
-          try {
-            await api.put('/auth/profile', { phone: otpPhone.replace(/\D/g, '') });
-          } catch (profileErr) {
-            console.warn('Could not save phone to profile:', profileErr);
-          }
-        }
 
         // Reload to trigger auth context update
         window.location.href = '/dashboard';
@@ -249,31 +231,6 @@ const Login = () => {
                     </div>
                   </div>
 
-                  {/* Mobile Number */}
-                  <div className="form-group">
-                    <label htmlFor="otp-phone" className="form-label">
-                      Mobile Number
-                    </label>
-                    <div className="relative flex">
-                      <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 text-gray-600 text-sm font-medium select-none">
-                        🇮🇳 +91
-                      </span>
-                      <input
-                        id="otp-phone"
-                        type="tel"
-                        inputMode="numeric"
-                        maxLength={10}
-                        autoComplete="tel"
-                        className="input-field rounded-l-none flex-1"
-                        placeholder="10-digit mobile number"
-                        value={otpPhone}
-                        onChange={(e) => setOtpPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                        required
-                      />
-                    </div>
-                    <p className="mt-1.5 text-xs text-gray-500">
-                      OTP will be sent to your <strong>email</strong>. Mobile is used for payment prefill.
-                    </p>
                   </div>
 
                   {otpError && (
