@@ -551,7 +551,7 @@ const ProviderDashboard = () => {
     const [selectAll, setSelectAll] = useState(false);
     const [assignModalOpen, setAssignModalOpen] = useState(false);
     const [selectedDeliveryBoy, setSelectedDeliveryBoy] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('accepted');
 
     // Filter orders by status
     const filteredOrders = statusFilter === 'all' 
@@ -608,13 +608,8 @@ const ProviderDashboard = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="border border-gray-300 rounded-lg px-4 py-3 text-base sm:text-sm flex-1 sm:flex-initial"
             >
-              <option value="all">All Status ({allOrders.length})</option>
-              <option value="pending">Pending ({allOrders.filter(o => o.status === 'pending').length})</option>
-              <option value="accepted">Accepted ({allOrders.filter(o => o.status === 'accepted').length})</option>
-              <option value="assigned">Assigned ({allOrders.filter(o => o.status === 'assigned').length})</option>
-              <option value="out_for_delivery">Out for Delivery ({allOrders.filter(o => o.status === 'out_for_delivery').length})</option>
-              <option value="delivered">Delivered ({allOrders.filter(o => o.status === 'delivered').length})</option>
-              <option value="cancelled">Cancelled ({allOrders.filter(o => o.status === 'cancelled').length})</option>
+              <option value="accepted">🟢 Accepted (New Orders) ({allOrders.filter(o => o.status === 'accepted').length})</option>
+              <option value="all">📚 All Orders ({allOrders.length})</option>
             </select>
             <label className="inline-flex items-center px-4 py-3 bg-gray-50 rounded-lg min-h-[48px]">
               <input type="checkbox" checked={selectAll} onChange={handleSelectAll} className="mr-2 h-4 w-4" />
