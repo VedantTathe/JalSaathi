@@ -125,6 +125,26 @@ class ProviderService {
         return formatResponse(false, 'Provider not found', null, 404);
       }
       
+      // Auto-cancel pending online orders older than 1 minute to prevent ghost orders
+      const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+      await Order.updateMany(
+        {
+          providerId: provider._id,
+          paymentStatus: 'pending',
+          paymentMethod: 'online',
+          status: 'pending',
+          createdAt: { $lt: oneMinuteAgo }
+        },
+        {
+          $set: {
+            paymentStatus: 'failed',
+            status: 'failed',
+            'paymentInfo.failedAt': new Date(),
+            'paymentInfo.failedReason': 'Payment timeout - order not completed within 1 minute'
+          }
+        }
+      );
+
       // Only fetch orders from last 16 hours
       const sixteenHoursAgo = new Date(Date.now() - 16 * 60 * 60 * 1000);
       
