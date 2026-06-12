@@ -311,10 +311,10 @@ const Profile = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <h4 className="text-base font-semibold text-gray-900 mb-1">
-                        Add to Home Screen
+                        Install JalSaathi App
                       </h4>
                       <p className="text-sm text-gray-600">
-                        Get the JalSaathi app directly on your device's home screen for faster ordering.
+                        Install the JalSaathi app directly on your device for faster ordering and notifications.
                       </p>
                     </div>
                     <button
