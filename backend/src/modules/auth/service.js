@@ -1,7 +1,7 @@
 const User = require('../user/model');
 const Provider = require('../provider/model');
 const { generateTokenResponse, formatResponse } = require('../../utils/helpers');
-const { sendOTPEmail, sendLoginOTPEmail, sendWelcomeEmail, sendPasswordResetOTPEmail } = require('../../utils/mailer');
+const { sendOTPEmail, sendLoginOTPEmail, sendWelcomeEmail, sendPasswordResetOTPEmail, sendNewProviderAlertToAdmin } = require('../../utils/mailer');
 
 class AuthService {
   // Send OTP for email verification during registration
@@ -183,6 +183,14 @@ class AuthService {
         }
         
         await Provider.create(providerData);
+
+        // Send alert to admin about new provider registration
+        try {
+          await sendNewProviderAlertToAdmin(providerData, email, user.name);
+          console.log('✅ Admin alert email sent for new provider');
+        } catch (adminAlertError) {
+          console.error('⚠️ Admin alert email failed (non-critical):', adminAlertError.message);
+        }
       }
       
       // Send welcome email (non-critical - don't fail registration if it fails)
@@ -405,6 +413,14 @@ class AuthService {
       user.otpExpiry = undefined;
       await user.save();
       
+      // Check if provider is approved
+      if (user.role === 'provider') {
+        const provider = await Provider.findOne({ userId: user._id });
+        if (provider && !provider.isApproved) {
+          return formatResponse(false, 'Your provider account is pending admin approval', null, 403);
+        }
+      }
+
       return formatResponse(true, 'Login successful', generateTokenResponse(user), 200);
       
     } catch (error) {
@@ -438,6 +454,14 @@ class AuthService {
       // Check if email is verified (only for customers and providers)
       if ((user.role === 'customer' || user.role === 'provider') && !user.isEmailVerified) {
         return formatResponse(false, 'Please verify your email before logging in', null, 403);
+      }
+
+      // Check if provider is approved
+      if (user.role === 'provider') {
+        const provider = await Provider.findOne({ userId: user._id });
+        if (provider && !provider.isApproved) {
+          return formatResponse(false, 'Your provider account is pending admin approval', null, 403);
+        }
       }
 
       return formatResponse(true, 'Login successful', generateTokenResponse(user), 200);

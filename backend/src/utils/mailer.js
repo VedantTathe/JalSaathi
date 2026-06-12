@@ -829,6 +829,71 @@ const sendProviderApprovalEmail = async (email, name) => {
   }
 };
 
+// Send new provider alert to admin
+const sendNewProviderAlertToAdmin = async (providerData, userEmail, userName) => {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) return { success: false, error: 'Admin email not configured' };
+
+  console.log(`📧 Sending new provider alert to admin: ${adminEmail}`);
+  
+  try {
+    const transporter = createTransporter();
+    const config = resolveMailConfig();
+    
+    const mailOptions = {
+      from: config.from,
+      to: adminEmail,
+      subject: '⚠️ Action Required: New Provider Registration',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }
+            .header { background-color: #ef4444; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+            .content { background-color: white; padding: 30px; border-radius: 0 0 5px 5px; }
+            .footer { margin-top: 20px; text-align: center; color: #666; font-size: 12px; }
+            .info-box { background-color: #fef2f2; border: 2px solid #ef4444; padding: 20px; margin: 20px 0; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">New Provider Pending Approval</h1>
+            </div>
+            <div class="content">
+              <h2>Admin Action Required</h2>
+              <p>A new provider has just registered on JalSaathi and is waiting for your approval to start accepting orders.</p>
+              
+              <div class="info-box">
+                <h3 style="color: #b91c1c; margin: 0 0 10px 0;">Provider Details:</h3>
+                <p><strong>Business Name:</strong> ${providerData.businessName}</p>
+                <p><strong>Owner Name:</strong> ${userName}</p>
+                <p><strong>Email:</strong> ${userEmail}</p>
+                <p><strong>Area:</strong> ${providerData.area || 'N/A'}</p>
+                <p><strong>Price per Can:</strong> Rs. ${providerData.pricePerCan}</p>
+              </div>
+              
+              <p>Please log in to the JalSaathi Admin Dashboard to review and approve this provider.</p>
+            </div>
+            <div class="footer">
+              <p>This is an automated system alert.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+    
+    const info = await sendEmailWithRetry(transporter, mailOptions, 2);
+    console.log(`✅ Provider alert email sent to admin`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Failed to send provider alert to admin:`, error.message);
+    return { success: false, error: error.message };
+  }
+};
 module.exports = {
   generateOTP,
   sendOTPEmail,
@@ -837,5 +902,6 @@ module.exports = {
   sendPasswordResetOTPEmail,
   sendDeliveryBoyCredentialsEmail,
   sendOrderDeliveredEmail,
-  sendProviderApprovalEmail
+  sendProviderApprovalEmail,
+  sendNewProviderAlertToAdmin
 };
