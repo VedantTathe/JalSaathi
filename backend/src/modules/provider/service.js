@@ -58,7 +58,7 @@ class ProviderService {
       // Allow updating provider-specific fields plus coordinates and area
       const allowedProviderUpdates = [
         'businessName', 'area', 'pricePerCan', 'serviceRadius', 'minimumOrder',
-        'operatingHours', 'description', 'coordinates'
+        'operatingHours', 'description', 'coordinates', 'bankDetails', 'upiId', 'upiNumber'
       ];
 
       const providerUpdates = {};
@@ -87,10 +87,25 @@ class ProviderService {
 
       // Update provider fields
       Object.keys(providerUpdates).forEach(k => {
+        if (k === 'coordinates' && providerUpdates[k]) {
+          // Sanitize coordinates to prevent NaN Mongoose CastErrors
+          providerUpdates[k] = {
+            latitude: isNaN(Number(providerUpdates[k].latitude)) ? 0 : Number(providerUpdates[k].latitude),
+            longitude: isNaN(Number(providerUpdates[k].longitude)) ? 0 : Number(providerUpdates[k].longitude)
+          };
+        }
         provider[k] = providerUpdates[k];
       });
 
-      await provider.save();
+      try {
+        await provider.save();
+      } catch (saveErr) {
+        console.error('Failed to save provider profile:', saveErr.message);
+        if (saveErr.name === 'ValidationError') {
+          return formatResponse(false, Object.values(saveErr.errors).map(e => e.message).join(', '), null, 400);
+        }
+        throw saveErr; // Let the outer catch handle it
+      }
 
       const populated = await Provider.findById(provider._id).populate('userId', 'name email phone address');
 
