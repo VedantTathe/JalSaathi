@@ -75,7 +75,7 @@ const UpdatePrompt = () => {
           <div>
             <h3 className="font-bold text-gray-900 text-lg">Quick Update ⚡</h3>
             <p className="text-gray-600 text-sm mt-1">
-              Done in seconds — you'll stay logged in. Tap to get the latest improvements.
+              Update in seconds — you'll stay logged in. Tap to get the latest improvements.
             </p>
           </div>
         </div>
