@@ -176,7 +176,7 @@ const ProviderDashboard = () => {
             } ${toggleOnlineMutation.isLoading ? 'opacity-70 cursor-wait' : ''}`}
           >
             <Power className="h-5 w-5" />
-            <span>{isOnline ? 'Online' : 'Offline'}</span>
+            <span>{isOnline ? 'Store Open' : 'Store Closed'}</span>
           </button>
         </div>
 
