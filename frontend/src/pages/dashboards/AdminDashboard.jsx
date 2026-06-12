@@ -480,6 +480,21 @@ const ProvidersManagement = () => {
 
   const providers = providersData?.data?.providers || [];
 
+  const approveProviderMutation = useMutation(
+    (providerId) => adminApi.approveProvider(providerId),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('all-providers');
+        queryClient.invalidateQueries('admin-dashboard');
+        queryClient.invalidateQueries('pending-providers');
+        toast.success('Provider approved successfully!');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to approve provider');
+      }
+    }
+  );
+
   const toggleProvider = (providerId) => {
     const newExpanded = new Set(expandedProviders);
     if (newExpanded.has(providerId)) {
@@ -547,6 +562,8 @@ const ProvidersManagement = () => {
               isExpanded={expandedProviders.has(provider._id)}
               onToggle={() => toggleProvider(provider._id)}
               onViewDetails={() => setSelectedProvider(provider)}
+              onApprove={() => approveProviderMutation.mutate(provider._id)}
+              isApproving={approveProviderMutation.isLoading}
             />
           ))}
         </div>
@@ -568,7 +585,7 @@ const ProvidersManagement = () => {
   );
 };
 
-const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails }) => {
+const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails, onApprove, isApproving }) => {
   const { data: providerData, isLoading } = useQuery(
     ['provider-orders', provider._id],
     () => adminApi.getProviderById(provider._id),
@@ -629,16 +646,25 @@ const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails 
           </div>
 
           <div className="ml-4 flex flex-col space-y-2">
+            {!provider.isApproved && (
+              <button
+                onClick={onApprove}
+                disabled={isApproving}
+                className="px-4 py-2 bg-success-600 text-white rounded-lg text-sm font-medium hover:bg-success-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+              >
+                {isApproving ? <LoadingSpinner size="small" /> : 'Approve Provider'}
+              </button>
+            )}
             <button
               onClick={onToggle}
-              className="btn-primary flex items-center space-x-2"
+              className="btn-primary flex items-center justify-center space-x-2 text-sm"
             >
               <Package className="h-4 w-4" />
               <span>{isExpanded ? 'Hide Orders' : 'Show Orders'}</span>
             </button>
             <button
               onClick={onViewDetails}
-              className="btn-secondary flex items-center space-x-2 text-sm"
+              className="btn-secondary flex items-center justify-center space-x-2 text-sm"
             >
               <Eye className="h-4 w-4" />
               <span>Full Details</span>

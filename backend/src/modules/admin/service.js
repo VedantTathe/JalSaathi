@@ -4,6 +4,7 @@ const Order = require('../order/model');
 const Settlement = require('../settlement/model');
 const settlementService = require('../../services/settlementService');
 const { formatResponse } = require('../../utils/helpers');
+const mailer = require('../../utils/mailer');
 
 class AdminService {
   // Get all users
@@ -182,6 +183,15 @@ class AdminService {
       provider.approvedBy = adminId;
       provider.approvedAt = new Date();
       await provider.save();
+      
+      // Send approval email
+      const user = await User.findById(provider.userId);
+      if (user && user.email) {
+        // Run asynchronously without awaiting so it doesn't block the response
+        mailer.sendProviderApprovalEmail(user.email, user.name || provider.businessName).catch(err => {
+          console.error('Failed to send provider approval email:', err);
+        });
+      }
       
       return formatResponse(true, 'Provider approved successfully', null, 200);
       

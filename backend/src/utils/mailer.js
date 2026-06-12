@@ -769,6 +769,66 @@ const sendOrderDeliveredEmail = async (email, name, orderNumber, providerName) =
   }
 };
 
+// Send provider approval email
+const sendProviderApprovalEmail = async (email, name) => {
+  console.log(`📧 Sending provider approval email to: ${email}`);
+  
+  try {
+    const transporter = createTransporter();
+    const config = resolveMailConfig();
+    
+    const mailOptions = {
+      from: config.from,
+      to: email,
+      subject: 'JalSaathi - Your Provider Account is Approved!',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }
+            .header { background-color: #0284c7; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+            .content { background-color: white; padding: 30px; border-radius: 0 0 5px 5px; }
+            .footer { margin-top: 20px; text-align: center; color: #666; font-size: 12px; }
+            .success-box { background-color: #f0f9ff; border: 2px solid #0284c7; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>💧 Welcome to JalSaathi!</h1>
+            </div>
+            <div class="content">
+              <h2>Hello ${name},</h2>
+              <p>Great news! Your JalSaathi Provider profile has been <strong>approved</strong> by the admin team.</p>
+              
+              <div class="success-box">
+                <h3 style="color: #0369a1; margin: 0;">You are now active on JalSaathi.</h3>
+                <p style="margin-top: 10px;">Customers in your area can now see your business and place orders with you!</p>
+              </div>
+              
+              <p>Make sure your inventory is updated and you are ready to accept orders from your dashboard.</p>
+              <p>Best regards,<br>JalSaathi Admin Team</p>
+            </div>
+            <div class="footer">
+              <p>This is an automated email. Please do not reply.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+    
+    const info = await sendEmailWithRetry(transporter, mailOptions, 2);
+    console.log(`✅ Provider approval email sent to ${email}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Failed to send provider approval email to ${email}:`, error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   generateOTP,
   sendOTPEmail,
@@ -776,5 +836,6 @@ module.exports = {
   sendWelcomeEmail,
   sendPasswordResetOTPEmail,
   sendDeliveryBoyCredentialsEmail,
-  sendOrderDeliveredEmail
+  sendOrderDeliveredEmail,
+  sendProviderApprovalEmail
 };

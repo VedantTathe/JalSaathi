@@ -1,12 +1,38 @@
-import React from 'react';
-import { useQuery } from 'react-query';
-import { Users, Mail, Phone, MapPin } from 'lucide-react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { Users, Mail, Phone, MapPin, Trash2, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { adminApi } from '../../services/api';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const CustomersManagement = () => {
+  const queryClient = useQueryClient();
+  const [deletingId, setDeletingId] = useState(null);
+
   const { data, isLoading } = useQuery('admin-customers', () => adminApi.getAllUsers({ role: 'customer', limit: 100 }));
   const customers = data?.data?.users || [];
+
+  const deleteMutation = useMutation(
+    (userId) => adminApi.deleteUser(userId),
+    {
+      onSuccess: () => {
+        toast.success('Customer deleted successfully');
+        queryClient.invalidateQueries('admin-customers');
+        setDeletingId(null);
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to delete customer');
+        setDeletingId(null);
+      }
+    }
+  );
+
+  const handleDelete = (userId) => {
+    if (window.confirm('Are you sure you want to delete this customer?')) {
+      setDeletingId(userId);
+      deleteMutation.mutate(userId);
+    }
+  };
 
   if (isLoading) {
     return <div className="flex justify-center p-12"><LoadingSpinner /></div>;
@@ -28,6 +54,7 @@ const CustomersManagement = () => {
                 <th className="p-4 font-semibold">Contact Info</th>
                 <th className="p-4 font-semibold">Address</th>
                 <th className="p-4 font-semibold">Status</th>
+                <th className="p-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -67,6 +94,20 @@ const CustomersManagement = () => {
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${customer.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {customer.isActive !== false ? 'Active' : 'Inactive'}
                     </span>
+                  </td>
+                  <td className="p-4 text-right">
+                    <button
+                      onClick={() => handleDelete(customer._id)}
+                      disabled={deletingId === customer._id}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Delete Customer"
+                    >
+                      {deletingId === customer._id ? (
+                        <LoadingSpinner size="small" />
+                      ) : (
+                        <Trash2 className="w-5 h-5" />
+                      )}
+                    </button>
                   </td>
                 </tr>
               ))}
