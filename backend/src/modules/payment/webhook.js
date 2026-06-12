@@ -51,6 +51,9 @@ router.post('/razorpay', async (req, res) => {
     if ((cfStatus || '').toUpperCase() === 'SUCCESS') {
       order.paymentStatus = 'paid';
       order.paymentMethod = 'online';
+      if (order.status === 'pending' || order.status === 'failed') {
+        order.status = 'accepted';
+      }
       order.paymentInfo = order.paymentInfo || {};
       order.paymentInfo.provider = 'razorpay';
       order.paymentInfo.paymentId = cfReference || payload.referenceId;

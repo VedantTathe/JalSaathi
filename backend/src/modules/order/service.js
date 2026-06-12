@@ -472,6 +472,9 @@ OrderService.verifyRazorpayPayment = async function(customerId, orderId, payment
     // Mark paid
     order.paymentStatus = 'paid';
     order.paymentMethod = 'online';
+    if (order.status === 'pending' || order.status === 'failed') {
+      order.status = 'accepted';
+    }
     order.paymentInfo = {
       provider: 'razorpay',
       paymentId: referenceId,
@@ -535,8 +538,8 @@ OrderService.checkPaymentStatus = async function(customerId, orderId) {
       order.paymentInfo.capturedAt = new Date();
       order.paymentInfo.verifiedAt = new Date();
 
-      // Accept order and update provider stats if it was pending
-      if (order.status === 'pending') {
+      // Accept order and update provider stats if it was pending or failed
+      if (order.status === 'pending' || order.status === 'failed') {
         order.status = 'accepted';
         try {
           const provider = await Provider.findById(order.providerId);
