@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { User, Mail, Phone, MapPin, Edit2, Save, X, ArrowLeft, Download, Smartphone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { authApi } from '../services/api';
+import { authApi, addressApi } from '../services/api';
 import { usePWAInstall } from '../utils/usePWAInstall';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatDateTime } from '../utils/helpers';
@@ -19,12 +19,6 @@ const Profile = () => {
     name: '',
     email: '',
     phone: '',
-    address: {
-      street: '',
-      area: '',
-      city: '',
-      pincode: ''
-    }
   });
 
   // Fetch user profile
@@ -40,18 +34,16 @@ const Profile = () => {
           name: data.name || '',
           email: data.email || '',
           phone: data.phone || '',
-          address: {
-            street: data.address?.street || '',
-            area: data.address?.area || '',
-            city: data.address?.city || '',
-            pincode: data.address?.pincode || ''
-          }
         });
       }
     }
   );
 
   const profile = profileResponse?.data || profileResponse;
+
+  // Fetch customer's saved delivery addresses
+  const { data: addressesResponse } = useQuery('customer-addresses', addressApi.getAddresses);
+  const addresses = addressesResponse?.data?.addresses || addressesResponse?.addresses || [];
 
   // Update profile mutation
   const updateProfileMutation = useMutation(
@@ -98,12 +90,6 @@ const Profile = () => {
         name: profile.name || '',
         email: profile.email || '',
         phone: profile.phone || '',
-        address: {
-          street: profile.address?.street || '',
-          area: profile.address?.area || '',
-          city: profile.address?.city || '',
-          pincode: profile.address?.pincode || ''
-        }
       });
     }
   };
@@ -194,11 +180,10 @@ const Profile = () => {
 
           {/* Content Section */}
           <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Personal Information */}
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <User className="h-5 w-5 mr-2 text-primary-500" />
+            {/* Personal Information */}
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <User className="h-5 w-5 mr-2 text-primary-500" />
                   Personal Information
                 </h3>
 
@@ -262,113 +247,60 @@ const Profile = () => {
                 </div>
               </div>
 
-              {/* Address Information */}
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              {/* Saved Delivery Addresses */}
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
                   <MapPin className="h-5 w-5 mr-2 text-primary-500" />
-                  Address Information
+                  Saved Delivery Addresses
                 </h3>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Street Address
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={profileData.address.street}
-                        onChange={(e) => handleInputChange('address.street', e.target.value)}
-                        className="input-field"
-                        placeholder="Enter street address"
-                      />
-                    ) : (
-                      <p className="text-gray-900">{profile?.address?.street || 'Not provided'}</p>
-                    )}
+                {addresses.length === 0 ? (
+                  <div className="bg-gray-50 rounded-lg p-6 text-center">
+                    <MapPin className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">No delivery addresses saved yet.</p>
+                    <p className="text-gray-400 text-xs mt-1">Add addresses from the Dashboard → Address Management section.</p>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Area
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={profileData.address.area}
-                        onChange={(e) => handleInputChange('address.area', e.target.value)}
-                        className="input-field"
-                        placeholder="Enter area"
-                      />
-                    ) : (
-                      <p className="text-gray-900">{profile?.address?.area || 'Not provided'}</p>
-                    )}
+                ) : (
+                  <div className="space-y-3">
+                    {addresses.map((addr) => (
+                      <div
+                        key={addr._id}
+                        className={`rounded-xl border-2 p-4 flex items-start gap-3 ${
+                          addr.isDefault
+                            ? 'border-primary-300 bg-primary-50'
+                            : 'border-gray-200 bg-gray-50'
+                        }`}
+                      >
+                        <div className={`mt-0.5 p-1.5 rounded-lg ${
+                          addr.isDefault ? 'bg-primary-100' : 'bg-gray-200'
+                        }`}>
+                          <MapPin className={`h-4 w-4 ${
+                            addr.isDefault ? 'text-primary-600' : 'text-gray-500'
+                          }`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className={`text-xs font-bold uppercase tracking-wide ${
+                              addr.isDefault ? 'text-primary-700' : 'text-gray-600'
+                            }`}>
+                              {addr.label || 'Address'}
+                            </span>
+                            {addr.isDefault && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary-600 text-white">
+                                ✓ Default
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-800 leading-relaxed">
+                            {[addr.street, addr.area, addr.city].filter(Boolean).join(', ')}
+                            {addr.pincode && ` — ${addr.pincode}`}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        City
-                      </label>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={profileData.address.city}
-                          onChange={(e) => handleInputChange('address.city', e.target.value)}
-                          className="input-field"
-                          placeholder="City"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{profile?.address?.city || 'Not provided'}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        PIN Code
-                      </label>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={profileData.address.pincode}
-                          onChange={(e) => handleInputChange('address.pincode', e.target.value)}
-                          className="input-field"
-                          placeholder="PIN Code"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{profile?.address?.pincode || 'Not provided'}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
-            </div>
-
-            {/* Account Stats */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Statistics</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600">Account Type</p>
-                  <p className="text-lg font-semibold text-gray-900 capitalize">
-                    {user?.role?.replace('_', ' ')}
-                  </p>
-                </div>
-                
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600">Member Since</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {formatDateTime(profile?.createdAt, { dateOnly: true })}
-                  </p>
-                </div>
-                
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600">Last Updated</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {formatDateTime(profile?.updatedAt, { dateOnly: true })}
-                  </p>
-                </div>
-              </div>
-            </div>
 
             {/* App Settings */}
             <div className="mt-8 pt-6 border-t border-gray-200">
