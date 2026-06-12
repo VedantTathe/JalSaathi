@@ -2,10 +2,21 @@ import React from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { RefreshCw, X } from 'lucide-react';
 
-const DISMISSED_KEY = 'pwa_update_dismissed_sw_version';
+const DISMISSED_KEY = 'pwa_update_dismissed_until';
+// How long to suppress the banner after "Later" is clicked (24 hours)
+const DISMISS_DURATION_MS = 24 * 60 * 60 * 1000;
 
 // Keys in localStorage that must survive an update (keeps user logged in)
 const PRESERVE_KEYS = ['jalsaathi_token', 'user'];
+
+const isDismissed = () => {
+  try {
+    const until = localStorage.getItem(DISMISSED_KEY);
+    return until && Date.now() < Number(until);
+  } catch {
+    return false;
+  }
+};
 
 const UpdatePrompt = () => {
   const {
@@ -20,16 +31,16 @@ const UpdatePrompt = () => {
     },
   });
 
-  // Check if user dismissed this particular SW update in this session
-  const isDismissed = sessionStorage.getItem(DISMISSED_KEY) === 'true';
-
   const close = () => {
-    // Mark as dismissed for this session so it doesn't re-appear on every nav/render
-    sessionStorage.setItem(DISMISSED_KEY, 'true');
+    // Suppress for 24 hours using localStorage so it persists across tabs/sessions
+    localStorage.setItem(DISMISSED_KEY, String(Date.now() + DISMISS_DURATION_MS));
     setNeedRefresh(false);
   };
 
   const handleUpdate = async () => {
+    // Remove dismiss flag so post-update state is clean
+    localStorage.removeItem(DISMISSED_KEY);
+
     // 1. Save auth data we want to keep
     const preserved = {};
     PRESERVE_KEYS.forEach((key) => {
@@ -56,7 +67,7 @@ const UpdatePrompt = () => {
     updateServiceWorker(true);
   };
 
-  if (!needRefresh || isDismissed) return null;
+  if (!needRefresh || isDismissed()) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-5 duration-300">
