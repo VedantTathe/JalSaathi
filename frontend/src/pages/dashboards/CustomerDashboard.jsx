@@ -710,8 +710,8 @@ const CustomerDashboard = () => {
           <div className="absolute bottom-0 right-0 w-48 h-48 bg-white/5 rounded-full -mb-24 -mr-24"></div>
         </div>
 
-        {/* Install App Banner — hidden if already installed, dismissed, or unsupported (desktop) */}
-        {!isAppInstalled && !installDismissed && (deferredPrompt !== null || isIOS) && (
+        {/* Install App Banner — hidden if already installed or dismissed */}
+        {!isAppInstalled && !installDismissed && (
           <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-primary-50 border border-primary-200 rounded-xl px-4 py-3 mb-6 gap-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="bg-primary-100 p-2 rounded-lg flex-shrink-0">

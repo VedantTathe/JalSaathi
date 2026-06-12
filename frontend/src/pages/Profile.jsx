@@ -303,7 +303,7 @@ const Profile = () => {
               </div>
 
             {/* App Settings */}
-            {!isInstalled && (deferredPrompt !== null || isIOS) && (
+            {!isInstalled && (
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <Smartphone className="h-5 w-5 mr-2 text-primary-500" />

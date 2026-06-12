@@ -108,6 +108,22 @@ export default defineConfig({
             icons: [{ src: '/icons/icon-96x96.png', sizes: '96x96', type: 'image/png' }]
           }
         ],
+        screenshots: [
+          {
+            src: '/icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'JalSaathi Admin Dashboard'
+          },
+          {
+            src: '/icons/icon-512x512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'JalSaathi Mobile App'
+          }
+        ],
         prefer_related_applications: false
       },
       workbox: {
