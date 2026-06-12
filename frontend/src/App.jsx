@@ -10,6 +10,7 @@ import Register from './pages/Register.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
+import AdminLogin from './pages/AdminLogin.jsx';
 
 // Protected route wrapper
 import ProtectedRoute from './components/ProtectedRoute.jsx';
@@ -52,6 +53,7 @@ function App() {
         <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
         <Route path="/register/:role" element={user ? <Navigate to="/dashboard" /> : <Register />} />
         <Route path="/forgot-password" element={user ? <Navigate to="/dashboard" /> : <ForgotPassword />} />
+        <Route path="/adminlogin" element={user ? <Navigate to="/dashboard" /> : <AdminLogin />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/track/:orderNumber" element={<TrackOrder />} />
