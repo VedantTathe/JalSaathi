@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { User, Mail, Phone, MapPin, Edit2, Save, X, ArrowLeft, Download, Smartphone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../services/api';
+import { usePWAInstall } from '../utils/usePWAInstall';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatDateTime } from '../utils/helpers';
 import toast from 'react-hot-toast';
@@ -13,7 +14,7 @@ const Profile = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const { deferredPrompt, isInstalled, handleInstall } = usePWAInstall();
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -25,20 +26,6 @@ const Profile = () => {
       pincode: ''
     }
   });
-
-  // Listen for beforeinstallprompt event
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, []);
 
   // Fetch user profile
   const { data: profileResponse, isLoading } = useQuery(
@@ -121,38 +108,7 @@ const Profile = () => {
     }
   };
 
-  const handleAddToHomeScreen = async () => {
-    if (deferredPrompt) {
-      // Show the install prompt
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        toast.success('App installed successfully!');
-        // Update the status in the backend
-        try {
-          await authApi.updateAddToHomeScreenStatus();
-        } catch (error) {
-          console.error('Failed to update add to home screen status:', error);
-        }
-      }
-      
-      setDeferredPrompt(null);
-    } else {
-      // Check if it's iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      
-      if (isIOS) {
-        toast('Tap the Share button and select "Add to Home Screen"', {
-          duration: 5000
-        });
-      } else {
-        toast('Install option is not available in your browser', {
-          duration: 3000
-        });
-      }
-    }
-  };
+  const handleAddToHomeScreen = () => handleInstall();
 
   if (isLoading) {
     return (

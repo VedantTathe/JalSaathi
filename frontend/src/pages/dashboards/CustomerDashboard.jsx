@@ -12,6 +12,7 @@ import DashboardLayout from '../../components/DashboardLayout.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
 import { authApi, userApi, addressApi, orderApi } from '../../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../../utils/helpers';
+import { usePWAInstall } from '../../utils/usePWAInstall';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
@@ -41,41 +42,17 @@ const CustomerDashboard = () => {
   const queryClient = useQueryClient();
   const [activePage, setActivePage] = useState('dashboard');
 
-  // PWA install prompt
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  // PWA install prompt — uses shared hook so the prompt is never missed
+  const { deferredPrompt, isInstalled: isAppInstalled, handleInstall } = usePWAInstall();
   const [installDismissed, setInstallDismissed] = useState(
     () => sessionStorage.getItem('pwa_install_dismissed') === 'true'
   );
-  // Detect if already running as installed PWA (standalone mode)
-  const isAppInstalled = window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true;
-
-  useEffect(() => {
-    const handler = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
 
   const handleInstallApp = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        try { await authApi.updateAddToHomeScreenStatus(); } catch (_) {}
-      }
-      setDeferredPrompt(null);
+    const accepted = await handleInstall();
+    if (accepted !== false) {
       setInstallDismissed(true);
       sessionStorage.setItem('pwa_install_dismissed', 'true');
-    } else {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      if (isIOS) {
-        toast('Tap the Share button ↑ and select "Add to Home Screen"', { duration: 5000 });
-      } else {
-        toast('Open this page in your browser to install the app', { duration: 3000 });
-      }
     }
   };
 
