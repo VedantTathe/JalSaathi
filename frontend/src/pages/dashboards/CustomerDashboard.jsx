@@ -797,7 +797,7 @@ const CustomerDashboard = () => {
                       ? 'bg-success-500 text-white' 
                       : 'bg-gray-500 text-white'
                   }`}>
-                    {provider.isOnline ? '● Online' : '● Offline'}
+                    {provider.isOnline ? (provider.isWithinOperatingHours ? '● Open Now' : '● Closed (Outside Hours)') : '● Offline'}
                   </span>
                 </div>
               </div>
@@ -862,9 +862,11 @@ const CustomerDashboard = () => {
                     <div className="text-xs text-gray-600 flex items-center">
                       <Clock className="h-3.5 w-3.5 mr-1.5" />
                       {provider.operatingHours.open} - {provider.operatingHours.close}
-                      {!provider.isOnline && (
-                        <span className="ml-1 text-red-600 font-medium">(Closed)</span>
-                      )}
+                      {!provider.isOnline ? (
+                        <span className="ml-1 text-red-600 font-medium">(Offline)</span>
+                      ) : !provider.isWithinOperatingHours ? (
+                        <span className="ml-1 text-red-600 font-medium">(Currently Closed)</span>
+                      ) : null}
                     </div>
                   )}
                 </div>
@@ -881,16 +883,16 @@ const CustomerDashboard = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (provider.isOnline) handleOrderNowClick(provider);
+                      if (provider.isAcceptingOrders) handleOrderNowClick(provider);
                     }}
-                    disabled={!provider.isOnline}
+                    disabled={!provider.isAcceptingOrders}
                     className={`w-full sm:w-auto py-3 px-5 rounded-xl font-semibold text-base transition-all min-h-[48px] ${
-                      provider.isOnline
+                      provider.isAcceptingOrders
                         ? 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-md hover:shadow-lg' 
                         : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {provider.isOnline ? 'Order Now' : 'Closed'}
+                    {provider.isAcceptingOrders ? 'Order Now' : (!provider.isOnline ? 'Offline' : 'Closed')}
                   </button>
                 </div>
               </div>
