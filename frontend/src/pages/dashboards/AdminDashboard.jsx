@@ -26,6 +26,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import { adminApi } from '../../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../../utils/helpers';
 import toast from 'react-hot-toast';
+import CustomersManagement from './CustomersManagement';
 
 const AdminDashboard = () => {
   const queryClient = useQueryClient();
@@ -91,6 +92,12 @@ const AdminDashboard = () => {
       icon: Store,
       onClick: () => handleNavigationClick('providers')
     },
+    { 
+      key: 'customers', 
+      name: 'Customers', 
+      icon: Users,
+      onClick: () => handleNavigationClick('customers')
+    },
   ];
 
   const stats = dashboardData?.data || {};
@@ -111,6 +118,9 @@ const AdminDashboard = () => {
     <DashboardLayout navigation={navigation} activeTab={activeTab}>
       {/* Providers Section - Accessed from Sidebar */}
       {activeTab === 'providers' && <ProvidersManagement />}
+
+      {/* Customers Section */}
+      {activeTab === 'customers' && <CustomersManagement />}
 
       {/* Dashboard Section - With Tabs */}
       {activeTab === 'dashboard' && (
