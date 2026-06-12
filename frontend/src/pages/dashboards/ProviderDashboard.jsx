@@ -147,7 +147,7 @@ const ProviderDashboard = () => {
 
   // ðŸ  1. DASHBOARD HOME
   const DashboardHome = () => {
-    const orders = ordersData?.data?.orders || [];
+    const orders = (ordersData?.data?.orders || []).filter(o => o.status !== 'failed');
     const todayOrders = orders.filter(o => new Date(o.timeline?.ordered || o.createdAt).toDateString() === new Date().toDateString());
     const activeOrders = orders.filter(o => ['accepted', 'assigned', 'out_for_delivery'].includes(o.status)).length;
     const completedToday = todayOrders.filter(o => o.status === 'delivered').length;
@@ -543,7 +543,7 @@ const ProviderDashboard = () => {
 
   // ðŸ• 2. VIEW ORDERS (shows ALL orders from last 16 hours including delivered)
   const ActiveOrders = () => {
-    const orders = ordersData?.data?.orders || [];
+    const orders = (ordersData?.data?.orders || []).filter(o => o.status !== 'failed');
     // Show ALL orders (including delivered) - backend already filters to last 16 hours
     const allOrders = orders;
 
