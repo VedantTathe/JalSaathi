@@ -231,8 +231,6 @@ const Login = () => {
                     </div>
                   </div>
 
-                  </div>
-
                   {otpError && (
                     <div className="rounded-md bg-error-50 p-4">
                       <p className="text-sm text-error-700">{otpError}</p>
