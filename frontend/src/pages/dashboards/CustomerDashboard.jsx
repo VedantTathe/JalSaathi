@@ -948,17 +948,22 @@ const CustomerDashboard = () => {
         {/* Tabs */}
         <div className="border-b border-gray-200 mb-6 overflow-x-auto -mx-1 sm:mx-0">
           <nav className="-mb-px flex px-1 sm:px-0" style={{WebkitOverflowScrolling: 'touch'}}>
-            {['all', 'active', 'past', 'cancelled'].map(filter => (
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'active', label: 'Active' },
+              { id: 'past', label: 'Delivered' },
+              { id: 'cancelled', label: 'Failed & Cancelled' }
+            ].map(tab => (
               <button
-                key={filter}
-                onClick={() => setOrderFilter(filter)}
+                key={tab.id}
+                onClick={() => setOrderFilter(tab.id)}
                 className={`py-4 px-4 sm:px-3 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${
-                  orderFilter === filter
+                  orderFilter === tab.id
                     ? 'border-primary-500 text-primary-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                {tab.label}
               </button>
             ))}
           </nav>
@@ -966,8 +971,25 @@ const CustomerDashboard = () => {
 
         {/* Orders List */}
         <div className="space-y-4">
-          {filteredOrders.map((order) => (
-            <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+          {filteredOrders.map((order) => {
+            const isActive = ['pending', 'accepted', 'assigned', 'out_for_delivery'].includes(order.status);
+            const isDelivered = order.status === 'delivered';
+            const isFailed = ['cancelled', 'failed', 'rejected'].includes(order.status);
+
+            let borderClass = 'border-gray-200';
+            if (isActive) borderClass = 'border-l-4 border-l-blue-500 border-gray-200';
+            else if (isDelivered) borderClass = 'border-l-4 border-l-green-500 border-gray-200';
+            else if (isFailed) borderClass = 'border-l-4 border-l-red-500 border-gray-200';
+
+            return (
+            <div key={order._id} className={`bg-white rounded-lg shadow-sm border p-4 sm:p-6 transition-all hover:shadow-md ${borderClass}`}>
+              
+              {isActive && (
+                <div className="mb-4 bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-center text-blue-700 text-sm font-medium">
+                  <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse mr-3"></div>
+                  Your order is active and will be delivered shortly!
+                </div>
+              )}
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center flex-wrap gap-2 mb-2">
@@ -1058,13 +1080,14 @@ const CustomerDashboard = () => {
                 </div>
               )}
             </div>
-          ))}
+          )})}
         </div>
 
         {filteredOrders.length === 0 && (
-          <div className="text-center py-12 bg-gray-50 rounded-lg">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600">No {orderFilter} orders found</p>
+          <div className="text-center py-16 bg-white border border-gray-200 rounded-xl mt-4">
+            <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-1">No orders found</h3>
+            <p className="text-gray-500">You do not have any orders in this category.</p>
           </div>
         )}
       </div>
