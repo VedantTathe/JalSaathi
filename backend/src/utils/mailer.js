@@ -710,11 +710,71 @@ const sendDeliveryBoyCredentialsEmail = async (email, name, password, providerNa
   }
 };
 
+// Send order delivered email
+const sendOrderDeliveredEmail = async (email, name, orderNumber, providerName) => {
+  console.log(`📧 Sending order delivered email to: ${email}`);
+  
+  try {
+    const transporter = createTransporter();
+    const config = resolveMailConfig();
+    
+    const mailOptions = {
+      from: config.from,
+      to: email,
+      subject: 'JalSaathi - Your Order has been Delivered!',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }
+            .header { background-color: #10b981; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+            .content { background-color: white; padding: 30px; border-radius: 0 0 5px 5px; }
+            .footer { margin-top: 20px; text-align: center; color: #666; font-size: 12px; }
+            .success-box { background-color: #f0fdf4; border: 2px solid #10b981; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>💧 Order Delivered!</h1>
+            </div>
+            <div class="content">
+              <h2>Hello ${name},</h2>
+              <p>Your JalSaathi water can order <strong>#${orderNumber}</strong> from <strong>${providerName}</strong> has been successfully delivered to your address.</p>
+              
+              <div class="success-box">
+                <h3 style="color: #059669; margin: 0;">Thank you for using JalSaathi!</h3>
+              </div>
+              
+              <p>If you have any feedback or face any issues, please contact our support team or the provider.</p>
+              <p>Best regards,<br>JalSaathi Team</p>
+            </div>
+            <div class="footer">
+              <p>This is an automated email. Please do not reply.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+    
+    const info = await sendEmailWithRetry(transporter, mailOptions, 2);
+    console.log(`✅ Order delivered email sent to ${email}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Failed to send order delivered email to ${email}:`, error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   generateOTP,
   sendOTPEmail,
   sendLoginOTPEmail,
   sendWelcomeEmail,
   sendPasswordResetOTPEmail,
-  sendDeliveryBoyCredentialsEmail
+  sendDeliveryBoyCredentialsEmail,
+  sendOrderDeliveredEmail
 };

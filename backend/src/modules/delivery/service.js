@@ -1,6 +1,7 @@
 const Order = require('../order/model');
 const User = require('../user/model');
 const { formatResponse } = require('../../utils/helpers');
+const mailer = require('../../utils/mailer');
 
 class DeliveryService {
   // Get assigned orders for delivery boy
@@ -45,6 +46,22 @@ class DeliveryService {
       await order.updateStatus(newStatus, {
         deliveryNotes: notes
       });
+
+      // Send email if delivered
+      if (newStatus === 'delivered') {
+        const populatedOrder = await Order.findById(orderId)
+          .populate('customerId', 'name email')
+          .populate('providerId', 'businessName');
+          
+        if (populatedOrder && populatedOrder.customerId?.email) {
+          mailer.sendOrderDeliveredEmail(
+            populatedOrder.customerId.email,
+            populatedOrder.customerId.name || 'Customer',
+            populatedOrder.orderNumber || populatedOrder._id.toString().slice(-8),
+            populatedOrder.providerId?.businessName || 'Your Provider'
+          ).catch(err => console.error('Background email failed:', err));
+        }
+      }
       
       return formatResponse(true, 'Delivery status updated successfully', null, 200);
       
@@ -61,7 +78,7 @@ class DeliveryService {
         _id: orderId,
         deliveryBoyId,
         status: { $in: ['assigned', 'out_for_delivery'] }
-      }).populate('providerId');
+      }).populate('providerId').populate('customerId', 'name email');
       
       if (!order) {
         return formatResponse(false, 'Order not found or cannot be marked as delivered', null, 404);
@@ -83,6 +100,16 @@ class DeliveryService {
         order.providerId.revenue.total += order.items.totalPrice;
         order.providerId.revenue.thisMonth += order.items.totalPrice;
         await order.providerId.save();
+      }
+
+      // Send delivery email to customer
+      if (order.customerId?.email) {
+        mailer.sendOrderDeliveredEmail(
+          order.customerId.email,
+          order.customerId.name || 'Customer',
+          order.orderNumber || order._id.toString().slice(-8),
+          order.providerId?.businessName || 'Your Provider'
+        ).catch(err => console.error('Background email failed:', err));
       }
       
       return formatResponse(true, 'Order marked as delivered successfully', null, 200);
