@@ -543,7 +543,8 @@ const ProviderDashboard = () => {
 
   // ðŸ• 2. VIEW ORDERS (shows ALL orders from last 16 hours including delivered)
   const ActiveOrders = () => {
-    const orders = (ordersData?.data?.orders || []).filter(o => o.status !== 'failed');
+    // Show ALL orders including failed for the filter, but default to 'accepted'
+    const orders = ordersData?.data?.orders || [];
     // Show ALL orders (including delivered) - backend already filters to last 16 hours
     const allOrders = orders;
 
@@ -556,6 +557,8 @@ const ProviderDashboard = () => {
     // Filter orders by status
     const filteredOrders = statusFilter === 'all' 
       ? allOrders 
+      : statusFilter === 'failed_cancelled'
+      ? allOrders.filter(o => o.status === 'failed' || o.status === 'cancelled')
       : allOrders.filter(o => o.status === statusFilter);
 
     if (ordersLoading) return <LoadingSpinner />;
@@ -609,6 +612,9 @@ const ProviderDashboard = () => {
               className="border border-gray-300 rounded-lg px-4 py-3 text-base sm:text-sm flex-1 sm:flex-initial"
             >
               <option value="accepted">🟢 Accepted (New Orders) ({allOrders.filter(o => o.status === 'accepted').length})</option>
+              <option value="assigned">🚚 Assigned ({allOrders.filter(o => o.status === 'assigned').length})</option>
+              <option value="delivered">✅ Delivered ({allOrders.filter(o => o.status === 'delivered').length})</option>
+              <option value="failed_cancelled">❌ Failed / Cancelled ({allOrders.filter(o => o.status === 'failed' || o.status === 'cancelled').length})</option>
               <option value="all">📚 All Orders ({allOrders.length})</option>
             </select>
             <label className="inline-flex items-center px-4 py-3 bg-gray-50 rounded-lg min-h-[48px]">
