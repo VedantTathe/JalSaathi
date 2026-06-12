@@ -4,17 +4,15 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { User, Mail, Phone, MapPin, Edit2, Save, X, ArrowLeft, Download, Smartphone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi, addressApi } from '../services/api';
-import { usePWAInstall } from '../utils/usePWAInstall';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatDateTime } from '../utils/helpers';
 import toast from 'react-hot-toast';
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isInstallable, installApp } = useAuth();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const { deferredPrompt, isInstalled, handleInstall, isIOS } = usePWAInstall();
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -94,7 +92,7 @@ const Profile = () => {
     }
   };
 
-  const handleAddToHomeScreen = () => handleInstall();
+
 
   if (isLoading) {
     return (
@@ -303,24 +301,24 @@ const Profile = () => {
               </div>
 
             {/* App Settings */}
-            {!isInstalled && (
+            {isInstallable && (
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <Smartphone className="h-5 w-5 mr-2 text-primary-500" />
                   App Settings
                 </h3>
-                <div className="bg-gray-50 rounded-lg p-6">
+                <div className="card premium-glass-card p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <h4 className="text-base font-semibold text-gray-900 mb-1">
                         Add to Home Screen
                       </h4>
                       <p className="text-sm text-gray-600">
-                        Install JalSaathi on your device for quick access and offline functionality
+                        Get the JalSaathi app directly on your device's home screen for faster ordering.
                       </p>
                     </div>
                     <button
-                      onClick={handleAddToHomeScreen}
+                      onClick={installApp}
                       className="ml-4 px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center space-x-2 flex-shrink-0"
                     >
                       <Download className="h-4 w-4" />

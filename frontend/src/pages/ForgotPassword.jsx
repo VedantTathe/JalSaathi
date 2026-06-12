@@ -139,12 +139,12 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen gradient-water flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-white">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Back to login link */}
         <Link 
           to="/login" 
-          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-6"
+          className="inline-flex items-center text-sm text-white/80 hover:text-white mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Login
@@ -152,17 +152,17 @@ const ForgotPassword = () => {
 
         {/* Logo and title */}
         <div className="flex flex-col items-center">
-          <div className="flex items-center space-x-2 mb-4">
-            <Droplets className="h-8 w-8 text-water-500" />
+          <div className="flex items-center space-x-2 mb-4 bg-white/20 p-3 rounded-full backdrop-blur-sm">
+            <Droplets className="h-8 w-8 text-white" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">JalSaathi</h1>
-              <p className="text-sm text-gray-500">Har Pyaas Ka Saathi</p>
+              <h1 className="text-2xl font-bold text-white">JalSaathi</h1>
+              <p className="text-sm text-white/80">Har Pyaas Ka Saathi</p>
             </div>
           </div>
-          <h2 className="text-center text-3xl font-bold text-gray-900">
+          <h2 className="text-center text-3xl font-bold text-white">
             Reset Password
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-white/80">
             {step === 1 && "Enter your email to receive a password reset OTP"}
             {step === 2 && "Enter the OTP sent to your email"}
             {step === 3 && "Create a new password for your account"}
@@ -171,8 +171,8 @@ const ForgotPassword = () => {
         </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="card">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="card premium-glass-card text-gray-900">
           {/* Step 1: Enter Email */}
           {step === 1 && (
             <form onSubmit={handleSendOTP} className="space-y-6">

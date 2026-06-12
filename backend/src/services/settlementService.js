@@ -6,15 +6,16 @@ const mongoose = require('mongoose');
 // Create settlement for a provider for a given period
 const createSettlement = async (providerId, periodStart, periodEnd, processedBy) => {
   try {
-    // Get all completed orders for this provider in the period
+    // Get all completed online paid orders for this provider in the period
     const orders = await Order.find({
       providerId,
       status: 'delivered',
-      deliveredAt: {
+      'timeline.delivered': {
         $gte: new Date(periodStart),
         $lte: new Date(periodEnd)
       },
-      paymentStatus: 'completed'
+      paymentMethod: 'online',
+      paymentStatus: 'paid'
     });
 
     if (orders.length === 0) {
@@ -22,7 +23,7 @@ const createSettlement = async (providerId, periodStart, periodEnd, processedBy)
     }
 
     // Calculate total amount
-    const totalAmount = orders.reduce((sum, order) => sum + order.totalPrice, 0);
+    const totalAmount = orders.reduce((sum, order) => sum + (order.items?.totalPrice || 0), 0);
     
     // Calculate platform fee (5% default)
     const platformFee = totalAmount * 0.05;
@@ -112,7 +113,7 @@ const getAllSettlements = async (filters = {}) => {
 const getProviderSettlements = async (providerId) => {
   try {
     const settlements = await Settlement.find({ providerId })
-      .populate('orderIds', 'orderNumber totalPrice deliveredAt')
+      .populate('orderIds', 'orderNumber items.totalPrice timeline.delivered paymentMethod')
       .populate('processedBy', 'name email')
       .sort({ createdAt: -1 });
 
@@ -127,7 +128,7 @@ const getSettlementById = async (settlementId) => {
   try {
     const settlement = await Settlement.findById(settlementId)
       .populate('providerId', 'businessName phoneNumber email')
-      .populate('orderIds', 'orderNumber totalPrice deliveredAt')
+      .populate('orderIds', 'orderNumber items.totalPrice timeline.delivered paymentMethod')
       .populate('processedBy', 'name email');
 
     if (!settlement) {

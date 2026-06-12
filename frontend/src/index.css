@@ -206,7 +206,7 @@
   }
   
   .gradient-primary {
-    background: linear-gradient(135deg, theme(colors.primary.500) 0%, theme(colors.primary.600) 100%);
+    background: linear-gradient(135deg, theme(colors.primary.500) 0%, theme(colors.primary.700) 100%);
   }
   
   .gradient-water {
@@ -215,6 +215,27 @@
   
   .gradient-success {
     background: linear-gradient(135deg, theme(colors.success.400) 0%, theme(colors.success.600) 100%);
+  }
+
+  .premium-glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .premium-glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.12);
+  }
+
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   /* Hide scrollbar but keep functionality */

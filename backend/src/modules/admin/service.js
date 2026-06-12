@@ -225,6 +225,8 @@ class AdminService {
         {
           $match: {
             status: 'delivered',
+            paymentMethod: 'online',
+            paymentStatus: 'paid',
             'timeline.delivered': { $gte: startOfToday }
           }
         },
@@ -245,6 +247,8 @@ class AdminService {
         {
           $match: {
             status: 'delivered',
+            paymentMethod: 'online',
+            paymentStatus: 'paid',
             'timeline.delivered': { $gte: startOfMonth }
           }
         },
@@ -260,7 +264,9 @@ class AdminService {
       const totalRevenue = await Order.aggregate([
         {
           $match: {
-            status: 'delivered'
+            status: 'delivered',
+            paymentMethod: 'online',
+            paymentStatus: 'paid'
           }
         },
         {
@@ -288,6 +294,8 @@ class AdminService {
         .sort({ createdAt: -1 })
         .limit(5);
       
+      const calcAdminRevenue = (amount) => Math.round((amount || 0) * 0.05 * 100) / 100;
+
       return formatResponse(true, 'Admin dashboard data retrieved successfully', {
         // Stats formatted for easy access
         totalUsers,
@@ -296,8 +304,8 @@ class AdminService {
         activeProviders: onlineProviders,
         approvedProviders,
         totalOrders,
-        totalRevenue: totalRevenue[0]?.total || 0,
-        revenueThisMonth: monthlyRevenue[0]?.total || 0,
+        totalRevenue: calcAdminRevenue(totalRevenue[0]?.total),
+        revenueThisMonth: calcAdminRevenue(monthlyRevenue[0]?.total),
         ordersThisMonth: monthlyOrders,
         newUsersThisMonth: 0, // Can be calculated if needed
         pendingProviders: totalProviders - approvedProviders,
@@ -313,11 +321,11 @@ class AdminService {
         },
         today: {
           orders: todayOrders,
-          revenue: todayRevenue[0]?.total || 0
+          revenue: calcAdminRevenue(todayRevenue[0]?.total)
         },
         monthly: {
           orders: monthlyOrders,
-          revenue: monthlyRevenue[0]?.total || 0
+          revenue: calcAdminRevenue(monthlyRevenue[0]?.total)
         },
         ordersByStatus,
         recentOrders

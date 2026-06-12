@@ -19,7 +19,9 @@ import {
   Calendar,
   Filter,
   Download,
-  CreditCard
+  CreditCard,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -983,8 +985,18 @@ const ProviderOrdersModal = ({ provider, onClose }) => {
 const SettlementsManagement = () => {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedSettlement, setSelectedSettlement] = useState(null);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [selectedSettlement, setSelectedSettlement] = useState(null);
+  const [expandedRows, setExpandedRows] = useState(new Set());
+
+  const toggleRow = (id) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
 
   const { data: settlementsData, isLoading: settlementsLoading } = useQuery(
     ['admin-settlements', statusFilter],
@@ -1040,12 +1052,16 @@ const SettlementsManagement = () => {
     }
   );
 
-  const settlements = settlementsData?.settlements || [];
-  const stats = settlementStats || {
-    total: 0,
-    pending: 0,
-    processing: 0,
-    completed: 0
+  const settlements = settlementsData?.data?.settlements || settlementsData?.settlements || [];
+  
+  // Parse stats from backend structure
+  const rawStats = settlementStats?.data || settlementStats;
+  const stats = {
+    total: rawStats?.overall?.totalSettlements || 0,
+    pending: rawStats?.byStatus?.find(s => s._id === 'pending')?.count || 0,
+    processing: rawStats?.byStatus?.find(s => s._id === 'processing')?.count || 0,
+    completed: rawStats?.byStatus?.find(s => s._id === 'completed')?.count || 0,
+    outstandingBalance: rawStats?.byStatus?.find(s => s._id === 'pending')?.totalAmount || 0
   };
 
   const handleCompleteSettlement = (settlement) => {
@@ -1066,13 +1082,14 @@ const SettlementsManagement = () => {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card border-l-4 border-warning-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-warning-600">{stats.pending || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.pending || 0}</p>
+              <p className="text-xs font-semibold text-warning-600 mt-1">Owes: {formatCurrency(stats.outstandingBalance || 0)}</p>
             </div>
-            <Calendar className="h-8 w-8 text-warning-500" />
+            <Calendar className="h-8 w-8 text-warning-500 opacity-80" />
           </div>
         </div>
 
@@ -1147,6 +1164,7 @@ const SettlementsManagement = () => {
             <table className="table">
               <thead className="table-header">
                 <tr>
+                  <th className="table-header-cell w-10"></th>
                   <th className="table-header-cell">Provider</th>
                   <th className="table-header-cell">Period</th>
                   <th className="table-header-cell">Orders</th>
@@ -1159,81 +1177,137 @@ const SettlementsManagement = () => {
               </thead>
               <tbody className="table-body">
                 {settlements.map((settlement) => (
-                  <tr key={settlement._id}>
-                    <td className="table-cell">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {settlement.providerId?.businessName}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {settlement.providerId?.area}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="table-cell">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {new Date(settlement.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          {new Date(settlement.startDate).toLocaleDateString()} - {new Date(settlement.endDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="table-cell">
-                      <span className="font-medium">{settlement.totalOrders}</span>
-                    </td>
-                    <td className="table-cell">
-                      <span className="font-medium">
-                        {formatCurrency(settlement.totalAmount)}
-                      </span>
-                    </td>
-                    <td className="table-cell">
-                      <span className="text-error-600">
-                        {formatCurrency(settlement.platformFee)}
-                      </span>
-                    </td>
-                    <td className="table-cell">
-                      <span className="font-bold text-success-600">
-                        {formatCurrency(settlement.netAmount)}
-                      </span>
-                    </td>
-                    <td className="table-cell">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        settlement.status === 'completed' ? 'bg-success-100 text-success-800' :
-                        settlement.status === 'processing' ? 'bg-water-100 text-water-800' :
-                        'bg-warning-100 text-warning-800'
-                      }`}>
-                        {settlement.status.charAt(0).toUpperCase() + settlement.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="table-cell">
-                      <div className="flex items-center space-x-2">
-                        {settlement.status === 'pending' && (
-                          <button
-                            onClick={() => updateSettlementStatusMutation.mutate({
-                              settlementId: settlement._id,
-                              status: 'processing'
-                            })}
-                            className="text-water-600 hover:text-water-700 text-sm font-medium"
-                          >
-                            Process
-                          </button>
-                        )}
-                        {settlement.status === 'processing' && (
-                          <button
-                            onClick={() => handleCompleteSettlement(settlement)}
-                            className="text-success-600 hover:text-success-700 text-sm font-medium"
-                          >
-                            Complete
-                          </button>
-                        )}
-                        <button className="text-primary-600 hover:text-primary-700">
-                          <Eye className="h-4 w-4" />
+                  <React.Fragment key={settlement._id}>
+                    <tr className={`hover:bg-gray-50 transition-colors ${expandedRows.has(settlement._id) ? 'bg-gray-50' : ''}`}>
+                      <td className="table-cell text-center">
+                        <button 
+                          onClick={() => toggleRow(settlement._id)}
+                          className="text-gray-500 hover:text-primary-600 transition-colors p-1"
+                        >
+                          {expandedRows.has(settlement._id) ? (
+                            <ChevronUp className="h-5 w-5" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5" />
+                          )}
                         </button>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="table-cell">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {settlement.providerId?.businessName}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {settlement.providerId?.area}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {new Date(settlement.startDate || settlement.periodStart).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            {new Date(settlement.startDate || settlement.periodStart).toLocaleDateString()} - {new Date(settlement.endDate || settlement.periodEnd).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <span className="font-medium">{settlement.totalOrders || settlement.orderCount}</span>
+                      </td>
+                      <td className="table-cell">
+                        <span className="font-medium">
+                          {formatCurrency(settlement.totalAmount || settlement.amount)}
+                        </span>
+                      </td>
+                      <td className="table-cell">
+                        <span className="text-error-600">
+                          {formatCurrency(settlement.platformFee)}
+                        </span>
+                      </td>
+                      <td className="table-cell">
+                        <span className="font-bold text-success-600">
+                          {formatCurrency(settlement.netAmount)}
+                        </span>
+                      </td>
+                      <td className="table-cell">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          settlement.status === 'completed' ? 'bg-success-100 text-success-800' :
+                          settlement.status === 'processing' ? 'bg-water-100 text-water-800' :
+                          'bg-warning-100 text-warning-800'
+                        }`}>
+                          {settlement.status.charAt(0).toUpperCase() + settlement.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="table-cell">
+                        <div className="flex items-center space-x-2">
+                          {settlement.status === 'pending' && (
+                            <button
+                              onClick={() => updateSettlementStatusMutation.mutate({
+                                settlementId: settlement._id,
+                                status: 'processing'
+                              })}
+                              className="text-water-600 hover:text-water-700 text-sm font-medium"
+                            >
+                              Process
+                            </button>
+                          )}
+                          {settlement.status === 'processing' && (
+                            <button
+                              onClick={() => handleCompleteSettlement(settlement)}
+                              className="text-success-600 hover:text-success-700 text-sm font-medium"
+                            >
+                              Complete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {expandedRows.has(settlement._id) && (
+                      <tr>
+                        <td colSpan="9" className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                              <h4 className="text-sm font-semibold text-gray-700">Orders in this Settlement</h4>
+                            </div>
+                            {settlement.orderIds && settlement.orderIds.length > 0 ? (
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                  <thead className="bg-white">
+                                    <tr>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Payment</th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-100">
+                                    {settlement.orderIds.map(order => (
+                                      <tr key={order._id || order}>
+                                        <td className="px-4 py-2 text-sm text-gray-900">{order.orderNumber || order._id?.slice(-8)}</td>
+                                        <td className="px-4 py-2 text-sm text-gray-500">
+                                          {order.timeline?.delivered ? new Date(order.timeline.delivered).toLocaleDateString() : 'N/A'}
+                                        </td>
+                                        <td className="px-4 py-2 text-sm text-gray-500 capitalize">
+                                          {order.paymentMethod || 'Online'}
+                                        </td>
+                                        <td className="px-4 py-2 text-sm text-gray-900 text-right">
+                                          {formatCurrency(order.items?.totalPrice || order.totalPrice || 0)}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <div className="px-4 py-6 text-center text-sm text-gray-500">
+                                No detailed order information available for this settlement.
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

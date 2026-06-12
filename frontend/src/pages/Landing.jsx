@@ -134,8 +134,8 @@ const Landing = () => {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-8">
             {features.map((feature, index) => (
-              <div key={index} className="text-center animate-fade-in-up bg-gray-50 rounded-2xl p-5 sm:p-0 sm:bg-transparent" style={{animationDelay: `${index * 100}ms`}}>
-                <div className="w-16 h-16 mx-auto mb-4 bg-water-100 rounded-full flex items-center justify-center">
+              <div key={index} className="card premium-glass-card text-center animate-fade-in-up flex flex-col items-center p-6 sm:p-8" style={{animationDelay: `${index * 100}ms`}}>
+                <div className="w-16 h-16 mx-auto mb-4 bg-water-100 rounded-full flex items-center justify-center shadow-inner">
                   <feature.icon className="h-8 w-8 text-water-600" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
@@ -160,8 +160,8 @@ const Landing = () => {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-8">
             {howItWorks.map((step, index) => (
-              <div key={index} className="text-center animate-fade-in-up bg-white rounded-2xl p-5 sm:p-0 sm:bg-transparent" style={{animationDelay: `${index * 150}ms`}}>
-                <div className="w-12 h-12 mx-auto mb-4 bg-primary-500 text-white rounded-full flex items-center justify-center text-xl font-bold">
+              <div key={index} className="card premium-glass-card text-center animate-fade-in-up flex flex-col items-center p-6 sm:p-8" style={{animationDelay: `${index * 150}ms`}}>
+                <div className="w-12 h-12 mx-auto mb-4 bg-primary-500 text-white rounded-full flex items-center justify-center text-xl font-bold shadow-lg">
                   {step.step}
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{step.title}</h3>

@@ -342,12 +342,12 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen gradient-water py-8 sm:py-12 px-4 sm:px-6 lg:px-8 text-white">
       <div className="sm:mx-auto sm:w-full sm:max-w-2xl w-full">
         {/* Back to home link */}
         <Link 
           to="/" 
-          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-6"
+          className="inline-flex items-center text-sm text-white/80 hover:text-white mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Home
@@ -355,28 +355,28 @@ const Register = () => {
 
         {/* Logo and title */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center space-x-2 mb-4">
-            <Droplets className="h-8 w-8 text-water-500" />
+          <div className="flex items-center space-x-2 mb-4 bg-white/20 p-3 rounded-full backdrop-blur-sm">
+            <Droplets className="h-8 w-8 text-white" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">JalSaathi</h1>
-              <p className="text-sm text-gray-500">Har Pyaas Ka Saathi</p>
+              <h1 className="text-2xl font-bold text-white">JalSaathi</h1>
+              <p className="text-sm text-white/80">Har Pyaas Ka Saathi</p>
             </div>
           </div>
-          <h2 className="text-center text-2xl sm:text-3xl font-bold text-gray-900 px-2">
+          <h2 className="text-center text-2xl sm:text-3xl font-bold text-white px-2">
             {role === 'provider' ? 'Become a Provider' : role === 'customer' ? 'Create Customer Account' : 'Create your account'}
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-white/80">
             Or{' '}
             <Link
               to="/login"
-              className="font-medium text-primary-600 hover:text-primary-500"
+              className="font-medium text-white hover:text-white/80 underline"
             >
               sign in to existing account
             </Link>
           </p>
         </div>
 
-        <div className="card">
+        <div className="card premium-glass-card text-gray-900 relative z-10">
           {/* OTP Verification Screen */}
           {otpSent ? (
             <div className="space-y-6">
