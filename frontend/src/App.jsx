@@ -62,6 +62,12 @@ function App() {
             <DashboardRouter />
           </ProtectedRoute>
         } />
+
+        <Route path="/myadminpage" element={
+          <ProtectedRoute requiredRole="admin">
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
         
         <Route path="/profile" element={
           <ProtectedRoute>
@@ -100,7 +106,7 @@ function DashboardRouter() {
     case 'delivery':
       return <DeliveryDashboard />;
     case 'admin':
-      return <AdminDashboard />;
+      return <Navigate to="/myadminpage" replace />;
     default:
       return <Navigate to="/login" />;
   }
