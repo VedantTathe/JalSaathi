@@ -10,7 +10,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import DashboardLayout from '../../components/DashboardLayout.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
-import { userApi, addressApi, orderApi } from '../../services/api';
+import { authApi, userApi, addressApi, orderApi } from '../../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
@@ -253,6 +253,29 @@ const CustomerDashboard = () => {
     try {
       console.log('Starting Razorpay checkout for order:', orderId);
 
+      // Resolve phone: auth context → localStorage backup → fresh profile fetch
+      let freshPhone = user?.phone || '';
+
+      // Fallback 1: localStorage user object (set during OTP login)
+      if (!freshPhone) {
+        try {
+          const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+          freshPhone = localUser?.phone || '';
+        } catch (_) {}
+      }
+
+      // Fallback 2: fresh profile API call
+      if (!freshPhone) {
+        try {
+          const profileRes = await authApi.getProfile();
+          // axios interceptor unwraps to response.data, so profileRes = { success, data: { phone, ... } }
+          freshPhone = profileRes?.data?.phone || profileRes?.phone || '';
+          console.log('Fetched fresh profile phone:', freshPhone);
+        } catch (profileErr) {
+          console.warn('Could not fetch fresh profile:', profileErr);
+        }
+      }
+
       const res = await orderApi.createPayment(orderId);
       console.log('Payment order response:', res);
 
@@ -266,6 +289,12 @@ const CustomerDashboard = () => {
         return false;
       }
       console.log('Razorpay SDK loaded successfully');
+
+      // Normalize phone to 10 digits for Razorpay
+      const normalizePhone = (raw) => {
+        const digits = (raw || '').toString().replace(/\D/g, '');
+        return digits.length >= 10 ? digits.slice(-10) : digits;
+      };
 
       return await new Promise((resolve, reject) => {
         const options = {
@@ -293,12 +322,7 @@ const CustomerDashboard = () => {
           prefill: {
             name: user?.name || '',
             email: user?.email || '',
-            contact: (() => {
-              const raw = (user?.phone || '').toString().trim();
-              // Strip leading + or country code, keep last 10 digits
-              const digits = raw.replace(/\D/g, ''); // remove non-digits
-              return digits.length >= 10 ? digits.slice(-10) : raw;
-            })()
+            contact: normalizePhone(freshPhone)
           },
           config: {
             display: {

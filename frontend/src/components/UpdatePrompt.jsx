@@ -4,6 +4,9 @@ import { RefreshCw, X } from 'lucide-react';
 
 const DISMISSED_KEY = 'pwa_update_dismissed_sw_version';
 
+// Keys in localStorage that must survive an update (keeps user logged in)
+const PRESERVE_KEYS = ['jalsaathi_token', 'user'];
+
 const UpdatePrompt = () => {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -26,9 +29,30 @@ const UpdatePrompt = () => {
     setNeedRefresh(false);
   };
 
-  const handleUpdate = () => {
-    // Clear dismissed flag so after reload fresh state is used
-    sessionStorage.removeItem(DISMISSED_KEY);
+  const handleUpdate = async () => {
+    // 1. Save auth data we want to keep
+    const preserved = {};
+    PRESERVE_KEYS.forEach((key) => {
+      const val = localStorage.getItem(key);
+      if (val) preserved[key] = val;
+    });
+
+    // 2. Clear ALL caches so new SW serves fresh assets
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((name) => caches.delete(name)));
+    }
+
+    // 3. Clear sessionStorage (stale UI state)
+    sessionStorage.clear();
+
+    // 4. Clear localStorage entirely then restore auth keys
+    localStorage.clear();
+    PRESERVE_KEYS.forEach((key) => {
+      if (preserved[key]) localStorage.setItem(key, preserved[key]);
+    });
+
+    // 5. Activate new SW and reload
     updateServiceWorker(true);
   };
 
@@ -49,9 +73,9 @@ const UpdatePrompt = () => {
             <RefreshCw className="h-6 w-6" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 text-lg">Update Available</h3>
+            <h3 className="font-bold text-gray-900 text-lg">Quick Update ⚡</h3>
             <p className="text-gray-600 text-sm mt-1">
-              A new version of JalSaathi is ready. Click "Update Now" to get the latest features and bug fixes.
+              Done in seconds — you'll stay logged in. Tap to get the latest improvements.
             </p>
           </div>
         </div>
