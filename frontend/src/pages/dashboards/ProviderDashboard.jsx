@@ -34,7 +34,7 @@ L.Icon.Default.mergeOptions({
 const ProviderDashboard = () => {
   const queryClient = useQueryClient();
   const [activePage, setActivePage] = useState('dashboard');
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(false);
 
   // Fetch data
   const { data: ordersData, isLoading: ordersLoading } = useQuery('provider-orders', () => providerApi.getOrders());
