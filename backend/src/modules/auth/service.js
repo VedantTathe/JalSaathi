@@ -57,7 +57,6 @@ class AuthService {
       // Generate OTP
       console.log('🔢 Generating OTP...');
       const otp = tempUser.generateOTP();
-      console.log(`   OTP generated: ${otp}`);
       
       // Save temporary user
       console.log('💾 Saving user to database...');

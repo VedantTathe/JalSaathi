@@ -145,14 +145,8 @@ userSchema.methods.verifyOTP = function(enteredOTP) {
 
   // Validate OTP format (must be 6 digits)
   if (!/^\d{6}$/.test(normalizedEntered)) {
-    console.log(`❌ Entered OTP has invalid format: "${normalizedEntered}"`);
+    console.log(`❌ Entered OTP has invalid format`);
     return false;
-  }
-
-  // --- ADDED TESTING BYPASS ---
-  if (process.env.TEST_MODE === 'true' && normalizedEntered === '000000') {
-    console.log(`✅ TEST MODE: Bypass OTP verification for: "${normalizedEntered}"`);
-    return true;
   }
 
   // Validate OTP exists
