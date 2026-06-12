@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { 
   ShoppingCart, Package, Droplets, MapPin,
   Clock, CheckCircle, Truck, Filter, Star, Phone, Plus,
-  Edit2, Trash2, Home as HomeIcon, X, Briefcase, MapPinned
+  Edit2, Trash2, Home as HomeIcon, X, Briefcase, MapPinned, Download, Smartphone
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -40,6 +40,50 @@ const CustomerDashboard = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activePage, setActivePage] = useState('dashboard');
+
+  // PWA install prompt
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [installDismissed, setInstallDismissed] = useState(
+    () => sessionStorage.getItem('pwa_install_dismissed') === 'true'
+  );
+  // Detect if already running as installed PWA (standalone mode)
+  const isAppInstalled = window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        try { await authApi.updateAddToHomeScreenStatus(); } catch (_) {}
+      }
+      setDeferredPrompt(null);
+      setInstallDismissed(true);
+      sessionStorage.setItem('pwa_install_dismissed', 'true');
+    } else {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIOS) {
+        toast('Tap the Share button ↑ and select "Add to Home Screen"', { duration: 5000 });
+      } else {
+        toast('Open this page in your browser to install the app', { duration: 3000 });
+      }
+    }
+  };
+
+  const handleDismissInstall = () => {
+    setInstallDismissed(true);
+    sessionStorage.setItem('pwa_install_dismissed', 'true');
+  };
+
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   
@@ -651,6 +695,37 @@ const CustomerDashboard = () => {
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
           <div className="absolute bottom-0 right-0 w-48 h-48 bg-white/5 rounded-full -mb-24 -mr-24"></div>
         </div>
+
+        {/* Install App Banner — hidden if already installed or dismissed */}
+        {!isAppInstalled && !installDismissed && (
+          <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-primary-50 border border-primary-200 rounded-xl px-4 py-3 mb-6 gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="bg-primary-100 p-2 rounded-lg flex-shrink-0">
+                <Smartphone className="h-5 w-5 text-primary-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900">Install JalSaathi App</p>
+                <p className="text-xs text-gray-500 truncate">Quick access &amp; works offline</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleInstallApp}
+                className="inline-flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Install
+              </button>
+              <button
+                onClick={handleDismissInstall}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Search and Filters - Swiggy Style */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 mb-6">
