@@ -392,13 +392,27 @@ const CustomerDashboard = () => {
           },
           theme: {
             color: '#3B82F6'
+          },
+          modal: {
+            ondismiss: async function() {
+              toast.error('Payment cancelled.');
+              try {
+                await orderApi.failPayment(orderId);
+                queryClient.invalidateQueries('customer-orders');
+              } catch(e) {}
+              resolve(false);
+            }
           }
         };
 
         const rzp1 = new window.Razorpay(options);
-        rzp1.on('payment.failed', function (response){
+        rzp1.on('payment.failed', async function (response){
           console.error('Payment failed', response.error);
           toast.error('Payment failed: ' + response.error.description);
+          try {
+            await orderApi.failPayment(orderId);
+            queryClient.invalidateQueries('customer-orders');
+          } catch(e) {}
           resolve(false);
         });
         rzp1.open();
@@ -1051,9 +1065,9 @@ const CustomerDashboard = () => {
                                 await queryClient.invalidateQueries('customer-orders', { refetchActive: true });
                                 toast.error('Payment failed.');
                               } else {
-                                // Still pending - just refresh, let cron job handle auto-fail after 5 seconds
+                                // Still pending - just refresh
                                 await queryClient.invalidateQueries('customer-orders', { refetchActive: true });
-                                toast('Payment still pending. Will auto-cancel in 5 seconds if not completed.');
+                                toast('Payment still pending. Please wait or try again.');
                               }
                             } catch (e) {
                               console.error('Refresh payment error:', e);
