@@ -1427,6 +1427,15 @@ const CustomerDashboard = () => {
                     return;
                   }
 
+                  // Demo warning confirmation
+                  const isConfirmed = window.confirm(
+                    "⚠️ DEMO APPLICATION ⚠️\n\nThis is a demo application. Orders placed here will NOT actually be delivered. Are you sure you want to proceed?"
+                  );
+
+                  if (!isConfirmed) {
+                    return;
+                  }
+
                   placeOrderMutation.mutate({
                     ...orderForm,
                     providerId: selectedProvider._id
