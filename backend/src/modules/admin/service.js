@@ -414,10 +414,13 @@ class AdminService {
         return formatResponse(false, 'Cannot delete user with pending orders', null, 400);
       }
       
-      // Soft delete by deactivating
-      user.isActive = false;
-      user.email = `deleted_${user._id}_${user.email}`;
-      await user.save();
+      // If the user is a provider, delete the associated provider record
+      if (user.role === 'provider') {
+        await Provider.deleteOne({ userId: user._id });
+      }
+
+      // Hard delete the user
+      await User.deleteOne({ _id: userId });
       
       return formatResponse(true, 'User deleted successfully', null, 200);
       
