@@ -12,51 +12,53 @@ import {
   Mail,
   MapPin
 } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const Landing = () => {
+  const { t } = useLanguage();
   const features = [
     {
       icon: Droplets,
-      title: 'Easy Water Ordering',
-      description: 'Order water cans with just a few clicks. View nearby providers and transparent pricing.'
+      title: t('landing.feature1Title'),
+      description: t('landing.feature1Desc')
     },
     {
       icon: Truck,
-      title: 'Real-time Tracking',
-      description: 'Track your water delivery in real-time from order to doorstep delivery.'
+      title: t('landing.feature2Title'),
+      description: t('landing.feature2Desc')
     },
     {
       icon: Users,
-      title: 'Trusted Providers',
-      description: 'All water suppliers are verified and approved for quality and reliability.'
+      title: t('landing.feature3Title'),
+      description: t('landing.feature3Desc')
     },
     {
       icon: Shield,
-      title: 'Secure Payments',
-      description: 'Safe and secure payment options including cash on delivery and online payment.'
+      title: t('landing.feature4Title'),
+      description: t('landing.feature4Desc')
     }
   ];
 
   const howItWorks = [
     {
       step: 1,
-      title: 'Sign Up',
-      description: 'Create your JalSaathi account in just a few minutes'
+      title: t('landing.step1Title'),
+      description: t('landing.step1Desc')
     },
     {
       step: 2,
-      title: 'Find Providers',
-      description: 'Browse nearby water suppliers and their rates'
+      title: t('landing.step2Title'),
+      description: t('landing.step2Desc')
     },
     {
       step: 3,
-      title: 'Place Order',
-      description: 'Select quantity, choose payment method, and place order'
+      title: t('landing.step3Title'),
+      description: t('landing.step3Desc')
     },
     {
       step: 4,
-      title: 'Get Delivered',
-      description: 'Track your order and receive fresh water at your doorstep'
+      title: t('landing.step4Title'),
+      description: t('landing.step4Desc')
     }
   ];
 
@@ -70,25 +72,31 @@ const Landing = () => {
               <div className="flex items-center space-x-2 min-w-0">
                 <Droplets className="h-8 w-8 text-water-500 flex-shrink-0" />
                 <div className="min-w-0">
-                  <h1 className="text-xl font-bold text-gray-900 leading-tight">JalSaathi</h1>
-                  <p className="text-xs text-gray-500">Har Pyaas Ka Saathi</p>
+                  <h1 className="text-xl font-bold text-gray-900 leading-tight">{t('common.appName')}</h1>
+                  <p className="text-xs text-gray-500">{t('common.tagline')}</p>
                 </div>
               </div>
 
               <div className="hidden sm:flex items-center space-x-4">
-                <Link to="/about" className="text-gray-600 hover:text-gray-900">About</Link>
-                <Link to="/contact" className="text-gray-600 hover:text-gray-900">Contact</Link>
-                <Link to="/login" className="btn-outline">Sign In</Link>
+                <Link to="/about" className="text-gray-600 hover:text-gray-900">{t('common.about')}</Link>
+                <Link to="/contact" className="text-gray-600 hover:text-gray-900">{t('common.contact')}</Link>
+                <Link to="/register/provider" className="text-primary-600 font-medium hover:text-primary-700">{t('common.becomeProvider')}</Link>
+                <Link to="/login" className="btn-outline">{t('common.signIn')}</Link>
               </div>
 
-              <Link to="/login" className="sm:hidden inline-flex items-center justify-center border border-primary-500 text-primary-600 font-semibold rounded-xl px-4 py-2.5 whitespace-nowrap shadow-sm">
-                Sign In
-              </Link>
+              <div className="sm:hidden flex items-center space-x-2">
+                <Link to="/register/provider" className="text-xs text-primary-600 font-medium hover:text-primary-700 whitespace-nowrap">
+                  {t('common.becomeProvider')}
+                </Link>
+                <Link to="/login" className="inline-flex items-center justify-center border border-primary-500 text-primary-600 font-semibold rounded-xl px-3 py-2 whitespace-nowrap shadow-sm text-sm">
+                  {t('common.signIn')}
+                </Link>
+              </div>
             </div>
 
             <div className="sm:hidden mt-3 flex items-center gap-3">
-              <Link to="/about" className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">About</Link>
-              <Link to="/contact" className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">Contact</Link>
+              <Link to="/about" className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">{t('common.about')}</Link>
+              <Link to="/contact" className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">{t('common.contact')}</Link>
             </div>
           </div>
         </nav>
@@ -99,21 +107,20 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold font-display mb-4 sm:mb-6 animate-fade-in-up">
-              JalSaathi
+              {t('landing.heroTitle')}
             </h1>
             <h2 className="text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 animate-fade-in-up animation-delay-100">
-              Har Pyaas Ka Saathi
+              {t('landing.heroSubtitle')}
             </h2>
             <p className="text-base sm:text-lg md:text-xl mb-8 max-w-3xl mx-auto animate-fade-in-up animation-delay-200">
-              Your trusted partner for area-based water can delivery. Connect with local suppliers, 
-              track deliveries, and never run out of fresh drinking water again.
+              {t('landing.heroDesc')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-300">
               <Link to="/register/customer" className="btn-primary bg-white text-water-600 hover:bg-gray-100 text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto">
-                Order Water Now <ArrowRight className="h-5 w-5" />
+                {t('landing.orderNow')} <ArrowRight className="h-5 w-5" />
               </Link>
               <Link to="/register/provider" className="btn-outline border-white text-white hover:bg-white hover:text-water-600 text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto">
-                Become a Provider
+                {t('common.becomeProvider')}
               </Link>
             </div>
           </div>
@@ -125,10 +132,10 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-gray-900 mb-4">
-              Why Choose JalSaathi?
+              {t('landing.whyChoose')}
             </h2>
             <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
-              We make water delivery simple, reliable, and transparent for everyone in your area.
+              {t('landing.whyChooseDesc')}
             </p>
           </div>
           
@@ -151,10 +158,10 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-gray-900 mb-4">
-              How It Works
+              {t('landing.howItWorks')}
             </h2>
             <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
-              Getting fresh water delivered is as easy as 1-2-3-4
+              {t('landing.howItWorksDesc')}
             </p>
           </div>
           
@@ -178,15 +185,15 @@ const Landing = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 text-center">
             <div className="animate-fade-in-up">
               <div className="text-4xl md:text-5xl font-bold mb-2">1000+</div>
-              <div className="text-lg">Happy Customers</div>
+              <div className="text-lg">{t('landing.stats1Label')}</div>
             </div>
             <div className="animate-fade-in-up animation-delay-100">
               <div className="text-4xl md:text-5xl font-bold mb-2">50+</div>
-              <div className="text-lg">Trusted Providers</div>
+              <div className="text-lg">{t('landing.stats2Label')}</div>
             </div>
             <div className="animate-fade-in-up animation-delay-200">
               <div className="text-4xl md:text-5xl font-bold mb-2">5000+</div>
-              <div className="text-lg">Orders Delivered</div>
+              <div className="text-lg">{t('landing.stats3Label')}</div>
             </div>
           </div>
         </div>
@@ -196,14 +203,14 @@ const Landing = () => {
       <section className="py-14 sm:py-20 bg-white">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-gray-900 mb-4">
-            Ready to Never Run Out of Water Again?
+            {t('landing.ctaTitle')}
           </h2>
           <p className="text-base sm:text-lg text-gray-600 mb-8">
-            Join thousands of satisfied customers who trust JalSaathi for their daily water needs.
+            {t('landing.ctaDesc')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/register" className="btn-primary text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto">
-              Start Ordering <ArrowRight className="h-5 w-5" />
+              {t('landing.startOrdering')} <ArrowRight className="h-5 w-5" />
             </Link>
           </div>
         </div>
@@ -217,27 +224,27 @@ const Landing = () => {
               <div className="flex items-center justify-center md:justify-start space-x-2 mb-4">
                 <Droplets className="h-8 w-8 text-water-400" />
                 <div>
-                  <h3 className="text-xl font-bold">JalSaathi</h3>
-                  <p className="text-sm text-gray-400">Har Pyaas Ka Saathi</p>
+                  <h3 className="text-xl font-bold">{t('common.appName')}</h3>
+                  <p className="text-sm text-gray-400">{t('common.tagline')}</p>
                 </div>
               </div>
               <p className="text-gray-300">
-                Making water delivery simple, reliable, and accessible for everyone in your area.
+                {t('landing.whyChooseDesc')}
               </p>
             </div>
             
             <div>
-              <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
+              <h4 className="text-lg font-semibold mb-4">{t('landing.quickLinks')}</h4>
               <ul className="space-y-2">
-                <li><Link to="/about" className="text-gray-300 hover:text-white">About Us</Link></li>
-                <li><Link to="/contact" className="text-gray-300 hover:text-white">Contact</Link></li>
-                <li><Link to="/register" className="text-gray-300 hover:text-white">Sign Up</Link></li>
-                <li><Link to="/login" className="text-gray-300 hover:text-white">Sign In</Link></li>
+                <li><Link to="/about" className="text-gray-300 hover:text-white">{t('common.about')}</Link></li>
+                <li><Link to="/contact" className="text-gray-300 hover:text-white">{t('common.contact')}</Link></li>
+                <li><Link to="/register" className="text-gray-300 hover:text-white">{t('landing.step1Title')}</Link></li>
+                <li><Link to="/login" className="text-gray-300 hover:text-white">{t('common.signIn')}</Link></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="text-lg font-semibold mb-4">Contact Info</h4>
+              <h4 className="text-lg font-semibold mb-4">{t('landing.contactInfo')}</h4>
               <div className="space-y-2">
                 <div className="flex items-center justify-center md:justify-start space-x-2">
                   <Phone className="h-4 w-4" />
@@ -249,7 +256,7 @@ const Landing = () => {
                 </div>
                 <div className="flex items-center justify-center md:justify-start space-x-2">
                   <MapPin className="h-4 w-4" />
-                  <span className="text-gray-300">Available Pan-India</span>
+                  <span className="text-gray-300">{t('landing.panIndia')}</span>
                 </div>
               </div>
             </div>
@@ -257,7 +264,7 @@ const Landing = () => {
           
           <div className="mt-8 pt-8 border-t border-gray-800 text-center">
             <p className="text-gray-400">
-              © 2024 JalSaathi. All rights reserved. Built with ❤️ for better water delivery.
+              {t('landing.footerText')}
             </p>
           </div>
         </div>
