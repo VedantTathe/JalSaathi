@@ -210,6 +210,7 @@ const sendOTPEmail = async (email, otp, name = 'User') => {
               </div>
               
               <p><strong>This OTP is valid for 10 minutes.</strong></p>
+              <p><strong>Note:</strong> Please also check your spam folder for OTPs.</p>
               <p>If you didn't request this verification, please ignore this email.</p>
               
               <p>Best regards,<br>JalSaathi Team</p>
@@ -320,6 +321,7 @@ const sendLoginOTPEmail = async (email, otp, name = 'User') => {
               </div>
               
               <p><strong>This OTP is valid for 10 minutes.</strong></p>
+              <p><strong>Note:</strong> Please also check your spam folder for OTPs.</p>
               
               <div class="warning">
                 <strong>⚠️ Security Notice:</strong> If you didn't request this login OTP, please ignore this email and ensure your account is secure.
@@ -534,6 +536,7 @@ const sendPasswordResetOTPEmail = async (email, otp, name = 'User') => {
             </div>
             
             <p><strong>This OTP is valid for 10 minutes.</strong></p>
+            <p><strong>Note:</strong> Please also check your spam folder for OTPs.</p>
             
             <div class="warning">
               <strong>⚠️ Security Notice:</strong><br>

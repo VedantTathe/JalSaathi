@@ -301,7 +301,7 @@ const Login = () => {
                       autoFocus
                     />
                     <p className="mt-2 text-sm text-gray-500">
-                      Check your inbox for the 6-digit code
+                      Check your inbox for the 6-digit code. <span className="font-medium text-primary-600">Please also check your spam folder.</span>
                     </p>
                   </div>
 

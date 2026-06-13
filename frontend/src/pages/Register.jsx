@@ -221,11 +221,6 @@ const Register = () => {
         }
         regData.serviceRadius = parseFloat(serviceRadius);
         
-        // Format minimumOrder as number
-        if (regData.minimumOrder) {
-          regData.minimumOrder = parseInt(regData.minimumOrder);
-        }
-        
         // Ensure operatingHours has default values if not provided
         if (!regData.operatingHours) {
           regData.operatingHours = { open: '08:00', close: '20:00' };
@@ -345,14 +340,14 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen gradient-water py-8 sm:py-12 px-4 sm:px-6 lg:px-8 text-white relative">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative">
       {/* Top right actions */}
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center space-x-3 z-50">
         <LanguageToggle />
         {role !== 'provider' && selectedRole !== 'provider' && (
           <Link 
             to="/register/provider"
-            className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-600 bg-white hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
           >
             Become a Provider
           </Link>
@@ -363,7 +358,7 @@ const Register = () => {
         {/* Back to home link */}
         <Link 
           to="/" 
-          className="inline-flex items-center text-sm text-white/80 hover:text-white mb-6"
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 mb-6 transition-colors"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Home
@@ -371,28 +366,28 @@ const Register = () => {
 
         {/* Logo and title */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center space-x-2 mb-4 bg-white/20 p-3 rounded-full backdrop-blur-sm">
-            <Droplets className="h-8 w-8 text-white" />
+          <div className="flex items-center space-x-2 mb-4 bg-primary-50 p-3 rounded-full">
+            <Droplets className="h-8 w-8 text-primary-600" />
             <div>
-              <h1 className="text-2xl font-bold text-white">{t('common.appName')}</h1>
-              <p className="text-sm text-white/80">{t('common.tagline')}</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t('common.appName')}</h1>
+              <p className="text-sm text-gray-500">{t('common.tagline')}</p>
             </div>
           </div>
-          <h2 className="text-center text-2xl sm:text-3xl font-bold text-white px-2">
+          <h2 className="text-center text-2xl sm:text-3xl font-bold text-gray-900 px-2 tracking-tight">
             {role === 'provider' ? t('auth.becomeProvider') : role === 'customer' ? t('auth.createCustomerAccount') : t('auth.createAccount')}
           </h2>
-          <p className="mt-2 text-center text-sm text-white/80">
+          <p className="mt-2 text-center text-sm text-gray-600">
             {t('auth.or')}{' '}
             <Link
               to="/login"
-              className="font-medium text-white hover:text-white/80 underline"
+              className="font-medium text-primary-600 hover:text-primary-500 transition-colors underline"
             >
               {t('auth.signInExisting')}
             </Link>
           </p>
         </div>
 
-        <div className="card premium-glass-card text-gray-900 relative z-10">
+        <div className="bg-white py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-gray-100 relative z-10">
           {/* OTP Verification Screen */}
           {otpSent ? (
             <div className="space-y-6">
@@ -422,7 +417,7 @@ const Register = () => {
                     required
                   />
                   <p className="mt-2 text-sm text-gray-500">
-                    OTP is valid for 10 minutes
+                    OTP is valid for 10 minutes. <span className="font-medium text-primary-600">Please also check your spam folder.</span>
                   </p>
                 </div>
 
@@ -758,45 +753,24 @@ const Register = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="form-group">
-                    <label htmlFor="serviceRadius" className="form-label">
-                      {t('auth.deliveryRadius')}
-                    </label>
-                    <input
-                      id="serviceRadius"
-                      type="number"
-                      min="1"
-                      max="50"
-                      step="1"
-                      value={serviceRadius}
-                      onChange={(e) => setServiceRadius(e.target.value)}
-                      className="input-field"
-                      placeholder="Enter delivery radius"
-                    />
-                    <p className="text-sm text-gray-600 mt-1">
-                      How far from your location will you deliver? (1-50 km)
-                    </p>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="minimumOrder" className="form-label">
-                      {t('auth.minimumOrder')}
-                    </label>
-                    <input
-                      id="minimumOrder"
-                      type="number"
-                      min="1"
-                      step="1"
-                      defaultValue="1"
-                      className="input-field"
-                      placeholder="Minimum order quantity"
-                      {...register('minimumOrder')}
-                    />
-                    <p className="text-sm text-gray-600 mt-1">
-                      Minimum number of cans per order
-                    </p>
-                  </div>
+                <div className="form-group mb-6">
+                  <label htmlFor="serviceRadius" className="form-label">
+                    {t('auth.deliveryRadius')}
+                  </label>
+                  <input
+                    id="serviceRadius"
+                    type="number"
+                    min="1"
+                    max="50"
+                    step="1"
+                    value={serviceRadius}
+                    onChange={(e) => setServiceRadius(e.target.value)}
+                    className="input-field"
+                    placeholder="Enter delivery radius"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    How far from your location will you deliver? (1-50 km)
+                  </p>
                 </div>
 
                 {/* Operating Hours */}

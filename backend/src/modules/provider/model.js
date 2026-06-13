@@ -123,7 +123,7 @@ const providerSchema = new mongoose.Schema({
   },
   isApproved: {
     type: Boolean,
-    default: true  // Auto-approve for MVP - change to false for production with admin approval
+    default: false  // Changed to false for production with admin approval
   },
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,

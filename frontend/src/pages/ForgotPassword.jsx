@@ -263,7 +263,7 @@ const ForgotPassword = () => {
                   required
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  OTP is valid for 10 minutes
+                  OTP is valid for 10 minutes. <span className="font-medium text-primary-600">Please also check your spam folder.</span>
                 </p>
               </div>
 
