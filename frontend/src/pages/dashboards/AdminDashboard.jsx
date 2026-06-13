@@ -21,7 +21,8 @@ import {
   Download,
   CreditCard,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Trash2
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -497,6 +498,21 @@ const ProvidersManagement = () => {
     }
   );
 
+  const deleteProviderMutation = useMutation(
+    (userId) => adminApi.deleteUser(userId),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('all-providers');
+        queryClient.invalidateQueries('admin-dashboard');
+        queryClient.invalidateQueries('pending-providers');
+        toast.success('Provider deleted successfully!');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to delete provider');
+      }
+    }
+  );
+
   const toggleProvider = (providerId) => {
     const newExpanded = new Set(expandedProviders);
     if (newExpanded.has(providerId)) {
@@ -566,6 +582,12 @@ const ProvidersManagement = () => {
               onViewDetails={() => setSelectedProvider(provider)}
               onApprove={() => approveProviderMutation.mutate(provider._id)}
               isApproving={approveProviderMutation.isLoading}
+              onDelete={() => {
+                if (window.confirm('Are you sure you want to delete this provider? This action cannot be undone.')) {
+                  deleteProviderMutation.mutate(provider.userId?._id);
+                }
+              }}
+              isDeleting={deleteProviderMutation.isLoading}
             />
           ))}
         </div>
@@ -587,7 +609,7 @@ const ProvidersManagement = () => {
   );
 };
 
-const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails, onApprove, isApproving }) => {
+const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails, onApprove, isApproving, onDelete, isDeleting }) => {
   const { data: providerData, isLoading } = useQuery(
     ['provider-orders', provider._id],
     () => adminApi.getProviderById(provider._id),
@@ -670,6 +692,14 @@ const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails,
             >
               <Eye className="h-4 w-4" />
               <span>Full Details</span>
+            </button>
+            <button
+              onClick={onDelete}
+              disabled={isDeleting}
+              className="px-4 py-2 bg-error-100 text-error-700 border border-error-200 rounded-lg text-sm font-medium hover:bg-error-200 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
             </button>
           </div>
         </div>
