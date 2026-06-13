@@ -5,6 +5,7 @@ import { Eye, EyeOff, Droplets, ArrowLeft, Mail, Key, Phone } from 'lucide-react
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LanguageToggle from '../components/LanguageToggle';
+import { useLanguage } from '../contexts/LanguageContext';
 import api from '../services/api';
 
 const Login = () => {
@@ -19,6 +20,7 @@ const Login = () => {
   const [otpError, setOtpError] = useState('');
   const [otpSuccess, setOtpSuccess] = useState('');
   const { login, user, updateUser } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   // Redirect to dashboard when user is logged in
@@ -148,13 +150,13 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen gradient-water flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative">
       {/* Top right actions */}
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center space-x-3">
         <LanguageToggle />
         <Link 
           to="/register/provider"
-          className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-600 bg-white hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
         >
           Become a Provider
         </Link>
@@ -164,7 +166,7 @@ const Login = () => {
         {/* Back to home link */}
         <Link
           to="/"
-          className="inline-flex items-center text-sm text-white/80 hover:text-white mb-6"
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 mb-6 transition-colors"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Home
@@ -172,30 +174,30 @@ const Login = () => {
 
         {/* Logo and title */}
         <div className="flex flex-col items-center">
-          <div className="flex items-center space-x-2 mb-4 bg-white/20 p-3 rounded-full backdrop-blur-sm">
-            <Droplets className="h-8 w-8 text-white" />
+          <div className="flex items-center space-x-2 mb-4 bg-primary-50 p-3 rounded-full">
+            <Droplets className="h-8 w-8 text-primary-600" />
             <div>
-              <h1 className="text-2xl font-bold text-white">JalSaathi</h1>
-              <p className="text-sm text-white/80">Har Pyaas Ka Saathi</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t('common.appName')}</h1>
+              <p className="text-sm text-gray-500">{t('common.tagline')}</p>
             </div>
           </div>
-          <h2 className="text-center text-2xl sm:text-3xl font-bold text-white">
-            Sign in to your account
+          <h2 className="text-center text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+            {t('auth.signInToAccount')}
           </h2>
-          <p className="mt-2 text-center text-sm text-white/80">
-            Or{' '}
+          <p className="mt-2 text-center text-sm text-gray-600">
+            {t('auth.or')}{' '}
             <Link
               to="/register/customer"
-              className="font-medium text-white hover:text-white/80 underline"
+              className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
             >
-              create a new account
+              {t('auth.createNewAccount')}
             </Link>
           </p>
         </div>
       </div>
 
       <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md w-full relative z-10">
-        <div className="card premium-glass-card">
+        <div className="bg-white py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-gray-100">
           {/* Login Method Toggle */}
           <div className="mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-100 p-1 rounded-lg">
@@ -209,7 +211,7 @@ const Login = () => {
                 }`}
               >
                 <Mail className="h-4 w-4 mr-2" />
-                With OTP
+                {t('auth.withOtp')}
               </button>
               <button
                 type="button"
@@ -221,7 +223,7 @@ const Login = () => {
                 }`}
               >
                 <Key className="h-4 w-4 mr-2" />
-                With Password
+                {t('auth.withPassword')}
               </button>
             </div>
           </div>
@@ -234,7 +236,7 @@ const Login = () => {
                   {/* Email */}
                   <div className="form-group">
                     <label htmlFor="otp-email" className="form-label">
-                      Email Address
+                      {t('auth.emailAddress')}
                     </label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -268,7 +270,7 @@ const Login = () => {
                         Sending OTP...
                       </>
                     ) : (
-                      'Send OTP to Email'
+                      t('auth.sendOtp')
                     )}
                   </button>
                 </form>
@@ -285,7 +287,7 @@ const Login = () => {
 
                   <div className="form-group">
                     <label htmlFor="otp-code" className="form-label">
-                      Enter OTP
+                      {t('auth.enterOtp')}
                     </label>
                     <input
                       id="otp-code"
@@ -327,7 +329,7 @@ const Login = () => {
                           Verifying...
                         </>
                       ) : (
-                        'Verify & Login'
+                        t('auth.verifyLogin')
                       )}
                     </button>
 
@@ -337,7 +339,7 @@ const Login = () => {
                       disabled={otpLoading}
                       className="w-full text-sm text-primary-600 hover:text-primary-500 font-medium py-2"
                     >
-                      Resend OTP
+                      {t('auth.resendOtp')}
                     </button>
 
                     <button
@@ -350,7 +352,7 @@ const Login = () => {
                       }}
                       className="w-full text-sm text-gray-600 hover:text-gray-900 py-2"
                     >
-                      ← Change email / mobile
+                      ← {t('auth.changeEmailMobile')}
                     </button>
                   </div>
                 </form>
@@ -364,7 +366,7 @@ const Login = () => {
               {/* Email */}
               <div className="form-group">
                 <label htmlFor="email" className="form-label">
-                  Email address
+                  {t('auth.emailAddress')}
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -391,7 +393,7 @@ const Login = () => {
               {/* Password */}
               <div className="form-group">
                 <label htmlFor="password" className="form-label">
-                  Password
+                  {t('auth.password')}
                 </label>
                 <div className="relative">
                   <input
@@ -435,7 +437,7 @@ const Login = () => {
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
                   <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                    Remember me
+                    {t('auth.rememberMe')}
                   </label>
                 </div>
 
@@ -444,7 +446,7 @@ const Login = () => {
                     to="/forgot-password"
                     className="font-medium text-primary-600 hover:text-primary-500"
                   >
-                    Forgot your password?
+                    {t('auth.forgotPassword')}
                   </Link>
                 </div>
               </div>
@@ -469,7 +471,7 @@ const Login = () => {
                       Signing in...
                     </>
                   ) : (
-                    'Sign in'
+                    t('auth.signIn')
                   )}
                 </button>
               </div>

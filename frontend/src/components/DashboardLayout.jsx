@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import AddToHomeScreenPrompt from './AddToHomeScreenPrompt';
 import LanguageToggle from './LanguageToggle';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const DashboardLayout = ({ children, activeTab, navigation }) => {
   const { user, logout } = useAuth();
@@ -17,6 +18,7 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
   const [showAddToHomeScreen, setShowAddToHomeScreen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     // Show popup only if user hasn't added to home screen and after a short delay
@@ -55,8 +57,8 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
           <Link to="/dashboard" className="flex items-center space-x-2">
             <Droplets className="h-8 w-8 text-water-500" />
             <div>
-              <h1 className="text-lg font-bold text-gray-900">JalSaathi</h1>
-              <p className="text-xs text-gray-500">Har Pyaas Ka Saathi</p>
+              <h1 className="text-lg font-bold text-gray-900">{t('common.appName')}</h1>
+              <p className="text-xs text-gray-500">{t('common.tagline')}</p>
             </div>
           </Link>
         </div>
@@ -123,7 +125,7 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
             className="w-full flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <LogOut className="h-5 w-5" />
-            <span>Sign Out</span>
+            <span>{t('auth.signOut')}</span>
           </button>
         </div>
       </div>
@@ -137,7 +139,7 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
             <Link to="/dashboard" className="flex items-center space-x-2 lg:hidden">
               <Droplets className="h-7 w-7 text-water-500" />
               <div>
-                <h1 className="text-base font-bold text-gray-900">JalSaathi</h1>
+                <h1 className="text-base font-bold text-gray-900">{t('common.appName')}</h1>
               </div>
             </Link>
 
@@ -225,7 +227,7 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
               className="flex flex-col items-center justify-start px-2 py-2 rounded-lg transition-all min-w-0 flex-1 text-gray-500 hover:text-error-600"
             >
               <LogOut className="h-6 w-6 mb-1" />
-              <span className="text-[11px] leading-tight font-medium text-center">Logout</span>
+              <span className="text-[11px] leading-tight font-medium text-center">{t('auth.signOut')}</span>
             </button>
           </div>
         </nav>

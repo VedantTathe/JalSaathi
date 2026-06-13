@@ -5,6 +5,7 @@ import { Eye, EyeOff, Droplets, ArrowLeft, Users, Store, Truck, Shield, MapPin, 
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LanguageToggle from '../components/LanguageToggle';
+import { useLanguage } from '../contexts/LanguageContext';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -25,6 +26,7 @@ const Register = () => {
   const [selectedRole, setSelectedRole] = useState(role || 'customer');
   const [loading, setLoading] = useState(false);
   const { register: registerUser, user, checkAuthStatus } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   
   // OTP verification states
@@ -372,20 +374,20 @@ const Register = () => {
           <div className="flex items-center space-x-2 mb-4 bg-white/20 p-3 rounded-full backdrop-blur-sm">
             <Droplets className="h-8 w-8 text-white" />
             <div>
-              <h1 className="text-2xl font-bold text-white">JalSaathi</h1>
-              <p className="text-sm text-white/80">Har Pyaas Ka Saathi</p>
+              <h1 className="text-2xl font-bold text-white">{t('common.appName')}</h1>
+              <p className="text-sm text-white/80">{t('common.tagline')}</p>
             </div>
           </div>
           <h2 className="text-center text-2xl sm:text-3xl font-bold text-white px-2">
-            {role === 'provider' ? 'Become a Provider' : role === 'customer' ? 'Create Customer Account' : 'Create your account'}
+            {role === 'provider' ? t('auth.becomeProvider') : role === 'customer' ? t('auth.createCustomerAccount') : t('auth.createAccount')}
           </h2>
           <p className="mt-2 text-center text-sm text-white/80">
-            Or{' '}
+            {t('auth.or')}{' '}
             <Link
               to="/login"
               className="font-medium text-white hover:text-white/80 underline"
             >
-              sign in to existing account
+              {t('auth.signInExisting')}
             </Link>
           </p>
         </div>
@@ -459,7 +461,7 @@ const Register = () => {
                       disabled={otpLoading}
                       className="text-primary-600 hover:text-primary-500 font-medium"
                     >
-                      Resend OTP
+                      {t('auth.resendOtp')}
                     </button>
                     <span className="hidden sm:inline text-gray-300">|</span>
                     <button
@@ -467,7 +469,7 @@ const Register = () => {
                       onClick={handleChangeEmail}
                       className="text-gray-600 hover:text-gray-900"
                     >
-                      Change Email
+                      {t('auth.changeEmailMobile')}
                     </button>
                   </div>
                 </div>
@@ -516,7 +518,7 @@ const Register = () => {
             {/* Name */}
             <div className="form-group">
               <label htmlFor="name" className="form-label">
-                Full Name
+                {t('auth.fullName')}
               </label>
               <input
                 id="name"
@@ -541,7 +543,7 @@ const Register = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="form-group">
                 <label htmlFor="email" className="form-label">
-                  Email address
+                  {t('auth.emailAddress')}
                 </label>
                 <input
                   id="email"
@@ -564,7 +566,7 @@ const Register = () => {
 
               <div className="form-group">
                 <label htmlFor="phone" className="form-label">
-                  Phone Number
+                  {t('auth.phoneNumber')}
                 </label>
                 <input
                   id="phone"
@@ -594,7 +596,7 @@ const Register = () => {
                   <label className="form-label flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <span className="flex items-center">
                       <MapPin className="h-4 w-4 mr-2" />
-                      Business Location (Optional)
+                      {t('auth.businessLocation')} (Optional)
                     </span>
                     <button
                       type="button"
@@ -636,7 +638,7 @@ const Register = () => {
                 {/* Address fields - SHOW AFTER MAP for providers */}
                 <div className="form-group">
                   <label htmlFor="street" className="form-label">
-                    Street Address
+                    {t('auth.streetAddress')}
                   </label>
                   <input
                     id="street"
@@ -655,7 +657,7 @@ const Register = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="form-group">
                     <label htmlFor="area" className="form-label">
-                      Area
+                      {t('auth.area')}
                     </label>
                     <input
                       id="area"
@@ -673,7 +675,7 @@ const Register = () => {
 
                   <div className="form-group">
                     <label htmlFor="city" className="form-label">
-                      City
+                      {t('auth.city')}
                     </label>
                     <input
                       id="city"
@@ -691,7 +693,7 @@ const Register = () => {
 
                   <div className="form-group">
                     <label htmlFor="pincode" className="form-label">
-                      Pincode
+                      {t('auth.pincode')}
                     </label>
                     <input
                       id="pincode"
@@ -715,7 +717,7 @@ const Register = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="form-group">
                     <label htmlFor="businessName" className="form-label">
-                      Business Name
+                      {t('auth.businessName')}
                     </label>
                     <input
                       id="businessName"
@@ -733,7 +735,7 @@ const Register = () => {
 
                   <div className="form-group">
                     <label htmlFor="pricePerCan" className="form-label">
-                      Price per Can (Rs.)
+                      {t('auth.pricePerCan')}
                     </label>
                     <input
                       id="pricePerCan"
@@ -759,7 +761,7 @@ const Register = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="form-group">
                     <label htmlFor="serviceRadius" className="form-label">
-                      Delivery Radius (km)
+                      {t('auth.deliveryRadius')}
                     </label>
                     <input
                       id="serviceRadius"
@@ -779,7 +781,7 @@ const Register = () => {
 
                   <div className="form-group">
                     <label htmlFor="minimumOrder" className="form-label">
-                      Minimum Order (cans)
+                      {t('auth.minimumOrder')}
                     </label>
                     <input
                       id="minimumOrder"
