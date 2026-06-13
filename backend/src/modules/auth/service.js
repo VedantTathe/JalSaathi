@@ -442,7 +442,11 @@ class AuthService {
         user = await User.findOne({ phone: identifier }).select('+password');
       }
 
-      if (!user || !(await user.matchPassword(password))) {
+      if (!user) {
+        return formatResponse(false, 'No account found with this email', null, 404);
+      }
+
+      if (!(await user.matchPassword(password))) {
         return formatResponse(false, 'Invalid credentials', null, 401);
       }
 

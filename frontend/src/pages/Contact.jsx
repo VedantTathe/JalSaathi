@@ -30,7 +30,17 @@ const Contact = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
+      {/* Top right Become Provider button */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50">
+        <Link 
+          to="/register/provider"
+          className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-600 bg-white hover:bg-gray-50 transition-colors"
+        >
+          Become a Provider
+        </Link>
+      </div>
+
       {/* Header */}
       <div className="bg-gradient-to-r from-primary-600 to-water-600 text-white py-16">
         <div className="max-w-6xl mx-auto px-4">
