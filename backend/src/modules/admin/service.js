@@ -503,13 +503,14 @@ class AdminService {
   }
   
   // Complete settlement
-  static async completeSettlement(settlementId, transactionId, adminId, notes) {
+  static async completeSettlement(settlementId, transactionId, adminId, notes, amountPaid) {
     try {
       const settlement = await settlementService.completeSettlement(
         settlementId,
         transactionId,
         adminId,
-        notes
+        notes,
+        amountPaid
       );
       
       return formatResponse(true, 'Settlement completed successfully', settlement, 200);

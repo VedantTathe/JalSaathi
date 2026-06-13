@@ -1483,8 +1483,28 @@ const ProviderDetailsModal = ({ provider, onClose, onApprove, onReject }) => {
           <div>
             <h4 className="font-medium text-gray-900 mb-2">Business Hours</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-              <p>Opens: {provider.businessHours?.open || 'Not specified'}</p>
-              <p>Closes: {provider.businessHours?.close || 'Not specified'}</p>
+              <p>Opens: {provider.businessHours?.open || provider.operatingHours?.open || 'Not specified'}</p>
+              <p>Closes: {provider.businessHours?.close || provider.operatingHours?.close || 'Not specified'}</p>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-medium text-gray-900 mb-2">Bank & UPI Details</h4>
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <h5 className="font-medium text-gray-700 mb-1">Bank Account</h5>
+                  <p><span className="text-gray-500">Holder:</span> {provider.bankDetails?.accountHolder || 'N/A'}</p>
+                  <p><span className="text-gray-500">Bank:</span> {provider.bankDetails?.bankName || 'N/A'}</p>
+                  <p><span className="text-gray-500">A/C No:</span> {provider.bankDetails?.accountNumber || 'N/A'}</p>
+                  <p><span className="text-gray-500">IFSC:</span> {provider.bankDetails?.ifsc || 'N/A'}</p>
+                </div>
+                <div>
+                  <h5 className="font-medium text-gray-700 mb-1">UPI Details</h5>
+                  <p><span className="text-gray-500">UPI ID:</span> {provider.upiId || 'N/A'}</p>
+                  <p><span className="text-gray-500">UPI Number:</span> {provider.upiNumber || 'N/A'}</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1550,13 +1570,15 @@ const ProviderDetailsModal = ({ provider, onClose, onApprove, onReject }) => {
 const CompleteSettlementModal = ({ settlement, onClose, onComplete, isLoading }) => {
   const [transactionId, setTransactionId] = useState('');
   const [notes, setNotes] = useState('');
+  const [amountPaid, setAmountPaid] = useState(settlement.netAmount || '');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (transactionId.trim()) {
+    if (transactionId.trim() && amountPaid) {
       onComplete({
         transactionId: transactionId.trim(),
-        notes: notes.trim()
+        notes: notes.trim(),
+        amountPaid: Number(amountPaid)
       });
     }
   };
@@ -1582,24 +1604,43 @@ const CompleteSettlementModal = ({ settlement, onClose, onComplete, isLoading })
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Total Orders:</span>
-                <span className="font-medium">{settlement.totalOrders}</span>
+                <span className="text-gray-600">Online Orders:</span>
+                <span className="font-medium">{settlement.orderCount - (settlement.cashOrderCount || 0)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Total Amount:</span>
-                <span className="font-medium">{formatCurrency(settlement.totalAmount)}</span>
+                <span className="text-gray-600">Cash Orders:</span>
+                <span className="font-medium text-warning-600">{settlement.cashOrderCount || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Platform Fee:</span>
-                <span className="font-medium text-error-600">-{formatCurrency(settlement.platformFee)}</span>
+                <span className="text-gray-600">Total Online Amount:</span>
+                <span className="font-medium">{formatCurrency(settlement.amount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Total Cash Amount:</span>
+                <span className="font-medium text-warning-600">{formatCurrency(settlement.cashAmount || 0)}</span>
               </div>
               <div className="flex justify-between pt-2 border-t">
-                <span className="font-semibold">Net Amount:</span>
+                <span className="font-semibold">Settlement Net Amount (Online):</span>
                 <span className="font-bold text-success-600 text-lg">
                   {formatCurrency(settlement.netAmount)}
                 </span>
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Amount Paid <span className="text-error-500">*</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={amountPaid}
+              onChange={(e) => setAmountPaid(e.target.value)}
+              placeholder={`Enter amount (e.g. ${settlement.netAmount})`}
+              className="input-field w-full"
+              required
+            />
           </div>
 
           <div>
@@ -1641,7 +1682,7 @@ const CompleteSettlementModal = ({ settlement, onClose, onComplete, isLoading })
             <button
               type="submit"
               className="btn-success"
-              disabled={isLoading || !transactionId.trim()}
+              disabled={isLoading || !transactionId.trim() || !amountPaid}
             >
               {isLoading ? (
                 <LoadingSpinner size="small" />

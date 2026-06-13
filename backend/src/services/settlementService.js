@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const createSettlement = async (providerId, periodStart, periodEnd, processedBy) => {
   try {
     // Get all completed online paid orders for this provider in the period
-    const orders = await Order.find({
+    const onlineOrders = await Order.find({
       providerId,
       status: 'delivered',
       'timeline.delivered': {
@@ -18,12 +18,26 @@ const createSettlement = async (providerId, periodStart, periodEnd, processedBy)
       paymentStatus: 'paid'
     });
 
-    if (orders.length === 0) {
+    // Get cash orders for this provider in the period
+    const cashOrders = await Order.find({
+      providerId,
+      status: 'delivered',
+      'timeline.delivered': {
+        $gte: new Date(periodStart),
+        $lte: new Date(periodEnd)
+      },
+      paymentMethod: 'cash'
+    });
+
+    if (onlineOrders.length === 0 && cashOrders.length === 0) {
       throw new Error('No completed orders found for this period');
     }
 
-    // Calculate total amount
-    const totalAmount = orders.reduce((sum, order) => sum + (order.items?.totalPrice || 0), 0);
+    // Calculate total amount from online orders
+    const totalAmount = onlineOrders.reduce((sum, order) => sum + (order.items?.totalPrice || order.totalPrice || 0), 0);
+    
+    // Calculate total cash amount
+    const cashAmount = cashOrders.reduce((sum, order) => sum + (order.items?.totalPrice || order.totalPrice || 0), 0);
     
     // Calculate platform fee (5% default)
     const platformFee = totalAmount * 0.05;
@@ -62,11 +76,14 @@ const createSettlement = async (providerId, periodStart, periodEnd, processedBy)
       periodEnd: new Date(periodEnd),
       status: 'pending',
       paymentMethod,
-      orderIds: orders.map(order => order._id),
-      orderCount: orders.length,
+      orderIds: [...onlineOrders.map(order => order._id), ...cashOrders.map(order => order._id)],
+      orderCount: onlineOrders.length + cashOrders.length,
+      cashOrderCount: cashOrders.length,
+      cashAmount,
       platformFee,
       tax,
       netAmount,
+      amountPaid: 0,
       processedBy
     });
 
@@ -161,6 +178,10 @@ const updateSettlementStatus = async (settlementId, status, processedBy, data = 
       settlement.notes = data.notes;
     }
     
+    if (data.amountPaid !== undefined) {
+      settlement.amountPaid = Number(data.amountPaid);
+    }
+    
     if (data.paymentMethod) {
       settlement.paymentMethod = data.paymentMethod;
     }
@@ -182,13 +203,13 @@ const updateSettlementStatus = async (settlementId, status, processedBy, data = 
 };
 
 // Mark settlement as completed
-const completeSettlement = async (settlementId, transactionId, processedBy, notes) => {
+const completeSettlement = async (settlementId, transactionId, processedBy, notes, amountPaid) => {
   try {
     return await updateSettlementStatus(
       settlementId, 
       'completed', 
       processedBy, 
-      { transactionId, notes }
+      { transactionId, notes, amountPaid }
     );
   } catch (error) {
     throw error;

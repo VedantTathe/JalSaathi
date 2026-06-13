@@ -441,7 +441,7 @@ const updateSettlementStatus = asyncHandler(async (req, res) => {
 // Complete settlement
 const completeSettlement = asyncHandler(async (req, res) => {
   const { settlementId } = req.params;
-  const { transactionId, notes } = req.body;
+  const { transactionId, notes, amountPaid } = req.body;
   
   if (!transactionId) {
     return res.status(400).json({
@@ -454,7 +454,8 @@ const completeSettlement = asyncHandler(async (req, res) => {
     settlementId,
     transactionId,
     req.user._id,
-    notes
+    notes,
+    amountPaid
   );
   res.status(statusCode).json(response);
 });

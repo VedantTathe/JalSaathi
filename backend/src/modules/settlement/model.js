@@ -58,6 +58,18 @@ const settlementSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  amountPaid: {
+    type: Number,
+    default: 0
+  },
+  cashAmount: {
+    type: Number,
+    default: 0
+  },
+  cashOrderCount: {
+    type: Number,
+    default: 0
+  },
   notes: {
     type: String,
     maxlength: [500, 'Notes cannot exceed 500 characters']
