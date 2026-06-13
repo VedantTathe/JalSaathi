@@ -7,7 +7,6 @@ import './index.css';
 import App from './App.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { LanguageProvider } from './contexts/LanguageContext.jsx';
-import LanguageToggle from './components/LanguageToggle.jsx';
 
 // Create a React Query client
 const queryClient = new QueryClient({
@@ -28,7 +27,6 @@ root.render(
         <LanguageProvider>
           <AuthProvider>
             <App />
-            <LanguageToggle />
             <Toaster
               position="top-right"
               gutter={8}

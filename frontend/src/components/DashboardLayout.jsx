@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import AddToHomeScreenPrompt from './AddToHomeScreenPrompt';
+import LanguageToggle from './LanguageToggle';
 
 const DashboardLayout = ({ children, activeTab, navigation }) => {
   const { user, logout } = useAuth();
@@ -145,6 +146,8 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
 
             {/* User Info and Actions */}
             <div className="flex items-center space-x-3">
+              <LanguageToggle />
+              
               {/* Notifications */}
               <button className="text-gray-400 hover:text-gray-600 relative">
                 <Bell className="h-5 w-5 lg:h-6 lg:w-6" />

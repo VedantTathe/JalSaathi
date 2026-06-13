@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Droplets, Mail, Lock, Shield, CheckCircle } from 'lucide-react';
 import { authApi } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LanguageToggle from '../components/LanguageToggle';
 import toast from 'react-hot-toast';
 
 const ForgotPassword = () => {
@@ -140,8 +141,9 @@ const ForgotPassword = () => {
 
   return (
     <div className="min-h-screen gradient-water flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-white relative">
-      {/* Top right Become Provider button */}
-      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+      {/* Top right actions */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center space-x-3">
+        <LanguageToggle />
         <Link 
           to="/register/provider"
           className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-600 bg-white hover:bg-gray-50 transition-colors"

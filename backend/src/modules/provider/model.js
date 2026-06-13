@@ -175,7 +175,7 @@ providerSchema.virtual('isWithinOperatingHours').get(function() {
 
 // Virtual to determine if provider should accept orders
 providerSchema.virtual('isAcceptingOrders').get(function() {
-  return this.isOnline && this.isWithinOperatingHours;
+  return this.isOnline;
 });
 
 // Pre-save middleware to update monthly revenue

@@ -13,6 +13,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import LanguageToggle from '../components/LanguageToggle';
 
 const Landing = () => {
   const { t } = useLanguage();
@@ -82,9 +83,11 @@ const Landing = () => {
                 <Link to="/contact" className="text-gray-600 hover:text-gray-900">{t('common.contact')}</Link>
                 <Link to="/register/provider" className="text-primary-600 font-medium hover:text-primary-700">{t('common.becomeProvider')}</Link>
                 <Link to="/login" className="btn-outline">{t('common.signIn')}</Link>
+                <LanguageToggle />
               </div>
 
               <div className="sm:hidden flex items-center space-x-2">
+                <LanguageToggle />
                 <Link to="/register/provider" className="text-xs text-primary-600 font-medium hover:text-primary-700 whitespace-nowrap">
                   {t('common.becomeProvider')}
                 </Link>

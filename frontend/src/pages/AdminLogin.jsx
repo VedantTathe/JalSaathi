@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, ShieldCheck, Droplets, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LanguageToggle from '../components/LanguageToggle';
 
 const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -49,8 +50,9 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex relative">
-      {/* Top right Become Provider button */}
-      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50">
+      {/* Top right actions */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center space-x-3">
+        <LanguageToggle />
         <Link 
           to="/register/provider"
           className="inline-flex items-center justify-center px-4 py-2 border border-primary-200 rounded-md shadow-sm text-sm font-medium text-primary-600 bg-white hover:bg-gray-50 transition-colors"
