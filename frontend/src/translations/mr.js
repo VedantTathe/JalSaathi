@@ -1,4 +1,24 @@
 export const mr = {
+  nav: {
+    dashboardHome: 'डॅशबोर्ड',
+    home: 'होम',
+    myOrders: 'माझे ऑर्डर्स',
+    orders: 'ऑर्डर्स',
+    addressManagement: 'पत्ते व्यवस्थापन',
+    address: 'पत्ता',
+    myStore: 'माझे दुकान',
+    store: 'दुकान',
+    finances: 'आर्थिक',
+    deliveryBoys: 'डिलिव्हरी मुले',
+    delivery: 'डिलिव्हरी',
+    deliveryTracking: 'मार्ग ट्रॅकिंग',
+    route: 'मार्ग',
+    dashboard: 'डॅशबोर्ड',
+    assignedOrders: 'नेमलेले ऑर्डर्स',
+    stats: 'आकडेवारी',
+    customers: 'ग्राहक',
+    support: 'सपोर्ट'
+  },
   common: {
     appName: "जलसाथी",
     tagline: "हर प्यास का साथी (तुमच्या तहानेचा साथीदार)",

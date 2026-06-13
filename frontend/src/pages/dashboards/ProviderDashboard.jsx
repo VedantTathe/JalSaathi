@@ -49,7 +49,7 @@ const ProviderDashboard = () => {
     const p = profileData?.data;
     if (p) {
       // provider info may be nested or at top-level depending on API
-      const online = p.isOnline ?? p.provider?.isOnline;
+      const online = p.isOnline ?? p.provider?.isOnline ?? p.providerDetails?.isOnline;
       if (typeof online === 'boolean') setIsOnline(online);
     }
   }, [profileData]);

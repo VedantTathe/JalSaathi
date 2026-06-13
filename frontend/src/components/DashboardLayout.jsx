@@ -91,7 +91,7 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
                       className={`nav-link w-full text-left ${isActive ? 'nav-link-active' : ''}`}
                     >
                       <Icon className="h-5 w-5" />
-                      {item.name}
+                      {t(item.name)}
                       {item.badge && (
                         <span className="ml-auto bg-primary-100 text-primary-600 text-xs rounded-full px-2 py-1">
                           {item.badge}
@@ -104,7 +104,7 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
                       className={`nav-link ${isActive ? 'nav-link-active' : ''}`}
                     >
                       <Icon className="h-5 w-5" />
-                      {item.name}
+                      {t(item.name)}
                       {item.badge && (
                         <span className="ml-auto bg-primary-100 text-primary-600 text-xs rounded-full px-2 py-1">
                           {item.badge}
@@ -213,7 +213,7 @@ const DashboardLayout = ({ children, activeTab, navigation }) => {
                   <span className={`text-[11px] leading-tight font-medium text-center max-w-full ${
                     isActive ? 'text-primary-600' : ''
                   }`}>
-                    {mobileLabel}
+                    {t(mobileLabel)}
                   </span>
                   {isActive && (
                     <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary-600 rounded-full"></div>

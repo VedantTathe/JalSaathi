@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { 
   ShoppingCart, Package, Droplets, MapPin,
@@ -38,6 +39,7 @@ L.Icon.Default.mergeOptions({
 });
 
 const CustomerDashboard = () => {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activePage, setActivePage] = useState('dashboard');

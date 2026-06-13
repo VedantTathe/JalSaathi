@@ -1,4 +1,22 @@
 export const en = {
+  nav: {
+    dashboardHome: 'Dashboard Home',
+    home: 'Home',
+    myOrders: 'My Orders',
+    orders: 'Orders',
+    addressManagement: 'Address Management',
+    address: 'Address',
+    myStore: 'My Store',
+    store: 'Store',
+    finances: 'Finances',
+    deliveryBoys: 'Delivery Boys',
+    delivery: 'Delivery',
+    deliveryTracking: 'Delivery Tracking',
+    route: 'Route',
+    dashboard: 'Dashboard',
+    assignedOrders: 'Assigned Orders',
+    stats: 'Stats'
+  },
   common: {
     appName: "JalSaathi",
     tagline: "Har Pyaas Ka Saathi",
