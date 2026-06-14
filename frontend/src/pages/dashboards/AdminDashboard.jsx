@@ -471,6 +471,7 @@ const DashboardOverview = ({
 const ProvidersManagement = () => {
   const queryClient = useQueryClient();
   const [selectedProvider, setSelectedProvider] = useState(null);
+  const [providerToSettle, setProviderToSettle] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [expandedProviders, setExpandedProviders] = useState(new Set());
 
@@ -509,6 +510,22 @@ const ProvidersManagement = () => {
       },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Failed to delete provider');
+      }
+    }
+  );
+
+  const settleRemainingMutation = useMutation(
+    ({ providerId, data }) => adminApi.settleRemaining(providerId, data),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('all-providers');
+        queryClient.invalidateQueries('admin-dashboard');
+        queryClient.invalidateQueries('admin-settlements');
+        toast.success('Settlement completed successfully!');
+        setProviderToSettle(null);
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to complete settlement');
       }
     }
   );
@@ -588,6 +605,7 @@ const ProvidersManagement = () => {
                 }
               }}
               isDeleting={deleteProviderMutation.isLoading}
+              onSettle={() => setProviderToSettle(provider)}
             />
           ))}
         </div>
@@ -605,11 +623,20 @@ const ProvidersManagement = () => {
           onClose={() => setSelectedProvider(null)}
         />
       )}
+
+      {providerToSettle && (
+        <MakeAdhocSettlementModal
+          provider={providerToSettle}
+          onClose={() => setProviderToSettle(null)}
+          onSettle={(data) => settleRemainingMutation.mutate({ providerId: providerToSettle._id, data })}
+          isLoading={settleRemainingMutation.isLoading}
+        />
+      )}
     </div>
   );
 };
 
-const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails, onApprove, isApproving, onDelete, isDeleting }) => {
+const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails, onApprove, isApproving, onDelete, isDeleting, onSettle }) => {
   const { data: providerData, isLoading } = useQuery(
     ['provider-orders', provider._id],
     () => adminApi.getProviderById(provider._id),
@@ -649,6 +676,11 @@ const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails,
               <div className="bg-success-50 rounded-lg p-3">
                 <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
                 <p className="text-xl font-bold text-success-600">{formatCurrency(provider.totalRevenue || 0)}</p>
+              </div>
+
+              <div className="bg-warning-50 rounded-lg p-3">
+                <p className="text-xs text-warning-600 mb-1">Settlement Remaining</p>
+                <p className="text-xl font-bold text-warning-600">{formatCurrency(provider.settlementRemaining || 0)}</p>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-3">
@@ -693,6 +725,15 @@ const ProviderCardWithOrders = ({ provider, isExpanded, onToggle, onViewDetails,
               <Eye className="h-4 w-4" />
               <span>Full Details</span>
             </button>
+            {provider.settlementRemaining > 0 && (
+              <button
+                onClick={onSettle}
+                className="px-4 py-2 bg-warning-500 text-white border border-warning-600 rounded-lg text-sm font-medium hover:bg-warning-600 transition-colors flex items-center justify-center space-x-2"
+              >
+                <DollarSign className="h-4 w-4" />
+                <span>Make Settlement</span>
+              </button>
+            )}
             <button
               onClick={onDelete}
               disabled={isDeleting}
@@ -1638,6 +1679,117 @@ const CompleteSettlementModal = ({ settlement, onClose, onComplete, isLoading })
               value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
               placeholder={`Enter amount (e.g. ${settlement.netAmount})`}
+              className="input-field w-full"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Transaction ID <span className="text-error-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={transactionId}
+              onChange={(e) => setTransactionId(e.target.value)}
+              placeholder="Enter bank transaction ID"
+              className="input-field w-full"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notes (Optional)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any additional notes"
+              rows="3"
+              className="input-field w-full"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-secondary"
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-success"
+              disabled={isLoading || !transactionId.trim() || !amountPaid}
+            >
+              {isLoading ? (
+                <LoadingSpinner size="small" />
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Complete Settlement
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const MakeAdhocSettlementModal = ({ provider, onClose, onSettle, isLoading }) => {
+  const [transactionId, setTransactionId] = useState('');
+  const [notes, setNotes] = useState('');
+  const [amountPaid, setAmountPaid] = useState(provider.settlementRemaining || '');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (transactionId.trim() && amountPaid) {
+      onSettle({
+        transactionId: transactionId.trim(),
+        notes: notes.trim(),
+        amountPaid: Number(amountPaid)
+      });
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container max-w-lg" onClick={e => e.stopPropagation()}>
+        <div className="mb-6">
+          <h3 className="text-lg font-medium text-gray-900">Make Settlement</h3>
+          <p className="text-sm text-gray-600">
+            Settle remaining balance for {provider.businessName}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <h4 className="font-medium text-gray-900 mb-3">Settlement Details</h4>
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+              <div className="flex justify-between pt-2">
+                <span className="font-semibold">Remaining Settlement Amount:</span>
+                <span className="font-bold text-warning-600 text-lg">
+                  {formatCurrency(provider.settlementRemaining)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Amount Paid <span className="text-error-500">*</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={amountPaid}
+              onChange={(e) => setAmountPaid(e.target.value)}
+              placeholder={`Enter amount (e.g. ${provider.settlementRemaining})`}
               className="input-field w-full"
               required
             />

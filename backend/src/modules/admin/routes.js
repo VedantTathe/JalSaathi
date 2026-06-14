@@ -19,6 +19,7 @@ router.get('/providers/:providerId', adminController.getProviderById);
 router.patch('/providers/:providerId/approve', adminController.approveProvider);
 router.patch('/providers/:providerId/reject', adminController.rejectProvider);
 router.patch('/providers/:providerId/toggle-status', adminController.toggleProviderStatus);
+router.post('/providers/:providerId/settle-remaining', adminController.settleRemaining);
 
 // Order management
 router.get('/orders', adminController.getAllOrders);

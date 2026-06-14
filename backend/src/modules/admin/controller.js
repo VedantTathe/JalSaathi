@@ -466,6 +466,28 @@ const createMonthlySettlements = asyncHandler(async (req, res) => {
   res.status(statusCode).json(response);
 });
 
+// Ad-hoc Settle Remaining
+const settleRemaining = asyncHandler(async (req, res) => {
+  const { providerId } = req.params;
+  const { amountPaid, transactionId, notes } = req.body;
+  
+  if (!amountPaid) {
+    return res.status(400).json({
+      success: false,
+      message: 'Amount paid is required'
+    });
+  }
+  
+  const { response, statusCode } = await AdminService.settleRemaining(
+    providerId,
+    amountPaid,
+    transactionId,
+    notes,
+    req.user._id
+  );
+  res.status(statusCode).json(response);
+});
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -490,5 +512,6 @@ module.exports = {
   createSettlement,
   updateSettlementStatus,
   completeSettlement,
-  createMonthlySettlements
+  createMonthlySettlements,
+  settleRemaining
 };

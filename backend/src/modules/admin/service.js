@@ -135,14 +135,38 @@ class AdminService {
         providers.map(async (provider) => {
           const orderCount = await Order.countDocuments({ providerId: provider._id });
           const revenueResult = await Order.aggregate([
-            { $match: { providerId: provider._id, status: 'delivered' } },
+            { $match: { providerId: provider._id, status: 'delivered', paymentMethod: 'online', paymentStatus: 'paid' } },
             { $group: { _id: null, total: { $sum: '$items.totalPrice' } } }
           ]);
           
+          const totalOnlineRevenue = revenueResult[0]?.total || 0;
+          
+          // Calculate net platform earnings for this provider (after 5% platform fee + 18% GST on fee)
+          const platformFee = totalOnlineRevenue * 0.05;
+          const tax = platformFee * 0.18;
+          const totalEarnedFromPlatform = totalOnlineRevenue - platformFee - tax;
+          
+          const settledResult = await Settlement.aggregate([
+            { $match: { providerId: provider._id, status: 'completed' } },
+            { $group: { _id: null, totalPaid: { $sum: '$amountPaid' } } }
+          ]);
+          const totalSettled = settledResult[0]?.totalPaid || 0;
+          
+          const settlementRemaining = Math.max(0, totalEarnedFromPlatform - totalSettled);
+          
+          // Also get cash revenue for total revenue display
+          const cashRevenueResult = await Order.aggregate([
+            { $match: { providerId: provider._id, status: 'delivered', paymentMethod: 'cash' } },
+            { $group: { _id: null, total: { $sum: '$items.totalPrice' } } }
+          ]);
+          
+          const totalRevenue = totalOnlineRevenue + (cashRevenueResult[0]?.total || 0);
+
           return {
             ...provider.toObject(),
             orderCount,
-            totalRevenue: revenueResult[0]?.total || 0
+            totalRevenue,
+            settlementRemaining
           };
         })
       );
@@ -531,6 +555,48 @@ class AdminService {
     } catch (error) {
       console.error('Create monthly settlements error:', error);
       return formatResponse(false, error.message || 'Failed to create monthly settlements', null, 500);
+    }
+  }
+
+  // Ad-hoc Settle Remaining
+  static async settleRemaining(providerId, amountPaid, transactionId, notes, adminId) {
+    try {
+      // Find the last settlement end date
+      const lastSettlement = await Settlement.findOne({ providerId }).sort({ periodEnd: -1 });
+      const provider = await Provider.findById(providerId);
+      
+      let periodStart;
+      if (lastSettlement && lastSettlement.periodEnd) {
+        periodStart = new Date(lastSettlement.periodEnd);
+        periodStart.setSeconds(periodStart.getSeconds() + 1);
+      } else {
+        periodStart = provider.createdAt;
+      }
+      
+      const periodEnd = new Date();
+      
+      // Create a settlement for this period
+      const settlement = await settlementService.createSettlement(
+        providerId,
+        periodStart,
+        periodEnd,
+        adminId
+      );
+      
+      // Complete it immediately with the provided details
+      const completedSettlement = await settlementService.completeSettlement(
+        settlement._id,
+        transactionId || 'Adhoc Settlement',
+        adminId,
+        notes,
+        amountPaid
+      );
+      
+      return formatResponse(true, 'Settlement created and completed successfully', completedSettlement, 200);
+      
+    } catch (error) {
+      console.error('Settle remaining error:', error);
+      return formatResponse(false, error.message || 'Failed to settle remaining amount', null, 500);
     }
   }
 }

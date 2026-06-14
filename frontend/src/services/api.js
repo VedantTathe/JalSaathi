@@ -206,6 +206,7 @@ export const adminApi = {
   updateSettlementStatus: (settlementId, data) => apiClient.patch(`/admin/settlements/${settlementId}/status`, data),
   completeSettlement: (settlementId, data) => apiClient.post(`/admin/settlements/${settlementId}/complete`, data),
   createMonthlySettlements: () => apiClient.post('/admin/settlements/create-monthly'),
+  settleRemaining: (providerId, data) => apiClient.post(`/admin/providers/${providerId}/settle-remaining`, data),
 };
 
 // Settlement API (for providers)
