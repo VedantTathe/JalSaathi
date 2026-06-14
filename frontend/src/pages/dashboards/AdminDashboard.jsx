@@ -1059,6 +1059,7 @@ const SettlementsManagement = () => {
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [selectedSettlement, setSelectedSettlement] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
+  const [providerToSettle, setProviderToSettle] = useState(null);
 
   const toggleRow = (id) => {
     setExpandedRows(prev => {
@@ -1078,6 +1079,14 @@ const SettlementsManagement = () => {
     'settlement-stats',
     adminApi.getSettlementStats
   );
+
+  const { data: providersData, isLoading: providersLoading } = useQuery(
+    ['all-providers', 'approved'],
+    () => adminApi.getAllProviders({ isApproved: 'true' })
+  );
+
+  const providers = providersData?.data?.providers || [];
+  const providersWithBalance = providers.filter(p => p.settlementRemaining > 0);
 
   const createMonthlySettlementsMutation = useMutation(
     adminApi.createMonthlySettlements,
@@ -1116,6 +1125,23 @@ const SettlementsManagement = () => {
         setShowCompleteModal(false);
         setSelectedSettlement(null);
         toast.success('Settlement completed successfully!');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to complete settlement');
+      }
+    }
+  );
+
+  const settleRemainingMutation = useMutation(
+    ({ providerId, data }) => adminApi.settleRemaining(providerId, data),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('all-providers');
+        queryClient.invalidateQueries('admin-dashboard');
+        queryClient.invalidateQueries('admin-settlements');
+        queryClient.invalidateQueries('settlement-stats');
+        toast.success('Settlement completed successfully!');
+        setProviderToSettle(null);
       },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Failed to complete settlement');
@@ -1183,6 +1209,66 @@ const SettlementsManagement = () => {
             <CheckCircle className="h-8 w-8 text-success-500" />
           </div>
         </div>
+      </div>
+
+      {/* Outstanding Balances Section */}
+      <div className="card mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Outstanding Provider Balances</h3>
+            <p className="text-sm text-gray-600">Providers with remaining settlement balances</p>
+          </div>
+        </div>
+        
+        {providersLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <LoadingSpinner />
+          </div>
+        ) : providersWithBalance.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead className="table-header">
+                <tr>
+                  <th className="table-header-cell">Provider</th>
+                  <th className="table-header-cell">Area</th>
+                  <th className="table-header-cell">Remaining Balance</th>
+                  <th className="table-header-cell">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="table-body">
+                {providersWithBalance.map((provider) => (
+                  <tr key={provider._id} className="hover:bg-gray-50">
+                    <td className="table-cell">
+                      <p className="font-medium text-gray-900">{provider.businessName}</p>
+                    </td>
+                    <td className="table-cell">
+                      <p className="text-sm text-gray-600">{provider.area}</p>
+                    </td>
+                    <td className="table-cell">
+                      <span className="font-bold text-warning-600 text-lg">
+                        {formatCurrency(provider.settlementRemaining)}
+                      </span>
+                    </td>
+                    <td className="table-cell">
+                      <button
+                        onClick={() => setProviderToSettle(provider)}
+                        className="px-3 py-1.5 bg-warning-500 text-white rounded-lg text-sm font-medium hover:bg-warning-600 transition-colors flex items-center space-x-1"
+                      >
+                        <DollarSign className="h-4 w-4" />
+                        <span>Make Settlement</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8 border-t border-gray-100 mt-4">
+            <CheckCircle className="h-10 w-10 text-success-500 mx-auto mb-2 opacity-50" />
+            <p className="text-gray-600">All providers are fully settled!</p>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -1406,6 +1492,15 @@ const SettlementsManagement = () => {
             data
           })}
           isLoading={completeSettlementMutation.isLoading}
+        />
+      )}
+
+      {providerToSettle && (
+        <MakeAdhocSettlementModal
+          provider={providerToSettle}
+          onClose={() => setProviderToSettle(null)}
+          onSettle={(data) => settleRemainingMutation.mutate({ providerId: providerToSettle._id, data })}
+          isLoading={settleRemainingMutation.isLoading}
         />
       )}
     </div>
