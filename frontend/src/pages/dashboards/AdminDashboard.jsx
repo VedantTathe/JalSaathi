@@ -1151,14 +1151,18 @@ const SettlementsManagement = () => {
 
   const settlements = settlementsData?.data?.settlements || settlementsData?.settlements || [];
   
-  // Parse stats from backend structure
+  // Calculate stats based on provider balances
+  const pendingProvidersCount = providers.filter(p => p.settlementRemaining > 0).length;
+  const completedProvidersCount = providers.filter(p => p.settlementRemaining === 0).length;
+  const totalOutstandingBalance = providers.reduce((sum, p) => sum + (p.settlementRemaining || 0), 0);
+
   const rawStats = settlementStats?.data || settlementStats;
   const stats = {
-    total: rawStats?.overall?.totalSettlements || 0,
-    pending: rawStats?.byStatus?.find(s => s._id === 'pending')?.count || 0,
+    total: providers.length || 0,
+    pending: pendingProvidersCount || 0,
     processing: rawStats?.byStatus?.find(s => s._id === 'processing')?.count || 0,
-    completed: rawStats?.byStatus?.find(s => s._id === 'completed')?.count || 0,
-    outstandingBalance: rawStats?.byStatus?.find(s => s._id === 'pending')?.totalAmount || 0
+    completed: completedProvidersCount || 0,
+    outstandingBalance: totalOutstandingBalance || 0
   };
 
   const handleCompleteSettlement = (settlement) => {
@@ -1172,7 +1176,7 @@ const SettlementsManagement = () => {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Settlements</p>
+              <p className="text-sm text-gray-600">Total Providers</p>
               <p className="text-2xl font-bold text-gray-900">{stats.total || 0}</p>
             </div>
             <DollarSign className="h-8 w-8 text-primary-500" />
@@ -1203,7 +1207,7 @@ const SettlementsManagement = () => {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Completed</p>
+              <p className="text-sm text-gray-600">Fully Settled</p>
               <p className="text-2xl font-bold text-success-600">{stats.completed || 0}</p>
             </div>
             <CheckCircle className="h-8 w-8 text-success-500" />
