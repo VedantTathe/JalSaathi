@@ -743,7 +743,7 @@ const CustomerDashboard = () => {
         </div>
 
         {/* Install App Banner — hidden if already installed or dismissed */}
-        {!isAppInstalled && !installDismissed && <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-primary-50 border border-primary-200 rounded-xl px-4 py-3 mb-6 gap-3">
+        {!isAppInstalled && !installDismissed && (deferredPrompt || isIOS) && <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-primary-50 border border-primary-200 rounded-xl px-4 py-3 mb-6 gap-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="bg-primary-100 p-2 rounded-lg flex-shrink-0">
                 <Smartphone className="h-5 w-5 text-primary-600" />

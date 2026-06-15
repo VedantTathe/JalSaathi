@@ -15,17 +15,6 @@
     @apply text-gray-900 bg-gray-50;
   }
   
-  /* Hide Google Translate top banner */
-  body {
-    top: 0 !important;
-  }
-  .goog-te-banner-frame.skiptranslate {
-    display: none !important;
-  }
-  .skiptranslate.goog-te-gadget {
-    display: none !important;
-  }
-  
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Poppins', sans-serif;
   }
