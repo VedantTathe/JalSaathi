@@ -60,7 +60,7 @@ export function usePWAInstall() {
       toast('Tap the Share button ↑ then "Add to Home Screen"', { duration: 5000 });
     } else {
       // Android / desktop — browser already installed or not eligible
-      toast('To install: open in Chrome and tap the menu → "Add to Home Screen"', {
+      toast('To install: open your browser menu (⋮) and select "Install App" or "Add to Home Screen"', {
         duration: 5000,
       });
     }
