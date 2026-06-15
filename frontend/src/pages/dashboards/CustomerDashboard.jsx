@@ -608,18 +608,18 @@ const CustomerDashboard = () => {
   };
   const navigation = [{
     key: 'dashboard',
-    name: 'Dashboard Home',
-    mobileName: 'Home',
+    name: t('nav.dashboardHome') || 'Dashboard Home',
+    mobileName: t('nav.home') || 'Home',
     icon: HomeIcon
   }, {
     key: 'my-orders',
-    name: 'My Orders',
-    mobileName: 'Orders',
+    name: t('nav.myOrders') || 'My Orders',
+    mobileName: t('nav.orders') || 'Orders',
     icon: Package
   }, {
     key: 'addresses',
-    name: 'Address Management',
-    mobileName: 'Address',
+    name: t('nav.addressManagement') || 'Address Management',
+    mobileName: t('nav.address') || 'Address',
     icon: MapPin
   }].map(item => ({
     ...item,
@@ -680,7 +680,7 @@ const CustomerDashboard = () => {
                           </span>
                         </div>
                         <p className="text-xs text-gray-600 truncate">
-                          {displayAddress.street}, {displayAddress.area}, {displayAddress.city} - {displayAddress.pincode}
+                          {t(displayAddress.street)}, {t(displayAddress.area)}, {t(displayAddress.city)} - {displayAddress.pincode}
                         </p>
                       </div>
                     </div>
@@ -725,7 +725,7 @@ const CustomerDashboard = () => {
         {/* Hero Banner with Greeting */}
         <div className="bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 rounded-2xl p-5 sm:p-8 mb-6 text-white relative overflow-hidden">
           <div className="relative z-10">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{t("customerDash.hello")}{JSON.parse(localStorage.getItem('user') || '{}')?.name?.split(' ')[0] || 'Customer'}{t("customerDash.text")}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{t("customerDash.hello")}{t(JSON.parse(localStorage.getItem('user') || '{}')?.name?.split(' ')[0] || 'Customer')}{t("customerDash.text")}</h1>
             <p className="text-primary-100 text-base sm:text-lg mb-3 sm:mb-4">{t("customerDash.whatWouldYouLike")}</p>
             
             {/* Quick Stats Row */}
@@ -808,11 +808,11 @@ const CustomerDashboard = () => {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <h3 className="font-bold text-lg text-gray-900 mb-1 group-hover:text-primary-600 transition-colors">
-                      {provider.businessName || 'Water Provider'}
+                      {t(provider.businessName || 'Water Provider')}
                     </h3>
                     <p className="text-sm text-gray-600 flex items-center">
                       <MapPin className="h-3.5 w-3.5 mr-1" />
-                      {provider.area || 'Local Area'}
+                      {t(provider.area || 'Local Area')}
                     </p>
                   </div>
                 </div>
@@ -956,7 +956,7 @@ const CustomerDashboard = () => {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div>
                   <p className="text-xs text-gray-500 mb-0.5">{t("customerDash.provider")}</p>
-                  <p className="font-semibold text-gray-900 text-sm">{order.providerId?.businessName || 'N/A'}</p>
+                  <p className="font-semibold text-gray-900 text-sm">{t(order.providerId?.businessName || 'N/A')}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 mb-0.5">{t("customerDash.quantity")}</p>
@@ -1120,9 +1120,9 @@ const CustomerDashboard = () => {
                   </div>
                 </div>
                 <div className="text-gray-700 text-sm space-y-1 mb-4">
-                  <p>{address.street}</p>
-                  <p>{address.area}</p>
-                  <p>{address.city} - {address.pincode}</p>
+                  <p>{t(address.street)}</p>
+                  <p>{t(address.area)}</p>
+                  <p>{t(address.city)} - {address.pincode}</p>
                   {address.coordinates?.latitude && address.coordinates?.longitude && <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center space-x-1 text-xs text-success-600">
                         <MapPin className="h-3 w-3" />
@@ -1167,8 +1167,8 @@ const CustomerDashboard = () => {
                     <Droplets className="h-6 w-6 text-primary-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{selectedProvider.businessName}</h3>
-                    <p className="text-sm text-gray-600">{selectedProvider.area || 'Local Area'}</p>
+                    <h3 className="font-semibold text-gray-900">{t(selectedProvider.businessName)}</h3>
+                    <p className="text-sm text-gray-600">{t(selectedProvider.area || 'Local Area')}</p>
                     <p className="text-sm text-primary-600 font-medium">{t("customerDash.rs")}{selectedProvider.pricePerCan}{t("customerDash.perCan")}</p>
                   </div>
                 </div>
@@ -1220,7 +1220,7 @@ const CustomerDashboard = () => {
                 }
               }} className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" required>
                     <option value="">{t("customerDash.selectDeliveryAddress")}</option>
-                    {normalizedAddresses.map(addr => <option key={addr._id} value={addr._id}>{t("customerDash.text2")}{addr.label.toUpperCase()} - {addr.street}, {addr.area}, {addr.city}
+                    {normalizedAddresses.map(addr => <option key={addr._id} value={addr._id}>{t("customerDash.text2")}{t(addr.label.toUpperCase())} - {t(addr.street)}, {t(addr.area)}, {t(addr.city)}
                       </option>)}
                   </select>
                   <button type="button" onClick={() => {

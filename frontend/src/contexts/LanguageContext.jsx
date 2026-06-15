@@ -26,16 +26,18 @@ export const LanguageProvider = ({ children }) => {
   };
 
   const t = (key) => {
-    // Attempt to get the translation in the current language
-    const translation = getNestedValue(translations[language], key);
-    
-    // Fallback to English if translation is missing
-    if (translation === undefined && language !== 'en') {
-      const fallbackTranslation = getNestedValue(translations.en, key);
-      return fallbackTranslation || key;
+    // When using Google Translate DOM widget, we always render the English text 
+    // to the DOM and let Google handle the translation to the target language.
+    const englishTranslation = getNestedValue(translations.en, key);
+    return englishTranslation || key;
+  };
+
+  const triggerGoogleTranslate = (langCode) => {
+    const select = document.querySelector('.goog-te-combo');
+    if (select) {
+      select.value = langCode;
+      select.dispatchEvent(new Event('change'));
     }
-    
-    return translation || key;
   };
 
   const toggleLanguage = () => {
@@ -45,8 +47,12 @@ export const LanguageProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Optionally set html lang attribute
     document.documentElement.lang = language;
+    
+    // Slight delay to ensure Google Translate script is loaded
+    setTimeout(() => {
+      triggerGoogleTranslate(language);
+    }, 500);
   }, [language]);
 
   const value = {
