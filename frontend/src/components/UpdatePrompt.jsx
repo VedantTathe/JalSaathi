@@ -70,7 +70,7 @@ const UpdatePrompt = () => {
   if (!needRefresh || isDismissed()) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-5 duration-300">
+    <div className="fixed bottom-24 sm:bottom-4 right-4 z-[9999] animate-in slide-in-from-bottom-5 duration-300">
       <div className="bg-white rounded-xl shadow-2xl border border-primary-100 p-5 max-w-sm flex flex-col gap-3 relative">
         <button
           onClick={close}
